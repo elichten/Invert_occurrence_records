@@ -92,6 +92,8 @@ setwd(file.path(RootPath, "Data_acquisition_workflow"))
 BeeBDC::dirMaker(RootPath = RootPath, RDoc = "Lichtenberg_invert_occurrence_records.R")%>%
   ## Adds paths created by this function to the environment()
   list2env(envir = parent.env(environment()))
+# Add path for custom scripts used by this project
+CustomScriptsPath <- file.path(DataPath, "Scripts")
 #***************************************
 #***************************************
 
@@ -123,7 +125,11 @@ taxonomyFile<-read_csv(file.path(DataPath,"your_taxonomic_backbone.csv"))
 ## Option 2: Discover Life's backbone for Anthophila comes with the BeeBDC download----
 ### beesTaxonomy() reads in backbone already in BeeBDC format
 
-taxonomyFile<-BeeBDC::beesTaxonomy()
+#TODO: taxonomyFile<-BeeBDC::beesTaxonomy()
+#TODO: beesTaxonomy() appears to have been downloading in the wrong "mode" for the filetype, resulting in an corrupted file.
+#TODO: This is a fixed version of that function, which should reliably work now. I still need to test it on MacOS.
+source(file.path(CustomScriptsPath, "beesTaxonomy_fixed.R"))
+taxonomyFile<-beesTaxonomyFixed()
 
 ### beesTaxonomy() often fails to download the backbone. If this happens, download the latest version of the DiscoverLife taxonomy by entering the URL provided in the "Usage" section of the beesTaxonomy help file into your browser. After downloading the file into the DiscLifePath, use base::readRDS to read in the .rds file.
 

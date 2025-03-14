@@ -3,4 +3,8 @@
 .Rhistory
 .RData
 .Ruserdata
+
+# Ignore all files within Data_acquisition_workflow
 Data_acquisition_workflow/*
+# BUT keep the Scripts subdirectory
+!Data_acquisition_workflow/Scripts
