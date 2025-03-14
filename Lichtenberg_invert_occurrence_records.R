@@ -118,7 +118,7 @@ sppList <- sppListHarmonized$species # Output list of accepted names
 ### If users have a backbone made prior to this workflow, it can be read directly into taxonomyFile for use in later steps. Ensure that column names and types match BeeBDC format (for reference, download a small test backbone using taxadbToBeeBDC()). 
 ### Key columns required for workflow: taxonomic_status, source, accid, id, [all taxonomic levels], validName, canonical, authorship, taxon_rank, valid.
 
-taxonomyFile<-read_csv(paste0(DataPath,"/your_taxonomic_backbone"))
+taxonomyFile<-read_csv(file.path(DataPath,"your_taxonomic_backbone.csv"))
 
 ## Option 2: Discover Life's backbone for Anthophila comes with the BeeBDC download----
 ### beesTaxonomy() reads in backbone already in BeeBDC format
@@ -128,7 +128,7 @@ taxonomyFile<-BeeBDC::beesTaxonomy()
 ### beesTaxonomy() often fails to download the backbone. If this happens, download the latest version of the DiscoverLife taxonomy by entering the URL provided in the "Usage" section of the beesTaxonomy help file into your browser. After downloading the file into the DiscLifePath, use base::readRDS to read in the .rds file.
 
 ?BeeBDC::beesTaxonomy # find the URL in the help file, enter into your browser and file should begin downloading
-taxonomyFile <- base::readRDS(paste0(DiscLifePath,"/beesTaxonomy_2024-06-17.Rda"))
+taxonomyFile <- base::readRDS(file.path(DiscLifePath,"beesTaxonomy_2024-06-17.Rda"))
 
 ## Option 3: download taxonomic backbone from API----
 ### It's best to download backbones at higher taxonomic level encompassing all species of interest to capture as many synonyms as possible. The backbone can then be filtered using sppList. 
@@ -159,7 +159,7 @@ taxonomyFile <- taxonomyFile %>%
 ### Discover Life
 #### Read in Discover Life taxonomy from BeeBDC. See option 2 from the single-source backbone instructions above for troubleshooting.
 
-taxDLog <- base::readRDS(paste0(DiscLifePath,"/beesTaxonomy_2024-06-17.Rda"))
+taxDLog <- base::readRDS(file.path(DiscLifePath,"beesTaxonomy_2024-06-17.Rda"))
 
 #### Format, join, and filter backbone to sppList
 
@@ -323,9 +323,9 @@ rm(acceptedIDs,joinedTaxonomy,mergedTaxonomy,taxDL,taxDLog,taxGBIF,taxGBIFog,tax
 ### Ballare et al., 2019 (Bal)
 #### Read in standardized data set
 
-Bal_std <- readr::read_csv(paste0(DataPath,
-                                  "/Additional_Datasets",
-                                  "/jbd_Bal_data.csv"),
+Bal_std <- readr::read_csv(file.path(DataPath,
+                                     "Additional_Datasets",
+                                     "jbd_Bal_data.csv"),
                            col_types = BeeBDC::ColTypeR())%>%
   mutate(city = word(locality, 1, sep = ","),
          county = word(locality, 2, sep = ","),
@@ -336,8 +336,8 @@ Bal_std <- readr::read_csv(paste0(DataPath,
 
 #### For comparison, read in the unstandardized version of Ballare data
 # Bal_Data <- BeeBDC::readr_BeeBDC(dataset = "Bal",
-#                                  path = paste0(wd, "/Additional_Datasets"),
-#                                  inFile = "/InputDatasets/Beedata_ballare.xlsx",
+#                                  path = file.path(DataPath, "Additional_Datasets"),
+#                                  inFile = file.path("InputDatasets", "Beedata_ballare.xlsx"),
 #                                 outFile = "jbd_Bal_Data.csv",
 #                                sheet = "animal_data",
 #                                dataLicense = "https://creativecommons.org/licenses/by-nc-sa/4.0/")
@@ -345,58 +345,61 @@ Bal_std <- readr::read_csv(paste0(DataPath,
 
 ### Bob Minckley data (BMin)
 
-BMin_std <- readr::read_csv(paste0(DataPath,
-                                   "/Additional_Datasets",
-                                   "/jbd_BMin_data.csv"),
+BMin_std <- readr::read_csv(file.path(DataPath,
+                                      "Additional_Datasets",
+                                      "jbd_BMin_data.csv"),
                             col_types = BeeBDC::ColTypeR())%>%
   as.data.frame()
 
 ### Ecdysis data (ECD)
 
-Ecd_std <- readr::read_csv(paste0(DataPath,
-                                  "/Additional_Datasets",
-                                  "/jbd_Ecd_data.csv"),
+Ecd_std <- readr::read_csv(file.path(DataPath,
+                                     "Additional_Datasets",
+                                     "jbd_Ecd_data.csv"),
                            col_types = BeeBDC::ColTypeR())
 
 ### Florida State Collection of Arthropods (FSCA)
 
-FSCA_std <- readr::read_csv(paste0(DataPath,
-                                   "/Additional_Datasets",
-                                   "/jbd_FSCA_data.csv"),
+FSCA_std <- readr::read_csv(file.path(DataPath,
+                                      "Additional_Datasets",
+                                      "jbd_FSCA_data.csv"),
                             col_types = BeeBDC::ColTypeR())
 
 ### US Geological Survey data (Geol)
 
-GeoL_std <- readr::read_csv(paste0(DataPath,
-                                   "/Additional_Datasets",
-                                   "/jbd_GeoL_data.csv"),
+GeoL_std <- readr::read_csv(file.path(DataPath,
+                                      "Additional_Datasets",
+                                      "jbd_GeoL_data.csv"),
                             col_types = BeeBDC::ColTypeR())
 
 ### Illinois Natural History Survey data (INHS)
 
-INHS_std <- readr::read_csv(paste0(DataPath,
-                                   "/Additional_Datasets",
-                                   "/jbd_INHS_data.csv"),
+INHS_std <- readr::read_csv(file.path(DataPath,
+                                      "Additional_Datasets",
+                                      "jbd_INHS_data.csv"),
                             col_types = BeeBDC::ColTypeR())
 
 ### K.A. Parys 2019 (KP)
 
-KP_std <- readr::read_csv(paste0(DataPath,
-                                 "/Additional_Datasets",
-                                 "/jbd_KP_data.csv"),
+KP_std <- readr::read_csv(file.path(DataPath,
+                                    "Additional_Datasets",
+                                    "jbd_KP_data.csv"),
                           col_types = BeeBDC::ColTypeR())
 
 ### Shannon Collins data set (SMC)
 
-SMC_std <- readr::read_csv(paste0(DataPath,
-                                  "/Additional_Datasets",
-                                  "/jbd_SMC_Data.csv"))%>%
+SMC_std <- readr::read_csv(file.path(DataPath,
+                                     "Additional_Datasets",
+                                     "jbd_SMC_Data.csv"))%>%
   mutate(eventDate = as.character(eventDate))
 
 ### Paige Chesshire's data (PaigeNAm)
 
-PaigeNAm <- readr::read_csv(paste(DataPath,"Additional_Datasets","Paige_data", "NorAmer_highQual_only_ALLfamilies.csv",
-                                  sep = "/"), col_types = BeeBDC::ColTypeR()) %>%
+PaigeNAm <- readr::read_csv(file.path(DataPath,
+                                      "Additional_Datasets",
+                                      "Paige_data", 
+                                      "NorAmer_highQual_only_ALLfamilies.csv"), 
+                            col_types = BeeBDC::ColTypeR()) %>%
   # Change the column name from Source to dataSource to match the rest of the data.
   dplyr::rename(dataSource = Source) %>%
   # add a NEW database_id column
@@ -406,21 +409,22 @@ PaigeNAm <- readr::read_csv(paste(DataPath,"Additional_Datasets","Paige_data", "
 
 ## Other datasets from Dorey 2023 can be loaded in here, if needed
 ### (MABC)
-# MABC_std <- readr::read_csv(paste0(DataPath, "/Additional_Datasets",
-#                                    "/jbd_MABC_data.csv"),
+# MABC_std <- readr::read_csv(file.path(DataPath, 
+#                                      "Additional_Datasets",
+#                                      "jbd_MABC_data.csv"),
 #                             col_types = BeeBDC::ColTypeR())
 
 ## EcoS
-# EcoS_std <- readr::read_csv(paste0(DataPath,
-#                                    "/Additional_Datasets",
-#                                    "/jbd_EcoS_data.csv"),
+# EcoS_std <- readr::read_csv(file.path(DataPath,
+#                                      "Additional_Datasets",
+#                                      "jbd_EcoS_data.csv"),
 #                             col_types = BeeBDC::ColTypeR())
 
 
 ## Lichtenberg data
-# Lic_std <- readr::read_csv(paste0(DataPath,
-#                                   "/Additional_Datasets",
-#                                   "/jbd_Lic_Data.csv"))%>%
+# Lic_std <- readr::read_csv(file.path(DataPath,
+#                                     "Additional_Datasets",
+#                                     "jbd_Lic_Data.csv"))%>%
 #   mutate(eventDate = as.character(eventDate))
 
 #***********
@@ -529,20 +533,24 @@ rm(Bal_std,BMin_std,Ecd_std,FSCA_std,GeoL_std,INHS_std,KP_std,SMC_std,gbifOccs,P
 ### Save the dataset
 
 db_standardized %>%
-  readr::write_excel_csv(., paste(OutPath_Intermediate, "00_prefilter_database.csv",
-                                  sep = "/"))
+  readr::write_excel_csv(., file.path(OutPath_Intermediate, 
+                                      "00_prefilter_database.csv")
+                         )
 
 # If db_standardized has been previously created and saved, read in here:
 
 if(!exists("db_standardized")){
-  db_standardized <- readr::read_csv(paste(OutPath_Intermediate, "00_prefilter_database.csv",
-                                           sep = "/"), col_types = BeeBDC::ColTypeR())}
+  db_standardized <- readr::read_csv(file.path(OutPath_Intermediate, 
+                                               "00_prefilter_database.csv"), 
+                                     col_types = BeeBDC::ColTypeR())
+  }
 
 # To re-start in the middle of the flagging and harmonization process, read in the most recent intermediate file you outputted, replacing "03_space_inter_database.csv" with that file's name.
 
 if (!exists("check_space")) {
-  check_space <- readr::read_csv(paste(OutPath_Intermediate, "03_space_inter_database.csv",
-                                       sep = "/"), col_types = ColTypeR())
+  check_space <- readr::read_csv(file.path(OutPath_Intermediate, 
+                                           "03_space_inter_database.csv"), 
+                                 col_types = ColTypeR())
 }
 
 #***************************************
@@ -682,14 +690,18 @@ check_pf <- dplyr::left_join(check_pf, countryOutput, by = "database_id", suffix
 ## Save the dataset
 
 check_pf %>%
-  readr::write_excel_csv(., paste(OutPath_Intermediate, "01_prefilter_database.csv",
-                                  sep = "/"))
+  readr::write_excel_csv(., file.path(OutPath_Intermediate, 
+                                      "01_prefilter_database.csv")
+                         )
 
 ## Read in if necessary
 
 if (!exists("check_pf")) {
-  check_pf <- readr::read_csv(paste(DataPath, "Output", "Intermediate", "01_prefilter_database.csv",
-                                    sep = "/"), col_types = BeeBDC::ColTypeR())
+  check_pf <- readr::read_csv(file.path(DataPath, 
+                                        "Output", 
+                                        "Intermediate", 
+                                        "01_prefilter_database.csv"), 
+                              col_types = BeeBDC::ColTypeR())
 }
 
 ## Remove these interim datasets
@@ -745,14 +757,16 @@ table(check_pf$coordinates_transposed, useNA = "always") # NOTE: F = transposed/
 ### Save the dataset
 
 check_pf %>%
-  readr::write_excel_csv(., paste(OutPath_Intermediate, "01_prefilter_database.csv",
-                                  sep = "/"))
+  readr::write_excel_csv(., file.path(OutPath_Intermediate, 
+                                      "01_prefilter_database.csv")
+                         )
 
 ### Read in the data again if needed
 
 if (!exists("check_pf")) {
-  check_pf <- readr::read_csv(paste(OutPath_Intermediate, "01_prefilter_database.csv",
-                                    sep = "/"), col_types = BeeBDC::ColTypeR())
+  check_pf <- readr::read_csv(file.path(OutPath_Intermediate, 
+                                    "01_prefilter_database.csv"), 
+                              col_types = BeeBDC::ColTypeR())
 }
 
 ## Flag coordinates inconsistent with country names----
@@ -764,8 +778,9 @@ check_pf <- BeeBDC::jbd_coordCountryInconsistent(data = check_pf, lon = "decimal
 ### Save dataset
 
 check_pf %>%
-  readr::write_excel_csv(., paste(OutPath_Intermediate, "01_prefilter_database.csv",
-                                  sep = "/"))
+  readr::write_excel_csv(., file.path(OutPath_Intermediate, 
+                                      "01_prefilter_database.csv")
+                         )
 
 #******
 
@@ -779,8 +794,9 @@ xyFromLocality <- bdc::bdc_coordinates_from_locality(data = check_pf, locality =
 ### Save resultant data
 
 xyFromLocality %>%
-  readr::write_excel_csv(paste(OutPath_Check, "01_coordinates_from_locality.csv",
-                               sep = "/"))
+  readr::write_excel_csv(file.path(OutPath_Check, 
+                                   "01_coordinates_from_locality.csv")
+                         )
 
 ### Remove spent data
 
@@ -819,11 +835,8 @@ check_pf <- BeeBDC::GBIFissues(data = check_pf, issueColumn = "issue", GBIFflags
 
 flagFile <- BeeBDC::flagRecorder(
   data = check_pf,
-  outPath = paste(OutPath_Report,
-                  sep =""),
-  fileName = paste0("flagsRecorded_",
-                    Sys.Date(),
-                    ".csv"),
+  outPath = OutPath_Report,
+  fileName = paste0("flagsRecorded_", Sys.Date(), ".csv"),
   # These are the columns that will be kept along with the flags
   idColumns = c("database_id",
                 "id",
@@ -859,18 +872,17 @@ check_pf <- BeeBDC::summaryFun(
 ### Save the intermediate dataset
 
 check_pf %>%
-  readr::write_excel_csv(., paste(OutPath_Intermediate,
-                                  "01_prefilter_output.csv",
-                                  sep = "/"))
+  readr::write_excel_csv(., file.path(OutPath_Intermediate,
+                                      "01_prefilter_output.csv")
+                         )
 
 #***************************************
 #----Taxonomy----
 ## Read in the filtered dataset or rename the 3.x dataset for 4.0 (refers to vignette section)
 
 if (!exists("check_pf")) {
-  database <- readr::read_csv(paste(OutPath_Intermediate, 
-                                    "01_prefilter_output.csv",
-                                    sep = "/"), 
+  database <- readr::read_csv(file.path(OutPath_Intermediate, 
+                                        "01_prefilter_output.csv"), 
                               col_types = BeeBDC::ColTypeR())
 } else {
   # OR rename and remove
@@ -922,17 +934,16 @@ rm(taxonomyFile)
 ### Save the harmonized file
 
 database %>%
-  readr::write_excel_csv(., paste(DataPath, 
-                                  "Output",
-                                  "Intermediate",
-                                  "02_taxonomy_database.csv",
-                                  sep = "/"))
+  readr::write_excel_csv(., file.path(DataPath, 
+                                      "Output",
+                                      "Intermediate",
+                                      "02_taxonomy_database.csv")
+                         )
 
 ## Save flags----
 
 flagFile <- BeeBDC::flagRecorder(data = database, 
-                                 outPath = paste(OutPath_Report,
-                                                 sep = ""), 
+                                 outPath = OutPath_Report, 
                                  fileName = paste0("flagsRecorded_", 
                                                    Sys.Date(),
                                                    ".csv"), 
@@ -951,9 +962,8 @@ flagFile <- BeeBDC::flagRecorder(data = database,
 ## Read in latest database
 
 if (!exists("database")) {
-  database <- readr::read_csv(paste(OutPath_Intermediate,
-                                    "02_taxonomy_database.csv",
-                                    sep = "/"), 
+  database <- readr::read_csv(file.path(OutPath_Intermediate,
+                                        "02_taxonomy_database.csv"), 
                               col_types = BeeBDC::ColTypeR())
 }
 
@@ -973,9 +983,9 @@ rm(database)
 ### Save resulting file
 
 check_space %>%
-  readr::write_excel_csv(., paste(OutPath_Intermediate,
-                                  "03_space_inter_database.csv",
-                                  sep = "/"))
+  readr::write_excel_csv(., file.path(OutPath_Intermediate,
+                                      "03_space_inter_database.csv")
+                         )
 
 #******
 
@@ -1038,9 +1048,9 @@ rm(tempSpace)
 ### Save the intermediate dataset
 
 check_space %>%
-  readr::write_excel_csv(paste(OutPath_Intermediate,
-                               "03_space_inter_database.csv",
-                               sep = "/"))
+  readr::write_excel_csv(file.path(OutPath_Intermediate,
+                               "03_space_inter_database.csv")
+                         )
 
 #******
 
@@ -1049,9 +1059,8 @@ check_space %>%
 ### Load most recent database, if necessary
 
 if (!exists("check_space")) {
-  check_space <- readr::read_csv(paste(OutPath_Intermediate,
-                                       "03_space_inter_database.csv",
-                                       sep = "/"), 
+  check_space <- readr::read_csv(file.path(OutPath_Intermediate,
+                                           "03_space_inter_database.csv"), 
                                  col_types = BeeBDC::ColTypeR())
 }
 
@@ -1126,9 +1135,9 @@ check_space <- check_space %>%
 ### Save the gridded_datasets file for later examination and remove.
 
 gridded_datasets %>%
-  readr::write_excel_csv(paste(OutPath_Intermediate,
-                               "03_space_griddedDatasets.csv",
-                               sep = "/"))
+  readr::write_excel_csv(file.path(OutPath_Intermediate,
+                                   "03_space_griddedDatasets.csv")
+                         )
 rm(gridded_datasets)
 
 #******
@@ -1147,8 +1156,10 @@ check_space <- BeeBDC::coordUncerFlagR(data = check_space,
 ### This step identifies mismatches between the Discover Life country checklist (beesChecklist) and your occurrence dataset for bee species, identifying potential misidentifications, outliers, etc.’
 ### Download the country-level checklist.
 
-bee.checklist <- read_csv(paste0(RootPath,
-                                 "/BDC_repo/DiscoverLife_Data/beesChecklist_2024-06-17.csv"),
+bee.checklist <- read_csv(file.path(RootPath,
+                                    "BDC_repo", 
+                                    "DiscoverLife_Data", 
+                                    "beesChecklist_2024-06-17.csv"),
                           col_types = cols(
                             subgenus = col_character(),
                             infraspecies = col_character()
@@ -1182,8 +1193,8 @@ view(check_space %>%
        dplyr::group_by(scientificName) %>%
        dplyr::mutate(count_scientificName = n()) %>%
        dplyr::distinct(scientificName, country, .keep_all = TRUE) %>%
-       readr::write_excel_csv(paste(OutPath_Intermediate, "03_space_failedCountryChecklist.csv",
-                                    sep = "/")))
+       readr::write_excel_csv(file.path(OutPath_Intermediate, "03_space_failedCountryChecklist.csv"))
+     )
 
 #******
 
@@ -1254,17 +1265,15 @@ figures$summary_all_tests
 ### Save interim dataset
 
 check_space %>%
-  readr::write_excel_csv(paste(OutPath_Intermediate,
-                               "03_space_inter_database.csv",
-                               sep = "/"))
+  readr::write_excel_csv(file.path(OutPath_Intermediate,
+                                   "03_space_inter_database.csv")
+                         )
 
 ### Save the flags so far
 
 BeeBDC::flagRecorder(data = check_space, 
-                     outPath = paste(OutPath_Report, sep = ""),
-                     fileName = paste0("flagsRecorded_", 
-                                       Sys.Date(), 
-                                       ".csv"), 
+                     outPath = OutPath_Report,
+                     fileName = paste0("flagsRecorded_", Sys.Date(), ".csv"), 
                      idColumns = c("database_id",
                                    "id",
                                    "catalogNumber",
@@ -1276,9 +1285,9 @@ BeeBDC::flagRecorder(data = check_space,
 ### Save the intermediate dataset
 
 check_space %>%
-  readr::write_excel_csv(., paste(OutPath_Intermediate,
-                                  "03_space_database.csv",
-                                  sep = "/"))
+  readr::write_excel_csv(., file.path(OutPath_Intermediate,
+                                      "03_space_database.csv")
+                         )
 
 #***************************************
 
@@ -1287,9 +1296,8 @@ check_space %>%
 ## Read in the last database, if needed
 
 if (!exists("check_space")) {
-  check_time <- readr::read_csv(paste(OutPath_Intermediate,
-                                      "03_space_database.csv",
-                                      sep = "/"),
+  check_time <- readr::read_csv(file.path(OutPath_Intermediate,
+                                          "03_space_database.csv"),
                                 col_types = BeeBDC::ColTypeR())
 } else {
   check_time <- check_space
@@ -1375,10 +1383,8 @@ figures <- BeeBDC::jbd_create_figures(data = check_time,
 ### Save all flags so far
 
 BeeBDC::flagRecorder(data = check_time,
-                     outPath = paste(OutPath_Report,
-                                     sep = ""),
-                     fileName = paste0("flagsRecorded_",
-                                       Sys.Date(), ".csv"),
+                     outPath = OutPath_Report,
+                     fileName = paste0("flagsRecorded_", Sys.Date(), ".csv"),
                      idColumns = c("database_id",
                                    "catalogNumber",
                                    "dataSource"),
@@ -1449,17 +1455,15 @@ check_time <- BeeBDC::dupeSummary(
 ## Save the dataset into the intermediate folder
 
 check_time %>%
-  readr::write_excel_csv(., paste(OutPath_Intermediate, "04_2_dup_database.csv",
-                                  sep = "/"))
+  readr::write_excel_csv(., file.path(OutPath_Intermediate, 
+                                      "04_2_dup_database.csv")
+                         )
 
 ## Save flags so far
 
 BeeBDC::flagRecorder(data = check_time,
-                     outPath = paste(OutPath_Report,
-                                     sep = ""),
-                     fileName = paste0("flagsRecorded_",
-                                       Sys.Date(),
-                                       ".csv"),
+                     outPath = OutPath_Report,
+                     fileName = paste0("flagsRecorded_", Sys.Date(), ".csv"),
                      idColumns = c("database_id",
                                    "id", 
                                    "catalogNumber", 
@@ -1520,8 +1524,9 @@ cleanData <- BeeBDC::summaryFun(
 ## Save the cleaned dataset
 
 cleanData %>%
-  readr::write_excel_csv(., paste(OutPath_Intermediate, "05_cleaned_database.csv",
-                                  sep = "/"))
+  readr::write_excel_csv(., file.path(OutPath_Intermediate, 
+                                      "05_cleaned_database.csv")
+                         )
 
 # Figures
 ## Read in most recent file of flagged duplicates, if necessary
@@ -1566,8 +1571,9 @@ BeeBDC::chordDiagramR(
 ### Read in uncleaned data if necessary
 
 if (!exists("check_time")) {
-  beeData <- readr::read_csv(paste(OutPath_Intermediate, "05_unCleaned_database.csv",
-                                   sep = "/"), col_types = BeeBDC::ColTypeR())
+  beeData <- readr::read_csv(file.path(OutPath_Intermediate, 
+                                       "05_unCleaned_database.csv"), 
+                             col_types = BeeBDC::ColTypeR())
 } else {
   beeData <- check_time
   rm(check_time)
