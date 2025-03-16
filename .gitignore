@@ -8,3 +8,6 @@
 Data_acquisition_workflow/*
 # BUT keep the Scripts subdirectory
 !Data_acquisition_workflow/Scripts
+
+# Ignore all .zip files
+*.zip

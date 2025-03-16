@@ -128,8 +128,8 @@ taxonomyFile<-read_csv(file.path(DataPath,"your_taxonomic_backbone.csv"))
 #TODO: taxonomyFile<-BeeBDC::beesTaxonomy()
 #TODO: beesTaxonomy() appears to have been downloading in the wrong "mode" for the filetype, resulting in an corrupted file.
 #TODO: This is a fixed version of that function, which should reliably work now. I still need to test it on MacOS.
-source(file.path(CustomScriptsPath, "beesTaxonomy_fixed.R"))
-taxonomyFile<-beesTaxonomyFixed()
+source(file.path(CustomScriptsPath, "BeesTaxonomy_fixed.R"))
+taxonomyFile <- beesTaxonomyFixed()
 
 ### beesTaxonomy() often fails to download the backbone. If this happens, download the latest version of the DiscoverLife taxonomy by entering the URL provided in the "Usage" section of the beesTaxonomy help file into your browser. After downloading the file into the DiscLifePath, use base::readRDS to read in the .rds file.
 
@@ -141,7 +141,7 @@ taxonomyFile <- base::readRDS(file.path(DiscLifePath,"beesTaxonomy_2024-06-17.Rd
 ### taxadbToBeeBDC() will download backbones from several sources in BeeBDC format. 
 #! add in comment about provider options and how to choose them
 
-taxonomyFile<-taxadbToBeeBDC(name = "Hymenoptera",
+taxonomyFile <- taxadbToBeeBDC(name = "Hymenoptera",
                              rank = "Order",
                              ignore_case = FALSE, # ignore_case = FALSE needs to be specified when querying Order, otherwise there is SQL error
                              provider = "gbif")
@@ -440,34 +440,11 @@ PaigeNAm <- readr::read_csv(file.path(DataPath,
 ### Users have the option of using rgbif::occ_search or rgbif::occ_download. occ_search() is only meant for smaller requests and generally not recommended for research. For larger requests, use rgbif::occ_download.
 ### See https://docs.ropensci.org/rgbif/articles/downloading_a_long_species_list.html for another example and further explanation.
 
-
 ### Set up your environment with your GBIF credentials
 
-# List of necessary GBIF credentials
-GBIF_creds <- list("GBIF_USER", "GBIF_PWD", "GBIF_EMAIL")
-# Function to set credentials in user-dialogue
-set_gbif_creds <- function() {
-  for (credential in GBIF_creds) {
-    user_input <- readline(prompt=sprintf("Enter %s: ", credential))
-    do.call(Sys.setenv, setNames(list(user_input), credential))
-  }
-}
-### Check if GBIF environment variables are already set
-### If credentials already in environment, ask to use them
-if (all(nzchar(Sys.getenv(GBIF_creds)))) {
-  user_choice <- menu(c("Yes", "No"), title = sprintf("Use credentials for %s?", Sys.getenv("GBIF_USER")))
-  # If yes, keep current env credentials
-  if (user_choice == 1) {
-    print(sprintf("Using credentials for %s", Sys.getenv("GBIF_USER")))
-    # Else, ask for new credentials
-  } else if (user_choice == 2) {
-    set_gbif_creds()
-  }
-  # If credentials not set, ask for credentials
-} else {
-  set_gbif_creds()
-}
-
+source(file.path(CustomScriptsPath, "HandleGbifCreds.R"))
+check_gbif_creds()
+  
 ### Get the taxon keys for each species in list. gbif_taxon_keys should be a long vector like this c(2977832,2977901,2977966,2977835,2977863)
 
 gbif_taxon_keys <- sppList %>% 
@@ -530,8 +507,14 @@ gbifOccs <- read_delim(file.path(DataPath,"Additional_Datasets", "your_file_name
 # Merge all occurrence data----
 ## Merge all locally-stored and API-derived datasets
 
-db_standardized<-bind_rows(Bal_std,BMin_std,Ecd_std,FSCA_std,gbifOccs,
-                           GeoL_std,INHS_std,KP_std,PaigeNAm,SMC_std)
+possible_datasets <- c("Bal_std", "BMin_std", "Ecd_std", "FSCA_std", 
+                       "gbifOccs", "GeoL_std", "INHS_std", "KP_std", 
+                       "PaigeNAm", "SMC_std")
+
+used_datasets <- Filter(function(dataset) exists(dataset), possible_datasets)
+
+db_standardized<-bind_rows(mget(used_datasets))
+
 ## Remove spent databases
  
 rm(Bal_std,BMin_std,Ecd_std,FSCA_std,GeoL_std,INHS_std,KP_std,SMC_std,gbifOccs,PaigeNAm)
