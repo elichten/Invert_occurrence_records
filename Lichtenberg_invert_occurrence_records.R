@@ -151,6 +151,7 @@ taxonomyFile <- taxadbToBeeBDC(name = "Hymenoptera",
 ## Option 4: Create taxonomic backbone from multiple sources----
 ### Read in source backbones----
 ### This process is different from above since the backbones need to be joined together, requiring a new join column and distinct column names among data frames
+
 ### Discover Life
 #### Read in Discover Life taxonomy from BeeBDC. See option 2 from the single-source backbone instructions above for troubleshooting.
 
@@ -170,14 +171,12 @@ taxGBIFog <- taxadbToBeeBDC(name = "Hymenoptera",
                             ignore_case = FALSE, # ignore_case = FALSE needs to be specified when querying Order, otherwise there is SQL error
                             provider = "gbif")
 
-
 #### Format table
 
 source(file.path(CustomScriptsPath, "FormatProviderData.R"))
 taxGBIF <- formatProviderData(taxGBIFog, 'gbif')
 
   
-
 ### ITIS
 #### ITIS API query
 
@@ -191,6 +190,7 @@ taxITISog <- taxadbToBeeBDC(name = "Hymenoptera",
 # TODO: Getting ITIS authorship currently takes prohibitively long for a large sppList
 source(file.path(CustomScriptsPath, "FormatProviderData.R"))
 taxITIS <- formatProviderData(taxITISog, 'itis')
+
 
 ### Merge backbones with priority----
 ### Join taxonomic backbones
