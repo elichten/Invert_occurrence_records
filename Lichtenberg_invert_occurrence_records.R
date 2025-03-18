@@ -92,8 +92,10 @@ setwd(file.path(RootPath, "Data_acquisition_workflow"))
 BeeBDC::dirMaker(RootPath = RootPath, RDoc = "Lichtenberg_invert_occurrence_records.R")%>%
   ## Adds paths created by this function to the environment()
   list2env(envir = parent.env(environment()))
+
 # Add path for custom scripts used by this project
 CustomScriptsPath <- file.path(DataPath, "Scripts")
+
 #***************************************
 #***************************************
 
@@ -125,16 +127,15 @@ taxonomyFile<-read_csv(file.path(DataPath,"your_taxonomic_backbone.csv"))
 ## Option 2: Discover Life's backbone for Anthophila comes with the BeeBDC download----
 ### beesTaxonomy() reads in backbone already in BeeBDC format
 
-#TODO: taxonomyFile<-BeeBDC::beesTaxonomy()
-#TODO: beesTaxonomy() appears to have been downloading in the wrong "mode" for the filetype, resulting in an corrupted file.
-#TODO: This is a fixed version of that function, which should reliably work now. I still need to test it on MacOS.
+#TODO: This is a fixed version of BeeBDC::BeesTaxonomy, which should reliably work now. Still needs to be tested on macOS
 source(file.path(CustomScriptsPath, "BeesTaxonomy_fixed.R"))
 taxonomyFile <- beesTaxonomyFixed()
 
+#TODO: Test above code and remove this section
 ### beesTaxonomy() often fails to download the backbone. If this happens, download the latest version of the DiscoverLife taxonomy by entering the URL provided in the "Usage" section of the beesTaxonomy help file into your browser. After downloading the file into the DiscLifePath, use base::readRDS to read in the .rds file.
+#BeeBDC::beesTaxonomy # find the URL in the help file, enter into your browser and file should begin downloading
+#taxonomyFile <- base::readRDS(file.path(DiscLifePath,"beesTaxonomy_2024-06-17.Rda"))
 
-?BeeBDC::beesTaxonomy # find the URL in the help file, enter into your browser and file should begin downloading
-taxonomyFile <- base::readRDS(file.path(DiscLifePath,"beesTaxonomy_2024-06-17.Rda"))
 
 ## Option 3: download taxonomic backbone from API----
 ### It's best to download backbones at higher taxonomic level encompassing all species of interest to capture as many synonyms as possible. The backbone can then be filtered using sppList. 
@@ -146,41 +147,21 @@ taxonomyFile <- taxadbToBeeBDC(name = "Hymenoptera",
                              ignore_case = FALSE, # ignore_case = FALSE needs to be specified when querying Order, otherwise there is SQL error
                              provider = "gbif")
 
-## Filter to species of interest----
-### (Optional) If needed, the taxonomyFile resulting from any of the above options can be reduced to contain only species of interest 
 
-taxonomyFile <- taxonomyFile %>%
-  left_join(
-    taxonomyFile %>%
-      dplyr::select(id, canonical, authorship),
-    by = c("accid" = "id"),
-    suffix = c("", "_accepted")
-  ) %>%
-  filter((canonical %in% sppList) |
-           (canonical_accepted %in% sppList)) # filter to only records relating to those in sppList
-
-# Or, create taxonomic backbone from multiple sources----
-## Read in source backbones----
+## Option 4: Create taxonomic backbone from multiple sources----
+### Read in source backbones----
 ### This process is different from above since the backbones need to be joined together, requiring a new join column and distinct column names among data frames
 ### Discover Life
 #### Read in Discover Life taxonomy from BeeBDC. See option 2 from the single-source backbone instructions above for troubleshooting.
 
 taxDLog <- base::readRDS(file.path(DiscLifePath,"beesTaxonomy_2024-06-17.Rda"))
 
-#### Format, join, and filter backbone to sppList
+#### Format table
 
-taxDL <- taxDLog %>%
-  mutate(joinCol = paste0(taxonomic_status, gsub("[, ]", "", validName))) %>% #creating column to be used for joining accepted info to synonym rows
-  left_join(
-    taxDLog %>%
-      dplyr::select(id, canonical, authorship),
-    by = c("accid" = "id"),
-    suffix = c("", "_accepted")
-  ) %>%
-  rename(id = paste0("dl_", id),    # Rename 'id' column by prepending 'dl_'
-         accid = paste0("dl_", accid)) %>%  # Rename 'accid' column similarly
-  rename_with(~ paste0(., "_dl"), -joinCol) 
+source(file.path(CustomScriptsPath, "FormatProviderData.R"))
+taxDL <- formatProviderData(taxDLog, 'dl')
   
+
 ### GBIF
 #### GBIF API query
 
@@ -189,44 +170,15 @@ taxGBIFog <- taxadbToBeeBDC(name = "Hymenoptera",
                             ignore_case = FALSE, # ignore_case = FALSE needs to be specified when querying Order, otherwise there is SQL error
                             provider = "gbif")
 
-#### Format, join, and filter backbone to sppList entries only
 
-taxGBIF <- taxGBIFog%>%
-  mutate(joinCol = paste0(taxonomic_status, 
-                          gsub("[, ]",
-                               "",
-                               validName))) %>%
-  left_join(taxGBIFog %>%
-              dplyr::select(id,
-                            canonical,
-                            authorship),
-            by = c("accid" = "id"),
-            suffix = c("","_accepted")) %>%
-  rename(id = paste0("gbif_", id),    # Rename 'id' column by prepending 'dl_'
-         accid = paste0("gbif_", accid)) %>%  # Rename 'accid' column similarly
-  rename_with(~ paste0(., "_gbif"), -joinCol) 
+#### Format table
+
+source(file.path(CustomScriptsPath, "FormatProviderData.R"))
+taxGBIF <- formatProviderData(taxGBIFog, 'gbif')
+
   
 
 ### ITIS
-#### The ITIS API doesn't provide authorship information in taxonomic backbone downloads, but it can be queried using taxonID (aka tsn) with ritis::taxon_authorship. Below is a function that can be mapped to the "taxonID" column to extract the numeric tsn to query authorship. This function is best used when sppList <10 species in length, as larger datasets will cause throttling issues with the ITIS api, drastically increasing processing time.
-
-get_itis_authorship <- function(taxonID) {
-  tryCatch({
-    # Extract the TSN number from the taxonID string
-    tsn <- stringr::str_extract(taxonID,
-                                "(?<=ITIS:)\\d+")
-    # If no TSN is found, return NA
-    if (is.na(tsn)) return(NA)
-    # Call the taxon_authorship function with the extracted TSN
-    result <- taxon_authorship(as.numeric(tsn))
-    # Return the authorship field
-    return(result$authorship)
-  }, error = function(e) {
-    # Return NA if an error occurs
-    return(NA)
-  })
-}
-
 #### ITIS API query
 
 taxITISog <- taxadbToBeeBDC(name = "Hymenoptera",
@@ -234,32 +186,15 @@ taxITISog <- taxadbToBeeBDC(name = "Hymenoptera",
                             ignore_case = FALSE,
                             provider = "itis")
 
-#### Format, join, and filter to species in sppList
+#### Format table
 
-taxITIS<-taxITISog%>%
-  left_join(taxITISog%>%
-              dplyr::select(id,canonical,authorship),
-            by = c("accid" = "id"),
-            suffix = c("","_accepted"))%>%
-  mutate(authorship = map_chr(taxonID,
-                              get_itis_authorship)) %>% # Using ritis::taxon_authorship() to fill authorship column
-  mutate(validName = paste0(validName,
-                            " ",
-                            authorship)) %>%
-  mutate(joinCol = paste0(taxonomic_status,
-                          gsub("[, ]",
-                               "",
-                               validName)),
-         accid = paste0("itis_",
-                        accid),
-         id = paste0("itis_",
-                     id))%>%
-  rename_with(~ paste0(.,
-                       "_itis"),
-              -joinCol)
+# TODO: Getting ITIS authorship currently takes prohibitively long for a large sppList
+source(file.path(CustomScriptsPath, "FormatProviderData.R"))
+taxITIS <- formatProviderData(taxITISog, 'itis')
 
-## Merge backbones with priority----
+### Merge backbones with priority----
 ### Join taxonomic backbones
+#TODO: This code requires all three tables to be used. Let user use whichever they want.
 
 joinedTaxonomy <- taxDL %>%
   full_join(taxGBIF,
@@ -320,11 +255,95 @@ taxonomyFile <- mergedTaxonomy %>%
 
 #### Remove spent databases
 
+# TODO: If any of these aren't defined, this will not work. Needs to be made more general.
 rm(acceptedIDs,joinedTaxonomy,mergedTaxonomy,taxDL,taxDLog,taxGBIF,taxGBIFog,taxITIS,taxITISog)
+
+## Filter to species of interest----
+### (Optional) If needed, the taxonomyFile resulting from any of the above options can be reduced to contain only species of interest 
+
+taxonomyFile <- taxonomyFile %>%
+  left_join(
+    taxonomyFile %>%
+      dplyr::select(id, canonical, authorship),
+    by = c("accid" = "id"),
+    suffix = c("", "_accepted")
+  ) %>%
+  filter((canonical %in% sppList) |
+           (canonical_accepted %in% sppList)) # filter to only records relating to those in sppList
+
+#***********
+
+# Query occurrence records from APIs----
+## GBIF
+### Users have the option of using rgbif::occ_search or rgbif::occ_download. occ_search() is only meant for smaller requests and generally not recommended for research. For larger requests, use rgbif::occ_download.
+### See https://docs.ropensci.org/rgbif/articles/downloading_a_long_species_list.html for another example and further explanation.
+
+### Set up your environment with your GBIF credentials
+
+source(file.path(CustomScriptsPath, "HandleGbifCreds.R"))
+check_gbif_creds()
+
+### Get the taxon keys for each species in list. gbif_taxon_keys should be a long vector like this c(2977832,2977901,2977966,2977835,2977863)
+
+gbif_taxon_keys <- sppList %>% 
+  name_backbone_checklist(strict = T) %>% # match to backbone 
+  filter(matchType == "EXACT") %>% # get matched names
+  pull(usageKey)
+
+### Create a bounding box for your region of interest
+
+bounding_box <- "POLYGON ((-107.24 25.6, -107.24 36.88, -92.52 36.88, -92.52 25.6, -107.24 25.6))"
+
+## Intialize download, providing search parameters as needed
+### This search looks for the taxonKeys generated in the previous step with conditions that search for occurrences in Texas and surrounding areas. 
+### For help with constructing queries, see https://docs.ropensci.org/rgbif/index.html.
+
+# TODO: What does this do if there is no bounding box provided?
+occ_download(
+  pred_in("taxonKey", gbif_taxon_keys),  # Search for all taxonKeys in the list
+  pred("occurrenceStatus", "PRESENT"),
+  pred_not(pred_in("basisOfRecord", c("FOSSIL_SPECIMEN", "LIVING_SPECIMEN", "MATERIAL_SAMPLE"))), #Excluding these types bases of record
+  pred_lte("coordinateUncertaintyInMeters", 2000), #Uncertainty less than or equal to 2000 m.
+  pred("hasCoordinate", TRUE),
+  pred_gte("year", 1960),  # Include only records from 1960 onwards
+  pred_or( #This section aims to capture the location in a way that allows for errors in either the coordinates or stateProvince fields. Users could query all available records throughout the world and flag records using BeeBDC functions for removal, but downloads can quickly become extremely large as species are added to sppListQuery
+    pred_in("stateProvince",c("Texas","Arkansas","Louisiana","Oklahoma","New Mexico","Tamaulipas", "Nuevo Leon", "Coahuila","Chihuahua")),
+    pred_within(bounding_box)
+  ),
+  format = "SIMPLE_CSV"  # Download format as CSV for easier handling
+)
+
+## Check download progress
+### After executing the download, a message will be output in the console with instructions for checking download progress, retrieving data, citation info, and other associated metadata for the download.
+
+occ_download_wait('your_download_key')
+## Load the downloaded dataset and save (this saves to the working directory unless specified with path = )
+gbifOccs <- occ_download_get('your_download_key') %>%
+  occ_download_import()
+
+## reformat to BeeBDC::colTypeR() standards
+
+gbifOccs <- gbifOccs%>%
+  mutate(dateIdentified = as.character(dateIdentified),
+         recordNumber=as.character(recordNumber),
+         database_id = paste0("GBIF_4bees_",seq_len(nrow(gbifOccs))),
+         datasetID = "GBIF_4bees"
+  )
+
+# Or load previously downloaded database
+# GBIF simple-CSV downloads default to a tab-delimited format. Change the delim argument if needed
+
+gbifOccs <- read_delim(file.path(DataPath,"Additional_Datasets", "your_file_name.csv"), delim='\t')%>%
+  mutate(dateIdentified = as.character(dateIdentified),
+         recordNumber=as.character(recordNumber),
+         database_id = paste0("GBIF_4bees_",seq_len(nrow(.))),
+         datasetID = "GBIF_4bees",
+         dataSource = 'GBIF'
+  )
 
 #*****************
 
-# Import geographically-relevant data sets (BeeBDC examples)----
+# Import local geographically-relevant data sets (BeeBDC examples)----
 ## The datasets provided by Dorey that are relevant to Texas include
 ### Ballare et al., 2019 (Bal)
 #### Read in standardized data set
@@ -433,86 +452,20 @@ PaigeNAm <- readr::read_csv(file.path(DataPath,
 #                                     "jbd_Lic_Data.csv"))%>%
 #   mutate(eventDate = as.character(eventDate))
 
-#***********
-
-# Query occurrence records from APIs----
-## GBIF
-### Users have the option of using rgbif::occ_search or rgbif::occ_download. occ_search() is only meant for smaller requests and generally not recommended for research. For larger requests, use rgbif::occ_download.
-### See https://docs.ropensci.org/rgbif/articles/downloading_a_long_species_list.html for another example and further explanation.
-
-### Set up your environment with your GBIF credentials
-
-source(file.path(CustomScriptsPath, "HandleGbifCreds.R"))
-check_gbif_creds()
-  
-### Get the taxon keys for each species in list. gbif_taxon_keys should be a long vector like this c(2977832,2977901,2977966,2977835,2977863)
-
-gbif_taxon_keys <- sppList %>% 
-  name_backbone_checklist(strict = T) %>% # match to backbone 
-  filter(matchType == "EXACT") %>% # get matched names
-  pull(usageKey) 
-
-### Create a bounding box for your region of interest
-
-texas_wkt <- "POLYGON ((-107.24 25.6, -107.24 36.88, -92.52 36.88, -92.52 25.6, -107.24 25.6))"
-
-## Intialize download, providing search parameters as needed
-### This search looks for the taxonKeys generated in the previous step with conditions that search for occurrences in Texas and surrounding areas. 
-### For help with constructing queries, see https://docs.ropensci.org/rgbif/index.html.
-
-occ_download(
-  pred_in("taxonKey", gbif_taxon_keys),  # Search for all taxonKeys in the list
-  pred("occurrenceStatus", "PRESENT"),
-  pred_not(pred_in("basisOfRecord", c("FOSSIL_SPECIMEN", "LIVING_SPECIMEN", "MATERIAL_SAMPLE"))), #Excluding these types bases of record
-  pred_lte("coordinateUncertaintyInMeters", 2000), #Uncertainty less than or equal to 2000 m.
-  pred("hasCoordinate", TRUE),
-  pred_gte("year", 1960),  # Include only records from 1960 onwards
-  pred_or( #This section aims to capture the location in a way that allows for errors in either the coordinates or stateProvince fields. Users could query all available records throughout the world and flag records using BeeBDC functions for removal, but downloads can quickly become extremely large as species are added to sppListQuery
-    pred_in("stateProvince",c("Texas","Arkansas","Louisiana","Oklahoma","New Mexico","Tamaulipas", "Nuevo Leon", "Coahuila","Chihuahua")),
-    pred_within(texas_wkt)
-  ),
-  format = "SIMPLE_CSV"  # Download format as CSV for easier handling
-)
-
-## Check download progress
-### After executing the download, a message will be output in the console with instructions for checking download progress, retrieving data, citation info, and other associated metadata for the download.
-
-occ_download_wait('your_download_key')
-  ## Load the downloaded dataset and save (this saves to the working directory unless specified with path = )
-  gbifOccs <- occ_download_get('your_download_key') %>%
-  occ_download_import()
-
-## reformat to BeeBDC::colTypeR() standards
-  
-gbifOccs <- gbifOccs%>%
-  mutate(dateIdentified = as.character(dateIdentified),
-         recordNumber=as.character(recordNumber),
-         database_id = paste0("GBIF_4bees_",seq_len(nrow(gbifOccs))),
-         datasetID = "GBIF_4bees"
-  )
-
-# Or load previously downloaded database
-# GBIF simple-CSV downloads default to a tab-delimited format. Change the delim argument if needed
-
-gbifOccs <- read_delim(file.path(DataPath,"Additional_Datasets", "your_file_name.csv"), delim='\t')%>%
-  mutate(dateIdentified = as.character(dateIdentified),
-         recordNumber=as.character(recordNumber),
-         database_id = paste0("GBIF_4bees_",seq_len(nrow(.))),
-         datasetID = "GBIF_4bees",
-         dataSource = 'GBIF'
-  )
-
 #***************************************
 
 # Merge all occurrence data----
 ## Merge all locally-stored and API-derived datasets
 
+# Take possible variable names from above
 possible_datasets <- c("Bal_std", "BMin_std", "Ecd_std", "FSCA_std", 
                        "gbifOccs", "GeoL_std", "INHS_std", "KP_std", 
                        "PaigeNAm", "SMC_std")
 
+# Filter down to variables that are currently being used in the session
 used_datasets <- Filter(function(dataset) exists(dataset), possible_datasets)
 
+# Merge datasets in filtered list
 db_standardized<-bind_rows(mget(used_datasets))
 
 ## Remove spent databases
@@ -639,8 +592,9 @@ check_pf <- bdc::bdc_basisOfRecords_notStandard(
 check_pf_noNa <- BeeBDC::countryNameCleanR(
   data = check_pf,
   ### Create a Tibble of common issues in country names and their replacements
-  commonProblems = dplyr::tibble(problem = c('U.S.A.', 'US','USA','usa','UNITED STATES',
-                                             'United States','U.S.A',"México"),
+  commonProblems = dplyr::tibble(problem = c('U.S.A.','US','USA','usa',
+                                             'UNITED STATES','United States',
+                                             'U.S.A',"México"),
                                  fix = c('United States of America','United States of America',
                                          'United States of America','United States of America',
                                          'United States of America','United States of America',
@@ -1487,11 +1441,12 @@ if (!exists("duplicates")) {
 
 ### Save uncleaned dataset
 
-check_time <- BeeBDC::summaryFun(data = check_time, dontFilterThese = c(".gridSummary",
-                                                                        ".lonFlag",
-                                                                        ".latFlag",
-                                                                        ".uncer_terms",
-                                                                        ".uncertaintyThreshold"),
+check_time <- BeeBDC::summaryFun(data = check_time, 
+                                 dontFilterThese = c(".gridSummary",
+                                                     ".lonFlag",
+                                                     ".latFlag",
+                                                     ".uncer_terms",
+                                                     ".uncertaintyThreshold"),
                                  removeFilterColumns = FALSE,
                                  filterClean = FALSE)
 
@@ -1509,6 +1464,8 @@ cleanData <- BeeBDC::summaryFun(
   removeFilterColumns = TRUE,
   # Filter to ONLY cleaned data?
   filterClean = TRUE)
+
+## TODO: We need to be able to filter by defined geographic range
 
 ## Save the cleaned dataset
 
