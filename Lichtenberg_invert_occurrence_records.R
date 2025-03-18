@@ -191,19 +191,19 @@ taxGBIFog <- taxadbToBeeBDC(name = "Hymenoptera",
 
 #### Format, join, and filter backbone to sppList entries only
 
+# TODO: I believe the rename() functions here have the "newName" = "oldName" in the wrong order
+# TODO: This also doesn't seem to filter by the sppList entries. Is it supposed to?
 taxGBIF <- taxGBIFog%>%
   mutate(joinCol = paste0(taxonomic_status, 
                           gsub("[, ]",
                                "",
                                validName))) %>%
   left_join(taxGBIFog %>%
-              dplyr::select(id,
-                            canonical,
-                            authorship),
-            by = c("accid" = "id"),
-            suffix = c("","_accepted")) %>%
-  rename(id = paste0("gbif_", id),    # Rename 'id' column by prepending 'dl_'
-         accid = paste0("gbif_", accid)) %>%  # Rename 'accid' column similarly
+              dplyr::select(id, canonical, authorship),
+              by = c("accid" = "id"),
+              suffix = c("","_accepted")) %>%
+  rename(id = paste0("gbif_", "id"),    # Rename 'id' column by prepending 'gbif_'
+         accid = paste0("gbif_", "accid")) %>%  # Rename 'accid' column similarly
   rename_with(~ paste0(., "_gbif"), -joinCol) 
   
 
