@@ -117,6 +117,9 @@ sppList <- c("Apis mellifica",  # Using outdated synonym of Apis mellifera
 sppListHarmonized <- rgbif::name_backbone_checklist(sppList) #Checking names using GBIF taxonomic backbone
 sppList <- sppListHarmonized$species # Output list of accepted names
 
+#***************************************
+#***************************************
+
 # Create taxonomyFile from a single source----
 ## Option 1: read in local taxonomic backbone----
 ### If users have a backbone made prior to this workflow, it can be read directly into taxonomyFile for use in later steps. Ensure that column names and types match BeeBDC format (for reference, download a small test backbone using taxadbToBeeBDC()). 
@@ -124,17 +127,18 @@ sppList <- sppListHarmonized$species # Output list of accepted names
 
 taxonomyFile<-read_csv(file.path(DataPath,"your_taxonomic_backbone.csv"))
 
-## Option 2: Discover Life's backbone for Anthophila comes with the BeeBDC download----
-### beesTaxonomy() reads in backbone already in BeeBDC format
+
+## Option 2: BeeBDC download of DiscoverLife's Backbone----
+### Discover Life's backbone for Anthophila comes with the BeeBDC download via beesTaxonomy()
 
 #TODO: This is a fixed version of BeeBDC::BeesTaxonomy, which should reliably work now. Still needs to be tested on macOS
 source(file.path(CustomScriptsPath, "BeesTaxonomy_fixed.R"))
 taxonomyFile <- beesTaxonomyFixed()
 
-#TODO: Test above code and remove this section
-### beesTaxonomy() often fails to download the backbone. If this happens, download the latest version of the DiscoverLife taxonomy by entering the URL provided in the "Usage" section of the beesTaxonomy help file into your browser. After downloading the file into the DiscLifePath, use base::readRDS to read in the .rds file.
-#BeeBDC::beesTaxonomy # find the URL in the help file, enter into your browser and file should begin downloading
-#taxonomyFile <- base::readRDS(file.path(DiscLifePath,"beesTaxonomy_2024-06-17.Rda"))
+#TODO: Test above code on macOS and remove this section below
+######## beesTaxonomy() often fails to download the backbone. If this happens, download the latest version of the DiscoverLife taxonomy by entering the URL provided in the "Usage" section of the beesTaxonomy help file into your browser. After downloading the file into the DiscLifePath, use base::readRDS to read in the .rds file.
+######## BeeBDC::beesTaxonomy # find the URL in the help file, enter into your browser and file should begin downloading
+######## taxonomyFile <- base::readRDS(file.path(DiscLifePath,"beesTaxonomy_2024-06-17.Rda"))
 
 
 ## Option 3: download taxonomic backbone from API----
@@ -258,6 +262,7 @@ taxonomyFile <- mergedTaxonomy %>%
 # TODO: If any of these aren't defined, this will not work. Needs to be made more general.
 rm(acceptedIDs,joinedTaxonomy,mergedTaxonomy,taxDL,taxDLog,taxGBIF,taxGBIFog,taxITIS,taxITISog)
 
+
 ## Filter to species of interest----
 ### (Optional) If needed, the taxonomyFile resulting from any of the above options can be reduced to contain only species of interest 
 
@@ -271,9 +276,12 @@ taxonomyFile <- taxonomyFile %>%
   filter((canonical %in% sppList) |
            (canonical_accepted %in% sppList)) # filter to only records relating to those in sppList
 
-#***********
+#***************************************
+#***************************************
 
-# Query occurrence records from APIs----
+# Import Occurrence Records----
+
+## Query occurrence records from APIs----
 ## GBIF
 ### Users have the option of using rgbif::occ_search or rgbif::occ_download. occ_search() is only meant for smaller requests and generally not recommended for research. For larger requests, use rgbif::occ_download.
 ### See https://docs.ropensci.org/rgbif/articles/downloading_a_long_species_list.html for another example and further explanation.
@@ -299,6 +307,7 @@ bounding_box <- "POLYGON ((-107.24 25.6, -107.24 36.88, -92.52 36.88, -92.52 25.
 ### For help with constructing queries, see https://docs.ropensci.org/rgbif/index.html.
 
 # TODO: What does this do if there is no bounding box provided?
+# TODO: Do we want to encourage modifying location predicates?
 occ_download(
   pred_in("taxonKey", gbif_taxon_keys),  # Search for all taxonKeys in the list
   pred("occurrenceStatus", "PRESENT"),
@@ -343,7 +352,8 @@ gbifOccs <- read_delim(file.path(DataPath,"Additional_Datasets", "your_file_name
 
 #*****************
 
-# Import local geographically-relevant data sets (BeeBDC examples)----
+# TODO: Note about which columns are necessary for code to run
+## Import local geographically-relevant data sets (BeeBDC examples)----
 ## The datasets provided by Dorey that are relevant to Texas include
 ### Ballare et al., 2019 (Bal)
 #### Read in standardized data set
@@ -452,9 +462,9 @@ PaigeNAm <- readr::read_csv(file.path(DataPath,
 #                                     "jbd_Lic_Data.csv"))%>%
 #   mutate(eventDate = as.character(eventDate))
 
-#***************************************
+#*****************
 
-# Merge all occurrence data----
+## Merge all occurrence data----
 ## Merge all locally-stored and API-derived datasets
 
 # Take possible variable names from above
@@ -511,8 +521,7 @@ db_standardized <- dplyr::bind_rows(beesRaw,
 
 #***************************************
 
-# Import private data - make sure it is in DarwinCore format
-
+# Import proprietary data - make sure it is in DarwinCore format
 
 #***************************************
 
