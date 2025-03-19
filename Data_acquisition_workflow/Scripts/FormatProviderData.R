@@ -32,7 +32,6 @@ formatProviderData <- function(table = NULL, provider = NULL) {
         if (is.na(tsn)) return(NA)
         # Call the taxon_authorship function with the extracted TSN
         result <- ritis::taxon_authorship(as.numeric(tsn))
-        message(result)
         # Return the authorship field
         return(result$authorship)
       }, error = function(e) {
@@ -41,7 +40,8 @@ formatProviderData <- function(table = NULL, provider = NULL) {
         return(NA)
       })
     }
-    
+    message('Getting ITIS authorship data...')
+    message('This may take a moment...')
     table <- table %>%
               mutate(table, authorship = map_chr(taxonID, get_itis_authorship),
                             validName = paste0(validName, " ", authorship))
@@ -60,6 +60,6 @@ formatProviderData <- function(table = NULL, provider = NULL) {
   
               # Suffix all column names with "_provider"
               rename_with(~ paste0(., "_", provider), -joinCol)
-  
+  message('Done.')
   return(table)
 }

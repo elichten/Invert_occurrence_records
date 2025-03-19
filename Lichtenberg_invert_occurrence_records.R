@@ -166,54 +166,47 @@ taxonomyFile <- taxadbToBeeBDC(name = "Hymenoptera",
 
 ### Discover Life
 #### Read in Discover Life taxonomy from BeeBDC. See option 2 from the single-source backbone instructions above for troubleshooting.
-
 taxDLog <- base::readRDS(file.path(DiscLifePath,"beesTaxonomy_2024-06-17.Rda"))
-
 #### Format table
-
 source(file.path(CustomScriptsPath, "FormatProviderData.R"))
 taxDL <- formatProviderData(taxDLog, 'dl')
   
 
 ### GBIF
 #### GBIF API query
-
 taxGBIFog <- taxadbToBeeBDC(name = "Hymenoptera",
                             rank = "Order",
                             ignore_case = FALSE, # ignore_case = FALSE needs to be specified when querying Order, otherwise there is SQL error
                             provider = "gbif")
-
 #### Format table
-
 source(file.path(CustomScriptsPath, "FormatProviderData.R"))
 taxGBIF <- formatProviderData(taxGBIFog, 'gbif')
 
   
 ### ITIS
 #### ITIS API query
-
 taxITISog <- taxadbToBeeBDC(name = "Hymenoptera",
                             rank = "Order",
                             ignore_case = FALSE,
                             provider = "itis")
-
 #### Format table
-
-# TODO: Getting ITIS authorship currently takes prohibitively long for a large sppList
+# TODO: Getting ITIS authorship currently takes prohibitively long for a large taxa
 source(file.path(CustomScriptsPath, "FormatProviderData.R"))
 taxITIS <- formatProviderData(taxITISog, 'itis')
 
 
 ### Merge backbones with priority----
 ### Join taxonomic backbones
+
+# Take possible tables from above
+possible_tables <- c("taxDL", "taxGBIF", "taxITIS")
+# Join tables that are currently being used in the session
+joinedTaxonomy <- possible_tables %>%
+        lapply(function(x) if (exists(x)) get(x) else NULL) %>%
+        purrr::compact() %>%
+        reduce(~ full_join(.y, .x, by="joinCol"))
+
 #TODO: This code requires all three tables to be used. Let user use whichever they want.
-
-joinedTaxonomy <- taxDL %>%
-  full_join(taxGBIF,
-            by = "joinCol") %>%
-  full_join(taxITIS,
-            by = "joinCol")
-
 ### Coalesce each triplet of columns into a single column. This will fill the coalesced column with the first non-NA value encountered. The priority of sources is determined by the order in which the columns are listed in each coalesce() function below. In this example, Discover Life is given the highest priority with GBIF and ITIS following.
 
 mergedTaxonomy <- joinedTaxonomy%>%
@@ -292,6 +285,7 @@ taxonomyFile <- taxonomyFile %>%
 
 #****************
 ## Query occurrence records from APIs----
+
 ## GBIF
 ### Users have the option of using rgbif::occ_search or rgbif::occ_download. occ_search() is only meant for smaller requests and generally not recommended for research. For larger requests, use rgbif::occ_download.
 ### See https://docs.ropensci.org/rgbif/articles/downloading_a_long_species_list.html for another example and further explanation.
@@ -301,6 +295,8 @@ taxonomyFile <- taxonomyFile %>%
 source(file.path(CustomScriptsPath, "HandleGbifCreds.R"))
 check_gbif_creds()
 
+### Collect synonyms for current sppList from 
+
 ### Get the taxon keys for each species in list. gbif_taxon_keys should be a long vector like this c(2977832,2977901,2977966,2977835,2977863)
 
 gbif_taxon_keys <- sppList %>% 
@@ -308,13 +304,8 @@ gbif_taxon_keys <- sppList %>%
   filter(matchType == "EXACT") %>% # get matched names
   pull(usageKey)
 
-gbif_taxon_keys <- c('Apis mellifica') %>% 
-  name_backbone_checklist(strict = T) %>% # match to backbone 
-  filter(matchType == "EXACT") %>% # get matched names
-  pull(usageKey)
-
 ## Intialize download, providing search parameters as needed
-### This search looks for the taxonKeys generated in the previous step with conditions that search for occurrences in Texas and surrounding areas. 
+### This search looks for the taxonKeys generated in the previous step to search for occurrence data
 ### For help with constructing queries, see https://docs.ropensci.org/rgbif/index.html.
 
 occ_download(
@@ -324,8 +315,8 @@ occ_download(
   pred_lte("coordinateUncertaintyInMeters", 2000), #Uncertainty less than or equal to 2000 m.
   pred("hasCoordinate", TRUE),
   pred_gte("year", 1960),  # Include only records from 1960 onwards
-  # Uncomment the section below to define a bounding box. Otherwise global occurrence data will be downloaded.
-  # Read more about adding predicates here: https://www.rdocumentation.org/packages/rgbif/versions/3.8.0/topics/download_predicate_dsl
+  ## Uncomment the section below to define a bounding box. Otherwise global occurrence data will be downloaded.
+  ## Read more about adding predicates here: https://www.rdocumentation.org/packages/rgbif/versions/3.8.0/topics/download_predicate_dsl
   # pred_or(
   #   pred_in("stateProvince",c("Texas","Arkansas","Louisiana","Oklahoma","New Mexico","Tamaulipas", "Nuevo Leon", "Coahuila","Chihuahua")),
   #   pred_within("POLYGON ((-107.24 25.6, -107.24 36.88, -92.52 36.88, -92.52 25.6, -107.24 25.6))")
@@ -335,6 +326,7 @@ occ_download(
 
 ## Check download progress
 ### After executing the download, a message will be output in the console with instructions for checking download progress, retrieving data, citation info, and other associated metadata for the download.
+### Copy and paste your resulting Download Key in the code below
 
 occ_download_wait('your_download_key')
 ## Load the downloaded dataset and save (this saves to the working directory unless specified with path = )
@@ -395,8 +387,8 @@ Bal_std <- readr::read_csv(file.path(DataPath,
 BMin_std <- readr::read_csv(file.path(DataPath,
                                       "Additional_Datasets",
                                       "jbd_BMin_data.csv"),
-                            col_types = BeeBDC::ColTypeR())%>%
-  as.data.frame()
+                            col_types = BeeBDC::ColTypeR()) %>%
+            as.data.frame()
 
 ### Ecdysis data (ECD)
 
@@ -447,12 +439,12 @@ PaigeNAm <- readr::read_csv(file.path(DataPath,
                                       "Paige_data", 
                                       "NorAmer_highQual_only_ALLfamilies.csv"), 
                             col_types = BeeBDC::ColTypeR()) %>%
-  # Change the column name from Source to dataSource to match the rest of the data.
-  dplyr::rename(dataSource = Source) %>%
-  # add a NEW database_id column
-  dplyr::mutate(
-    database_id = paste0("Paige_data_", 1:nrow(.)),
-    .before = scientificName)
+            # Change the column name from Source to dataSource to match the rest of the data.
+            dplyr::rename(dataSource = Source) %>%
+            # add a NEW database_id column
+            dplyr::mutate(
+              database_id = paste0("Paige_data_", 1:nrow(.)),
+              .before = scientificName)
 
 ## Other datasets from Dorey 2023 can be loaded in here, if needed
 ### (MABC)
