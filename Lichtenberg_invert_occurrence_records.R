@@ -2,9 +2,16 @@
 # Last updated: "2025-01-31 14:33:39 CST" (RLW)
 # Authors: Elinor M. Lichtenberg, Avery Pearson, Robert Whyle
 
-# Installing packages----
-## NOTE: Only code for installation of BeeBDC-related packages shown below, but also need to install/use packages "countrycode", "rgbif","spocc","taxize", and "tidyverse". 
-## NOTE: Remove ### to install packages as needed.
+
+#************************************
+#************************************
+
+# ----Project Setup----
+
+#****************
+## Install packages----
+### NOTE: Only code for installation of BeeBDC-related packages shown below, but also need to install/use packages "countrycode", "rgbif","spocc","taxize", and "tidyverse". 
+### NOTE: Remove ### to install packages as needed.
 
 # First, install BiocManager, devtools, ComplexHeatmap, and rnaturalearthhires. Complete these installations prior to installing BeeBDC
 ## NOTE: Dorey provides code for managing packages for with "renv", but we don't use it here.
@@ -42,8 +49,8 @@ lapply(c("ComplexHeatmap", "magrittr"), library, character.only = TRUE)
 
 ### See https://github.com/gnames/gnparser#installation
 
-#**********
-# Load libraries----
+#****************
+### Load libraries----
 # NOTE: Jump here if all above packages have been installed previously
 
 library(rgbif)
@@ -60,16 +67,8 @@ library(raster)
 library(red)
 library(purrr)
 
-#**********
-#**********
-
-# Store the default par settings so they can be restored
-.pardefaults <- par(no.readonly = T)
-
-#***************************************
-#***************************************
-
-# Set up environment----
+#****************
+## Set up environment----
 
 ## Set root folder - these file paths may need to be adjusted based on your file path location
 ## Default root is the directory containing this .Rproj file
@@ -96,10 +95,15 @@ BeeBDC::dirMaker(RootPath = RootPath, RDoc = "Lichtenberg_invert_occurrence_reco
 # Add path for custom scripts used by this project
 CustomScriptsPath <- file.path(DataPath, "Scripts")
 
-#***************************************
-#***************************************
+## Store the default par settings so they can be restored
+.pardefaults <- par(no.readonly = T)
 
-# Create species list----
+
+#************************************
+#************************************
+
+# ----Create species list----
+
 ## Create a list of accepted canonical (no authorship included) names of your species of interest. This list will be used to filter and reduce the size of backbones. It can also be used for querying occurrence records in later steps.
 
 sppList <- c("Apis mellifera",
@@ -117,18 +121,22 @@ sppList <- c("Apis mellifica",  # Using outdated synonym of Apis mellifera
 sppListHarmonized <- rgbif::name_backbone_checklist(sppList) #Checking names using GBIF taxonomic backbone
 sppList <- sppListHarmonized$species # Output list of accepted names
 
-#***************************************
-#***************************************
 
-# Create taxonomyFile from a single source----
-## Option 1: read in local taxonomic backbone----
+#************************************
+#************************************
+
+# ----Create taxonomyFile----
+
+#****************
+## taxonomyFile From a Single Source----
+### Option 1: read in local taxonomic backbone----
 ### If users have a backbone made prior to this workflow, it can be read directly into taxonomyFile for use in later steps. Ensure that column names and types match BeeBDC format (for reference, download a small test backbone using taxadbToBeeBDC()). 
 ### Key columns required for workflow: taxonomic_status, source, accid, id, [all taxonomic levels], validName, canonical, authorship, taxon_rank, valid.
 
 taxonomyFile<-read_csv(file.path(DataPath,"your_taxonomic_backbone.csv"))
 
 
-## Option 2: BeeBDC download of DiscoverLife's Backbone----
+### Option 2: BeeBDC download of DiscoverLife's Backbone----
 ### Discover Life's backbone for Anthophila comes with the BeeBDC download via beesTaxonomy()
 
 #TODO: This is a fixed version of BeeBDC::BeesTaxonomy, which should reliably work now. Still needs to be tested on macOS
@@ -141,7 +149,7 @@ taxonomyFile <- beesTaxonomyFixed()
 ######## taxonomyFile <- base::readRDS(file.path(DiscLifePath,"beesTaxonomy_2024-06-17.Rda"))
 
 
-## Option 3: download taxonomic backbone from API----
+### Option 3: download taxonomic backbone from API----
 ### It's best to download backbones at higher taxonomic level encompassing all species of interest to capture as many synonyms as possible. The backbone can then be filtered using sppList. 
 ### taxadbToBeeBDC() will download backbones from several sources in BeeBDC format. 
 #! add in comment about provider options and how to choose them
@@ -151,8 +159,8 @@ taxonomyFile <- taxadbToBeeBDC(name = "Hymenoptera",
                              ignore_case = FALSE, # ignore_case = FALSE needs to be specified when querying Order, otherwise there is SQL error
                              provider = "gbif")
 
-
-## Option 4: Create taxonomic backbone from multiple sources----
+#****************
+## Create taxonomic backbone from multiple sources----
 ### Read in source backbones----
 ### This process is different from above since the backbones need to be joined together, requiring a new join column and distinct column names among data frames
 
@@ -276,11 +284,13 @@ taxonomyFile <- taxonomyFile %>%
   filter((canonical %in% sppList) |
            (canonical_accepted %in% sppList)) # filter to only records relating to those in sppList
 
-#***************************************
-#***************************************
 
-# Import Occurrence Records----
+#************************************
+#************************************
 
+# ----Import Occurrence Records----
+
+#****************
 ## Query occurrence records from APIs----
 ## GBIF
 ### Users have the option of using rgbif::occ_search or rgbif::occ_download. occ_search() is only meant for smaller requests and generally not recommended for research. For larger requests, use rgbif::occ_download.
@@ -350,13 +360,12 @@ gbifOccs <- read_delim(file.path(DataPath,"Additional_Datasets", "your_file_name
          dataSource = "GBIF"
   )
 
-#*****************
-
-# TODO: Note about which columns are necessary for code to run
+#****************
 ## Import local geographically-relevant data sets (BeeBDC examples)----
 ## The datasets provided by Dorey that are relevant to Texas include
 ### Ballare et al., 2019 (Bal)
 #### Read in standardized data set
+# TODO: Create note about which columns are necessary for code to run
 
 # TODO: Make sure this is the cleaned dataset
 Bal_std <- readr::read_csv(file.path(DataPath,
@@ -464,8 +473,7 @@ PaigeNAm <- readr::read_csv(file.path(DataPath,
 #                                     "jbd_Lic_Data.csv"))%>%
 #   mutate(eventDate = as.character(eventDate))
 
-#*****************
-
+#****************
 ## Merge all occurrence data----
 ## Merge all locally-stored and API-derived datasets
 
@@ -473,10 +481,8 @@ PaigeNAm <- readr::read_csv(file.path(DataPath,
 possible_datasets <- c("Bal_std", "BMin_std", "Ecd_std", "FSCA_std", 
                        "gbifOccs", "GeoL_std", "INHS_std", "KP_std", 
                        "PaigeNAm", "SMC_std")
-
 # Filter down to variables that are currently being used in the session
 used_datasets <- Filter(function(dataset) exists(dataset), possible_datasets)
-
 # Merge datasets in filtered list
 db_standardized<-bind_rows(mget(used_datasets))
 
@@ -507,8 +513,7 @@ if (!exists("check_space")) {
                                  col_types = ColTypeR())
 }
 
-#***************************************
-
+#****************
 # (Optional) Load sample datasets provided by BeeBDC package for working through the code. Only do this if you want to quickly run through the workflow with a dataset small enough to run quickly even in RAM-heavy operations
 
 data("bees3sp",
@@ -521,43 +526,42 @@ db_standardized <- dplyr::bind_rows(beesRaw,
                                   dplyr::select(tidyselect::all_of(colnames(beesRaw)),
                                                 countryCode))
 
-#***************************************
-
+#****************
 # Import proprietary data - make sure it is in DarwinCore format
 
-#***************************************
 
-#---Flags----
+#************************************
+#************************************
 
+# ----Flag Data----
+
+#****************
 ## Flag occurrences without scientificName present----
 ### Adds column ".scientificName_empty"
 
 check_pf <- bdc::bdc_scientificName_empty(data = db_standardized,
                                           sci_names = "scientificName")
-#******
-# Remove dbstandard dataset to reduce data storage space
+
+# Remove db_standardized dataset to reduce data storage space
 
 rm(db_standardized) 
 
-#******
-
+#****************
 ## Flag occurrences with missing decimalLatitude and decimalLongitude----
 ### Adds column ".coordinates_empty"
 
 check_pf <- bdc::bdc_coordinates_empty(data = check_pf, lat = "decimalLatitude",
                                        lon = "decimalLongitude")
 
-#******
-
+#****************
 ## Flag occurences that are not on Earth----
 ### Adds column ".coordinates_outOfRange"
 
 check_pf <- bdc::bdc_coordinates_outOfRange(data = check_pf, lat = "decimalLatitude",
                                             lon = "decimalLongitude")
 
-#******
-
-## Flag occurrences that don't match the basisOfRecord types below----  
+#****************
+## Flag occurrences that don't match basisOfRecord types ----  
 ### user decides what the acceptable forms of data are here - modify as necessary
 ### Adds column ".basisOfRecords_notStandard"
 
@@ -595,8 +599,7 @@ check_pf <- bdc::bdc_basisOfRecords_notStandard(
     "None", "Pinned Specimen", "Voucher reared", "Emerged specimen"
   ))
 
-#******
-
+#****************
 ## Harmonize country names----
 ### Create a separate dataset with harmonized country names and associated info
 
@@ -630,7 +633,6 @@ suppressWarnings(
                                            mc.cores = 1),
   classes = "warning")
 
-
 ## Re-Merge
 ### Join these datasets
 
@@ -662,8 +664,7 @@ if (!exists("check_pf")) {
 
 rm(check_pf_noNa, countryOutput)
 
-#******
-
+#****************
 ## Standardize country names and add ISO2 codes, if needed----
 ### Adds two columns: "country_suggested" and "countryCode", removes these columns prior to running in an instance when the dataset contains these columns from previous runs. 
 
@@ -736,9 +737,8 @@ check_pf %>%
                                       "01_prefilter_database.csv")
                          )
 
-#******
-
-## GeoRefIssue----
+#****************
+## Flag GeoRef Issues----
 ### This function identifies records whose coordinates can potentially be extracted from locality
 ### information, which must be manually checked later.
 
@@ -756,15 +756,13 @@ xyFromLocality %>%
 
 rm(xyFromLocality)
 
-#******
-
+#****************
 ## Flag records marked as "absent"----
 ### Run function
 
 check_pf <- BeeBDC::flagAbsent(data = check_pf,PresAbs = "occurrenceStatus") #if occurrenceStatus is absent, skip this step
 
-#******
-
+#****************
 ## Flag License----
 ### Flag the records that may not be used according to their license information.
 
@@ -773,16 +771,14 @@ check_pf <- BeeBDC::flagLicense(data = check_pf,
                                 # DON'T flag if in the following dataSource(s)
                                 excludeDataSource = NULL)
 
-#******
-
-## GBIF issue----
+#****************
+## Flag GBIF issues----
 ### Flag select issues that are flagged by GBIF
 
 check_pf <- BeeBDC::GBIFissues(data = check_pf, issueColumn = "issue", GBIFflags = c("COORDINATE_INVALID",
                                                                                      "ZERO_COORDINATE"))
 
-#******
-
+#****************
 ## Flag reports----
 ### Save flags
 #### Save the flags so far. This function will make sure that you keep a copy of everything that has been flagged up until now. This will be updated throughout the script and can accessed at the end, so be wary of moving files around manually. However, these data  will also still be maintained in the main running file, so this is an optional fail-safe.
@@ -799,7 +795,6 @@ flagFile <- BeeBDC::flagRecorder(
                 "dataSource"),
   # TRUE if you want to find a file from a previous part of the script to append to
   append = FALSE)
-
 
 ### Update the .summary column
 
@@ -820,8 +815,7 @@ check_pf <- BeeBDC::summaryFun(
                                   workflow_step = "prefilter",
                                   save_report = TRUE))
 
-#******
-
+#****************
 ## Save----
 ### Save the intermediate dataset
 
@@ -830,8 +824,12 @@ check_pf %>%
                                       "01_prefilter_output.csv")
                          )
 
-#***************************************
+
+#************************************
+#************************************
+
 #----Taxonomy----
+
 ## Read in the filtered dataset or rename the 3.x dataset for 4.0 (refers to vignette section)
 
 if (!exists("check_pf")) {
@@ -850,8 +848,7 @@ if (!exists("check_pf")) {
 database <- database %>%
   dplyr::select(!tidyselect::any_of("names_clean"))
 
-#******                
-
+#****************             
 ## Prep data names----
 ### This step cleans the database's scientificName column
 
@@ -870,8 +867,7 @@ database <- dplyr::bind_cols(database,
                              parse_names)
 rm(parse_names)
 
-#*****
-
+#****************
 ## Harmonize taxonomy----
 ### Download custom taxonomy file from the BeeBDC package and DiscoverLife website
 ### Harmonize the names in the occurrence tibble.This flags the occurrences without a matched name and matches names to their correct name according to Discover Life. You can also use multiple cores to achieve this. See ‘?harmoniseR()’ for details.
@@ -909,7 +905,8 @@ flagFile <- BeeBDC::flagRecorder(data = database,
                                  printSummary = TRUE)
 
 
-#***************************************
+#************************************
+#************************************
 
 #----Space----
 
@@ -941,8 +938,7 @@ check_space %>%
                                       "03_space_inter_database.csv")
                          )
 
-#******
-
+#****************
 ## Common spatial issues----
 
 ### Only run for occurrences through clean_coordinates() that are spatially "valid"
@@ -1006,9 +1002,8 @@ check_space %>%
                                "03_space_inter_database.csv")
                          )
 
-#******
-
-## Diagonal + grid
+#****************
+## Diagonal and Grid Issues----
 
 ### Load most recent database, if necessary
 
@@ -1094,8 +1089,7 @@ gridded_datasets %>%
                          )
 rm(gridded_datasets)
 
-#******
-
+#****************
 ## Uncertainty----
 
 ### Flag records that exceed a coordinateUncertaintyInMeters threshold
@@ -1103,9 +1097,8 @@ rm(gridded_datasets)
 check_space <- BeeBDC::coordUncerFlagR(data = check_space, 
                                        uncerColumn = "coordinateUncertaintyInMeters",
                                        threshold = 1000)
-#******
-
-## Country checklist----
+#****************
+## Country Checklist----
 
 ### This step identifies mismatches between the Discover Life country checklist (beesChecklist) and your occurrence dataset for bee species, identifying potential misidentifications, outliers, etc.’
 ### Download the country-level checklist.
@@ -1150,9 +1143,8 @@ view(check_space %>%
        readr::write_excel_csv(file.path(OutPath_Intermediate, "03_space_failedCountryChecklist.csv"))
      )
 
-#******
-
-## Map spatial errors----
+#****************
+## Map Spatial Errors----
 
 ### Assemble maps of potential spatial errors and outliers, either one flag at a time or using the .summary column. 
 ### First, you need to rebuild the .summary column.
@@ -1174,9 +1166,8 @@ check_space %>%
     size = 0.9
   )
 
-#******
-
-## Space report----
+#****************
+## Space Report----
 
 ### Create the report using bdc
 
@@ -1186,9 +1177,8 @@ check_space %>%
                                   workflow_step = "space",
                                   save_report = TRUE))
 
-#******
-
-## Space figures----
+#****************
+## Space Figures----
 
 ### Create figures for the spatial data filtering results
 
@@ -1243,9 +1233,11 @@ check_space %>%
                                       "03_space_database.csv")
                          )
 
-#***************************************
 
-# ----Time----
+#************************************
+#************************************
+
+# ----Time Issues----
 
 ## Read in the last database, if needed
 
@@ -1285,6 +1277,7 @@ check_time$year <- ifelse(check_time$year > lubridate::year(Sys.Date()) | check_
 check_time$month <- ifelse(check_time$month > 12 | check_time$month < 1, NA, check_time$month)
 check_time$day <- ifelse(check_time$day > 31 | check_time$day < 1, NA, check_time$day)
 
+#****************
 ## Recover dates----
 
 ### The dateFindR() function will search through some other columns in order to find and rescue dates that may not have made it into the correct columns. It will further update the eventDate, day, month, and year columns where these data were a) missing and b) located in one of the searched columns.
@@ -1295,18 +1288,21 @@ check_time <- BeeBDC::dateFindR(data = check_time,
                                 # Years below this are removed (from the recovered dates only)
                                 minYear = 1700)
 
+#****************
 ## No eventDate----
 
 ### Flag records missing eventDate
 
 check_time <- bdc::bdc_eventDate_empty(data = check_time, eventDate = "eventDate")
 
+#****************
 ## Old records----
 
 ### This will flag records prior to the date selected. 1970 is frequently chosen for SDM work. You may not need to filter old records at all, so think critically about your use. We have chosen 1950 as a lower extreme.
 
 check_time <- bdc::bdc_year_outOfRange(data = check_time, eventDate = "year", year_threshold = 1950)
 
+#****************
 ## Time report----
 
 ### Create a time report that updates the .summary column
@@ -1320,6 +1316,7 @@ check_time <- BeeBDC::summaryFun(
   # Filter to ONLY cleaned data?
   filterClean = FALSE)
 
+#****************
 ## Time figures----
 
 ### Create time results figures
@@ -1332,6 +1329,7 @@ figures <- BeeBDC::jbd_create_figures(data = check_time,
 
 ### You can check figures. For example, run figures$year
 
+#****************
 ## Save flags----
 
 ### Save all flags so far
@@ -1346,9 +1344,16 @@ BeeBDC::flagRecorder(data = check_time,
                      printSummary = TRUE)
 
 
+#************************************
+#************************************
+
 # ----De-duplication----
 
-## We will FLAG duplicates here. These input columns can be hacked to de-duplicate as you wish. This function uses user-specified inputs and columns to identify duplicate occurrence records. Duplicates are identified iteratively and will be tallied up, duplicate pairs clustered, and sorted at the end of the function. The function is designed to work with Darwin Core data with a database_id column, but it is also modifiable to work with other columns. I would encourage you to see ‘?dupeSummary()’ for more details as this function is quite modifiable to user needs.
+## We will FLAG duplicates here. These input columns can be hacked to de-duplicate as you wish. 
+## This function uses user-specified inputs and columns to identify duplicate occurrence records.
+## Duplicates are identified iteratively and will be tallied up, duplicate pairs clustered, and sorted at the end of the function. 
+## The function is designed to work with Darwin Core data with a database_id column, but it is also modifiable to work with other columns. 
+## I would encourage you to see ‘?dupeSummary()’ for more details as this function is quite modifiable to user needs.
 
 check_time <- BeeBDC::dupeSummary(
   data = check_time,
@@ -1427,8 +1432,9 @@ BeeBDC::flagRecorder(data = check_time,
                      printSummary = TRUE)
 
 
-#***************************************
-#***************************************
+#************************************
+#************************************
+
 #----Data filtering----
 
 # Read in the most-recent duplicates file (generated by dupeSummary()) in order to identify the duplicates of the expert outliers
@@ -1479,13 +1485,18 @@ cleanData <- BeeBDC::summaryFun(
 ## TODO: We need to be able to filter by defined geographic range
 
 ## Save the cleaned dataset
-
+# TODO: Check if this makes a directory
 cleanData %>%
-  readr::write_excel_csv(., file.path(OutPath_Intermediate, 
+  readr::write_excel_csv(., file.path(OutPath,
+                                      "Cleaned",
                                       "05_cleaned_database.csv")
                          )
 
-# Figures
+
+#************************************
+#************************************
+
+# ----Plots and Figures----
 ## Read in most recent file of flagged duplicates, if necessary
 
 if (!exists("duplicates")) {
@@ -1554,8 +1565,11 @@ BeeBDC::dupePlotR(
   ASP = "ASP", CAES = "CAES", Ecd = "Ecd",
   returnPlot = TRUE
 )
-#***************************************
-#***************************************
+
+
+#************************************
+#************************************
+
 #----Prepping data for NatureServe analysis----
 
 # using test file - will need to fix this when we have the real dataset
