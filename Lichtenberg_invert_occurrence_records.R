@@ -347,7 +347,7 @@ gbifOccs <- read_delim(file.path(DataPath,"Additional_Datasets", "your_file_name
          recordNumber=as.character(recordNumber),
          database_id = paste0("GBIF_4bees_",seq_len(nrow(.))),
          datasetID = "GBIF_4bees",
-         dataSource = 'GBIF'
+         dataSource = "GBIF"
   )
 
 #*****************
@@ -358,6 +358,7 @@ gbifOccs <- read_delim(file.path(DataPath,"Additional_Datasets", "your_file_name
 ### Ballare et al., 2019 (Bal)
 #### Read in standardized data set
 
+# TODO: Make sure this is the cleaned dataset
 Bal_std <- readr::read_csv(file.path(DataPath,
                                      "Additional_Datasets",
                                      "jbd_Bal_data.csv"),
@@ -369,6 +370,7 @@ Bal_std <- readr::read_csv(file.path(DataPath,
          countryCode = "US", # Assuming country code for the USA is "US"
          basisOfRecord = "HUMAN_OBSERVATION")
 
+# TODO: Remove this code
 #### For comparison, read in the unstandardized version of Ballare data
 # Bal_Data <- BeeBDC::readr_BeeBDC(dataset = "Bal",
 #                                  path = file.path(DataPath, "Additional_Datasets"),
