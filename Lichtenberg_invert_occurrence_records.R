@@ -308,16 +308,15 @@ gbif_taxon_keys <- sppList %>%
   filter(matchType == "EXACT") %>% # get matched names
   pull(usageKey)
 
-### Create a bounding box for your region of interest
-
-bounding_box <- "POLYGON ((-107.24 25.6, -107.24 36.88, -92.52 36.88, -92.52 25.6, -107.24 25.6))"
+gbif_taxon_keys <- c('Apis mellifica') %>% 
+  name_backbone_checklist(strict = T) %>% # match to backbone 
+  filter(matchType == "EXACT") %>% # get matched names
+  pull(usageKey)
 
 ## Intialize download, providing search parameters as needed
 ### This search looks for the taxonKeys generated in the previous step with conditions that search for occurrences in Texas and surrounding areas. 
 ### For help with constructing queries, see https://docs.ropensci.org/rgbif/index.html.
 
-# TODO: What does this do if there is no bounding box provided?
-# TODO: Do we want to encourage modifying location predicates?
 occ_download(
   pred_in("taxonKey", gbif_taxon_keys),  # Search for all taxonKeys in the list
   pred("occurrenceStatus", "PRESENT"),
@@ -325,10 +324,12 @@ occ_download(
   pred_lte("coordinateUncertaintyInMeters", 2000), #Uncertainty less than or equal to 2000 m.
   pred("hasCoordinate", TRUE),
   pred_gte("year", 1960),  # Include only records from 1960 onwards
-  pred_or( #This section aims to capture the location in a way that allows for errors in either the coordinates or stateProvince fields. Users could query all available records throughout the world and flag records using BeeBDC functions for removal, but downloads can quickly become extremely large as species are added to sppListQuery
-    pred_in("stateProvince",c("Texas","Arkansas","Louisiana","Oklahoma","New Mexico","Tamaulipas", "Nuevo Leon", "Coahuila","Chihuahua")),
-    pred_within(bounding_box)
-  ),
+  # Uncomment the section below to define a bounding box. Otherwise global occurrence data will be downloaded.
+  # Read more about adding predicates here: https://www.rdocumentation.org/packages/rgbif/versions/3.8.0/topics/download_predicate_dsl
+  # pred_or(
+  #   pred_in("stateProvince",c("Texas","Arkansas","Louisiana","Oklahoma","New Mexico","Tamaulipas", "Nuevo Leon", "Coahuila","Chihuahua")),
+  #   pred_within("POLYGON ((-107.24 25.6, -107.24 36.88, -92.52 36.88, -92.52 25.6, -107.24 25.6))")
+  #),
   format = "SIMPLE_CSV"  # Download format as CSV for easier handling
 )
 
