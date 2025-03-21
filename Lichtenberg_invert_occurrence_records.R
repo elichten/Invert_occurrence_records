@@ -190,7 +190,8 @@ taxITISog <- taxadbToBeeBDC(name = "Hymenoptera",
                             ignore_case = FALSE,
                             provider = "itis")
 #### Format table
-# TODO: Getting ITIS authorship currently takes prohibitively long for a large taxa
+# TODO: Getting ITIS authorship currently takes prohibitively long for large taxa
+# TODO: The best option is mostly likely to do a custom download from the ITIS data hosted on GBIF
 source(file.path(CustomScriptsPath, "FormatProviderData.R"))
 taxITIS <- formatProviderData(taxITISog, 'itis')
 
@@ -209,34 +210,8 @@ joinedTaxonomy <- possible_tables %>%
 #TODO: This code requires all three tables to be used. Let user use whichever they want.
 ### Coalesce each triplet of columns into a single column. This will fill the coalesced column with the first non-NA value encountered. The priority of sources is determined by the order in which the columns are listed in each coalesce() function below. In this example, Discover Life is given the highest priority with GBIF and ITIS following.
 
-mergedTaxonomy <- joinedTaxonomy%>%
-  mutate(flags = coalesce(flags_dl, flags_gbif, flags_itis),
-         taxonomic_status = coalesce(taxonomic_status_dl, taxonomic_status_gbif, taxonomic_status_itis),
-         source = coalesce(source_dl, source_gbif, source_itis),
-         accid = coalesce(accid_dl, accid_gbif, accid_itis),
-         id = coalesce(id_dl, id_gbif, id_itis),
-         kingdom = coalesce(kingdom_dl, kingdom_gbif, kingdom_itis),
-         phylum = coalesce(phylum_dl, phylum_gbif, phylum_itis),
-         class = coalesce(class_dl, class_gbif, class_itis),
-         order = coalesce(order_dl, order_gbif, order_itis),
-         family = coalesce(family_dl, family_gbif, family_itis),
-         subfamily = coalesce(subfamily_dl, subfamily_gbif, subfamily_itis),
-         tribe = coalesce(tribe_dl, tribe_gbif, tribe_itis),
-         subtribe = coalesce(subtribe_dl, subtribe_gbif, subtribe_itis),
-         validName = coalesce(validName_dl, validName_gbif, validName_itis),
-         canonical = coalesce(canonical_dl, canonical_gbif, canonical_itis),
-         canonical_withFlags = coalesce(canonical_withFlags_dl, canonical_withFlags_gbif, canonical_withFlags_itis),
-         genus = coalesce(genus_dl, genus_gbif, genus_itis),
-         subgenus = coalesce(subgenus_dl, subgenus_gbif, subgenus_itis),
-         species = coalesce(species_dl, species_gbif, species_itis),
-         infraspecies = coalesce(infraspecies_dl, infraspecies_gbif, infraspecies_itis),
-         authorship = coalesce(authorship_dl, authorship_gbif, authorship_itis),
-         taxon_rank = coalesce(taxon_rank_dl, taxon_rank_gbif, taxon_rank_itis),
-         valid = coalesce(valid_dl, valid_gbif, valid_itis),
-         notes = coalesce(notes_dl, notes_gbif, notes_itis),
-         canonical_accepted = coalesce(canonical_accepted_dl,canonical_accepted_gbif,canonical_accepted_itis),
-         authorship_accepted = coalesce(authorship_accepted_dl,authorship_accepted_gbif,authorship_accepted_itis))%>%
-  dplyr::select(colnames(taxDLog),canonical_accepted,authorship_accepted)
+source(file.path(CustomScriptsPath, "MergeTaxonomy.R"))
+taxonomyFile <- mergeTaxonomy(joinedTaxonomy, c('dl', 'gbif', 'itis'))
 
 ### Correct orphaned accids
 #### Create a reference table for instances of orphaned accids. This happens when a unique synonym occurs in a lower-priority taxonomic backbone but refers to an accepted name shared by a higher priority backbone.

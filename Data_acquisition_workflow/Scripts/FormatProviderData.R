@@ -55,11 +55,11 @@ formatProviderData <- function(table = NULL, provider = NULL) {
                                            "", 
                                            validName)
                                       ),
-                           accid = paste0(provider, "_", accid),  # Prefix ID values with "provider_"
-                           id = paste0(provider, "_", id)) %>%
+                     accid = paste0(provider, "_", accid),  # Prefix ID values with "provider_"
+                     id = paste0(provider, "_", id)) %>%
   
               # Suffix all column names with "_provider"
               rename_with(~ paste0(., "_", provider), -joinCol)
-  message('Done.')
+  message('Done')
   return(table)
 }
