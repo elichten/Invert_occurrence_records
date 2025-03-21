@@ -141,7 +141,7 @@ taxonomyFile<-read_csv(file.path(DataPath,"your_taxonomic_backbone.csv"))
 
 #TODO: This is a fixed version of BeeBDC::BeesTaxonomy, which should reliably work now. Still needs to be tested on macOS
 source(file.path(CustomScriptsPath, "BeesTaxonomy_fixed.R"))
-taxonomyFile <- beesTaxonomyFixed()
+taxonomyFile <- beesTaxonomy_fixed()
 
 #TODO: Test above code on macOS and remove this section below
 ######## beesTaxonomy() often fails to download the backbone. If this happens, download the latest version of the DiscoverLife taxonomy by entering the URL provided in the "Usage" section of the beesTaxonomy help file into your browser. After downloading the file into the DiscLifePath, use base::readRDS to read in the .rds file.
@@ -171,7 +171,7 @@ taxonomyFile <- taxadbToBeeBDC(name = "Hymenoptera",
 taxDLog <- base::readRDS(file.path(DiscLifePath,"beesTaxonomy_2024-06-17.Rda"))
 #### Format table
 source(file.path(CustomScriptsPath, "FormatProviderData.R"))
-taxDL <- formatProviderData(taxDLog, 'dl')
+taxDL <- format_provider_data(taxDLog, 'dl')
   
 #******
 ### GBIF
@@ -182,7 +182,7 @@ taxGBIFog <- taxadbToBeeBDC(name = "Hymenoptera",
                             provider = "gbif")
 #### Format table
 source(file.path(CustomScriptsPath, "FormatProviderData.R"))
-taxGBIF <- formatProviderData(taxGBIFog, 'gbif')
+taxGBIF <- format_provider_data(taxGBIFog, 'gbif')
 
 #******
 ### ITIS
@@ -195,16 +195,16 @@ taxITISog <- taxadbToBeeBDC(name = "Hymenoptera",
 # TODO: Getting ITIS authorship currently takes prohibitively long for large taxa
 # TODO: The best option is mostly likely to do a custom download from the ITIS data hosted on GBIF
 source(file.path(CustomScriptsPath, "FormatProviderData.R"))
-taxITIS <- formatProviderData(taxITISog, 'itis')
+taxITIS <- format_provider_data(taxITISog, 'itis')
 
 #******
 ### Merge backbones with priority----
 ### Join taxonomic backbones
 
 # Take possible tables from above
-possible_tables <- c("taxDL", "taxGBIF", "taxITIS")
+possibleTables <- c("taxDL", "taxGBIF", "taxITIS")
 # Join tables that are currently being used in the session
-joinedTaxonomy <- possible_tables %>%
+joinedTaxonomy <- possibleTables %>%
         lapply(function(x) if (exists(x)) get(x) else NULL) %>%
         purrr::compact() %>%
         reduce(~ full_join(.y, .x, by="joinCol"))
@@ -213,7 +213,7 @@ joinedTaxonomy <- possible_tables %>%
 ### Table priority is determined by the order in which the table names are provided to the mergeTaxonomy() function.
 
 source(file.path(CustomScriptsPath, "MergeTaxonomy.R"))
-mergedTaxonomy <- mergeTaxonomy(joinedTaxonomy, c('dl', 'gbif', 'itis'))
+mergedTaxonomy <- merge_taxonomy(joinedTaxonomy, c('dl', 'gbif', 'itis'))
 
 ### Correct orphaned accids
 #### Create a reference table for instances of orphaned accids. This happens when a unique synonym occurs in a lower-priority taxonomic backbone but refers to an accepted name shared by a higher priority backbone.
@@ -237,14 +237,21 @@ taxonomyFile <- mergedTaxonomy %>%
 
 #### Remove spent databases
 
-# TODO: If any of these aren't defined, this will not work. Needs to be made more general.
-rm(acceptedIDs,joinedTaxonomy,mergedTaxonomy,taxDL,taxDLog,taxGBIF,taxGBIFog,taxITIS,taxITISog)
+# Take possible variable names from above
+possibleVariables <- c("acceptedIDs","joinedTaxonomy","mergedTaxonomy","taxDL",
+                       "taxDLog","taxGBIF","taxGBIFog","taxITIS","taxITISog")
+
+# Filter down to variables that are currently being used in the session
+source(file.path(CustomScriptsPath, "GetExistingVariables.R"))
+existingVariables <- get_existing_variables(possibleVariables)
+
+# Remove existing variables
+rm(existingVariables, possibleVariables)
 
 #******
-## Filter to species of interest----
-### (Optional) If needed, the taxonomyFile resulting from any of the above options can be reduced to contain only species of interest 
+## Filter taxonomyFile to species of interest----
 
-taxonomyFile <- taxonomyFile %>%
+filteredTaxonomyFile <- taxonomyFile %>%
   left_join(
     taxonomyFile %>%
       dplyr::select(id, canonical, authorship),
@@ -253,7 +260,6 @@ taxonomyFile <- taxonomyFile %>%
   ) %>%
   filter((canonical %in% sppList) |
            (canonical_accepted %in% sppList)) # filter to only records relating to those in sppList
-
 
 #************************************
 #************************************
@@ -272,23 +278,21 @@ taxonomyFile <- taxonomyFile %>%
 source(file.path(CustomScriptsPath, "HandleGbifCreds.R"))
 check_gbif_creds()
 
-### Collect synonyms for current sppList from backbone
+### Collect synonyms for current sppList from current backbone
+sppListSynonyms <- filteredTaxonomyFile$canonical
 
-
-
-### Get the taxon keys for each species in list. gbif_taxon_keys should be a long vector like this c(2977832,2977901,2977966,2977835,2977863)
-
-gbif_taxon_keys <- sppList %>% 
+### Get the taxon keys for each species in list. gbifTaxonKeys should be a long vector like this c(2977832,2977901,2977966,2977835,2977863)
+gbifTaxonKeys <- sppListSynonyms %>% 
   name_backbone_checklist(strict = T) %>% # match to backbone 
   filter(matchType == "EXACT") %>% # get matched names
   pull(usageKey)
 
-## Intialize download, providing search parameters as needed
-### This search looks for the taxonKeys generated in the previous step to search for occurrence data
+## Intialize download of occurrence data, providing search parameters as needed
+### This search uses the gbifTaxonKey values generated in the previous step
 ### For help with constructing queries, see https://docs.ropensci.org/rgbif/index.html.
 
 occ_download(
-  pred_in("taxonKey", gbif_taxon_keys),  # Search for all taxonKeys in the list
+  pred_in("taxonKey", gbifTaxonKeys),  # Search for all taxonKeys in the list
   pred("occurrenceStatus", "PRESENT"),
   pred_not(pred_in("basisOfRecord", c("FOSSIL_SPECIMEN", "LIVING_SPECIMEN", "MATERIAL_SAMPLE"))), #Excluding these types bases of record
   pred_lte("coordinateUncertaintyInMeters", 2000), #Uncertainty less than or equal to 2000 m.
@@ -451,18 +455,18 @@ PaigeNAm <- readr::read_csv(file.path(DataPath,
 source(file.path(CustomScriptsPath, "GetExistingVariables.R"))
 
 # Take possible variable names from above
-possible_datasets <- c("Bal_std", "BMin_std", "Ecd_std", "FSCA_std", 
+possibleDatasets <- c("Bal_std", "BMin_std", "Ecd_std", "FSCA_std", 
                        "gbifOccs", "GeoL_std", "INHS_std", "KP_std", 
                        "PaigeNAm", "SMC_std")
 
 # Filter down to variables that are currently being used in the session
-existing_datasets <- getExistingVariables(possible_datasets)
+existingDatasets <- get_existing_variables(possibleDatasets)
 
 # Merge datasets in filtered list
-db_standardized <- bind_rows(existing_datasets)
+db_standardized <- bind_rows(existingDatasets)
 
 ## Remove spent databases
-rm(existing_datasets)
+rm(existingDatasets, possibleDatasets)
 
 ### Save the dataset
 
@@ -847,13 +851,13 @@ rm(parse_names)
 ### Harmonize the names in the occurrence tibble.This flags the occurrences without a matched name and matches names to their correct name according to Discover Life. You can also use multiple cores to achieve this. See ‘?harmoniseR()’ for details.
 
 database <- BeeBDC::harmoniseR(path = DataPath, #The path to a folder that the output can be saved
-                               taxonomy = taxonomyFile, # The formatted taxonomy file
+                               taxonomy = filteredTaxonomyFile, # The formatted taxonomy file
                                data = database,
                                mc.cores = 1)
 
 ### Remove taxonomy file
 
-rm(taxonomyFile)
+rm(filteredTaxonomyFile)
 
 ### Save the harmonized file
 

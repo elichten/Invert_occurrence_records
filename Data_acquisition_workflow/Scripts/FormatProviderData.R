@@ -1,4 +1,4 @@
-formatProviderData <- function(table = NULL, provider = NULL) {
+format_provider_data <- function(table = NULL, provider = NULL) {
   if (is.null(table)) {
     stop(" - Please provide a BeeBDC-formatted table")
   }

@@ -1,5 +1,5 @@
 # Generalized function to filter existing variables and return the actual objects
-getExistingVariables <- function(variableList) {
+get_existing_variables <- function(variableList) {
   
   # Check if the input is a character vector
   if (!is.character(variableList)) {

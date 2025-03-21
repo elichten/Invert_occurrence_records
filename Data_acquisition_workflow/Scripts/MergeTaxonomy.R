@@ -1,4 +1,4 @@
-mergeTaxonomy <- function(table, table_names) {
+merge_taxonomy <- function(table, table_names) {
   # Define the columns you want to coalesce
   columns <- c("flags", "taxonomic_status", "source", "accid", "id", 
                "kingdom", "phylum", "class", "order", "family", "subfamily", 

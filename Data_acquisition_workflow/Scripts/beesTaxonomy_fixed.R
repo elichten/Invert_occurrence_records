@@ -1,4 +1,4 @@
-beesTaxonomyFixed <- function (URL = "https://open.flinders.edu.au/ndownloader/files/47089969", 
+beesTaxonomy_fixed <- function (URL = "https://open.flinders.edu.au/ndownloader/files/47089969", 
           ...) 
 {
   destfile <- taxonomy <- attempt <- nAttempts <- error_funcFile <- error_func <- NULL
