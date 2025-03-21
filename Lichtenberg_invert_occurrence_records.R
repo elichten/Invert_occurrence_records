@@ -164,6 +164,8 @@ taxonomyFile <- taxadbToBeeBDC(name = "Hymenoptera",
 ### Read in source backbones----
 ### This process is different from above since the backbones need to be joined together, requiring a new join column and distinct column names among data frames
 
+
+#******
 ### Discover Life
 #### Read in Discover Life taxonomy from BeeBDC. See option 2 from the single-source backbone instructions above for troubleshooting.
 taxDLog <- base::readRDS(file.path(DiscLifePath,"beesTaxonomy_2024-06-17.Rda"))
@@ -171,7 +173,7 @@ taxDLog <- base::readRDS(file.path(DiscLifePath,"beesTaxonomy_2024-06-17.Rda"))
 source(file.path(CustomScriptsPath, "FormatProviderData.R"))
 taxDL <- formatProviderData(taxDLog, 'dl')
   
-
+#******
 ### GBIF
 #### GBIF API query
 taxGBIFog <- taxadbToBeeBDC(name = "Hymenoptera",
@@ -182,7 +184,7 @@ taxGBIFog <- taxadbToBeeBDC(name = "Hymenoptera",
 source(file.path(CustomScriptsPath, "FormatProviderData.R"))
 taxGBIF <- formatProviderData(taxGBIFog, 'gbif')
 
-  
+#******
 ### ITIS
 #### ITIS API query
 taxITISog <- taxadbToBeeBDC(name = "Hymenoptera",
@@ -195,7 +197,7 @@ taxITISog <- taxadbToBeeBDC(name = "Hymenoptera",
 source(file.path(CustomScriptsPath, "FormatProviderData.R"))
 taxITIS <- formatProviderData(taxITISog, 'itis')
 
-
+#******
 ### Merge backbones with priority----
 ### Join taxonomic backbones
 
@@ -207,11 +209,11 @@ joinedTaxonomy <- possible_tables %>%
         purrr::compact() %>%
         reduce(~ full_join(.y, .x, by="joinCol"))
 
-#TODO: This code requires all three tables to be used. Let user use whichever they want.
-### Coalesce each triplet of columns into a single column. This will fill the coalesced column with the first non-NA value encountered. The priority of sources is determined by the order in which the columns are listed in each coalesce() function below. In this example, Discover Life is given the highest priority with GBIF and ITIS following.
+### Coalesce each column in the three tables into a single column, using the first non-NA value encountered.
+### Table priority is determined by the order in which the table names are provided to the mergeTaxonomy() function.
 
 source(file.path(CustomScriptsPath, "MergeTaxonomy.R"))
-taxonomyFile <- mergeTaxonomy(joinedTaxonomy, c('dl', 'gbif', 'itis'))
+mergedTaxonomy <- mergeTaxonomy(joinedTaxonomy, c('dl', 'gbif', 'itis'))
 
 ### Correct orphaned accids
 #### Create a reference table for instances of orphaned accids. This happens when a unique synonym occurs in a lower-priority taxonomic backbone but refers to an accepted name shared by a higher priority backbone.
@@ -238,7 +240,7 @@ taxonomyFile <- mergedTaxonomy %>%
 # TODO: If any of these aren't defined, this will not work. Needs to be made more general.
 rm(acceptedIDs,joinedTaxonomy,mergedTaxonomy,taxDL,taxDLog,taxGBIF,taxGBIFog,taxITIS,taxITISog)
 
-
+#******
 ## Filter to species of interest----
 ### (Optional) If needed, the taxonomyFile resulting from any of the above options can be reduced to contain only species of interest 
 
@@ -270,7 +272,9 @@ taxonomyFile <- taxonomyFile %>%
 source(file.path(CustomScriptsPath, "HandleGbifCreds.R"))
 check_gbif_creds()
 
-### Collect synonyms for current sppList from 
+### Collect synonyms for current sppList from backbone
+
+
 
 ### Get the taxon keys for each species in list. gbif_taxon_keys should be a long vector like this c(2977832,2977901,2977966,2977835,2977863)
 
@@ -444,19 +448,21 @@ PaigeNAm <- readr::read_csv(file.path(DataPath,
 #****************
 ## Merge all occurrence data----
 ## Merge all locally-stored and API-derived datasets
+source(file.path(CustomScriptsPath, "GetExistingVariables.R"))
 
 # Take possible variable names from above
 possible_datasets <- c("Bal_std", "BMin_std", "Ecd_std", "FSCA_std", 
                        "gbifOccs", "GeoL_std", "INHS_std", "KP_std", 
                        "PaigeNAm", "SMC_std")
+
 # Filter down to variables that are currently being used in the session
-used_datasets <- Filter(function(dataset) exists(dataset), possible_datasets)
+existing_datasets <- getExistingVariables(possible_datasets)
+
 # Merge datasets in filtered list
-db_standardized<-bind_rows(mget(used_datasets))
+db_standardized <- bind_rows(existing_datasets)
 
 ## Remove spent databases
- 
-rm(Bal_std,BMin_std,Ecd_std,FSCA_std,GeoL_std,INHS_std,KP_std,SMC_std,gbifOccs,PaigeNAm)
+rm(existing_datasets)
 
 ### Save the dataset
 
