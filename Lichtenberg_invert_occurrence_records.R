@@ -169,7 +169,7 @@ taxonomyFile <- taxadbToBeeBDC(name = "Hymenoptera",
 ### Discover Life
 #### Read in Discover Life taxonomy from BeeBDC. See option 2 from the single-source backbone instructions above for troubleshooting.
 taxDLog <- base::readRDS(file.path(DiscLifePath,"beesTaxonomy_2024-06-17.Rda"))
-#### Format table
+#### Format DL table
 source(file.path(CustomScriptsPath, "FormatProviderData.R"))
 taxDL <- format_provider_data(taxDLog, 'dl')
   
@@ -180,7 +180,7 @@ taxGBIFog <- taxadbToBeeBDC(name = "Hymenoptera",
                             rank = "Order",
                             ignore_case = FALSE, # ignore_case = FALSE needs to be specified when querying Order, otherwise there is SQL error
                             provider = "gbif")
-#### Format table
+#### Format GBIF table
 source(file.path(CustomScriptsPath, "FormatProviderData.R"))
 taxGBIF <- format_provider_data(taxGBIFog, 'gbif')
 
@@ -191,7 +191,7 @@ taxITISog <- taxadbToBeeBDC(name = "Hymenoptera",
                             rank = "Order",
                             ignore_case = FALSE,
                             provider = "itis")
-#### Format table
+#### Format ITIS table
 # TODO: Getting ITIS authorship currently takes prohibitively long for large taxa
 # TODO: The best option is mostly likely to do a custom download from the ITIS data hosted on GBIF
 source(file.path(CustomScriptsPath, "FormatProviderData.R"))
@@ -249,7 +249,7 @@ existingVariables <- get_existing_variables(possibleVariables)
 rm(existingVariables, possibleVariables)
 
 #******
-## Filter taxonomyFile to species of interest----
+## Filter taxonomyFile to species of interest and synonyms----
 
 filteredTaxonomyFile <- taxonomyFile %>%
   left_join(
@@ -259,7 +259,7 @@ filteredTaxonomyFile <- taxonomyFile %>%
     suffix = c("", "_accepted")
   ) %>%
   filter((canonical %in% sppList) |
-           (canonical_accepted %in% sppList)) # filter to only records relating to those in sppList
+           (canonical_accepted %in% sppList)) # filter to rows related to those in sppList
 
 #************************************
 #************************************
@@ -273,19 +273,19 @@ filteredTaxonomyFile <- taxonomyFile %>%
 ### Users have the option of using rgbif::occ_search or rgbif::occ_download. occ_search() is only meant for smaller requests and generally not recommended for research. For larger requests, use rgbif::occ_download.
 ### See https://docs.ropensci.org/rgbif/articles/downloading_a_long_species_list.html for another example and further explanation.
 
-### Set up your environment with your GBIF credentials
-
-source(file.path(CustomScriptsPath, "HandleGbifCreds.R"))
-check_gbif_creds()
-
-### Collect synonyms for current sppList from current backbone
-sppListSynonyms <- filteredTaxonomyFile$canonical
+### Collect and add synonyms to sppList from current backbone
+sppList <- filteredTaxonomyFile$canonical
 
 ### Get the taxon keys for each species in list. gbifTaxonKeys should be a long vector like this c(2977832,2977901,2977966,2977835,2977863)
-gbifTaxonKeys <- sppListSynonyms %>% 
+gbifTaxonKeys <- sppList %>% 
   name_backbone_checklist(strict = T) %>% # match to backbone 
   filter(matchType == "EXACT") %>% # get matched names
   pull(usageKey)
+
+### Set up your environment with your GBIF credentials
+# TODO: Could probably combine this step with the occ_download step to avoid confusion
+source(file.path(CustomScriptsPath, "HandleGbifCreds.R"))
+check_gbif_creds()
 
 ## Intialize download of occurrence data, providing search parameters as needed
 ### This search uses the gbifTaxonKey values generated in the previous step
