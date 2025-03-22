@@ -1,4 +1,4 @@
-# Generalized function to filter existing variables and return the actual objects
+# Generalized function to filter existing variables and return list of existing names
 get_existing_variables <- function(variableList) {
   
   # Check if the input is a character vector
@@ -8,8 +8,5 @@ get_existing_variables <- function(variableList) {
   # Filter the variables that exist in the global environment
   existing_vars <- variableList[sapply(variableList, function(var) exists(var, envir = .GlobalEnv))]
   
-  # Return a list of the actual objects
-  objects <- lapply(existing_vars, function(var) get(var, envir = .GlobalEnv))
-  
-  return(objects)
+  return(existing_vars)
 }

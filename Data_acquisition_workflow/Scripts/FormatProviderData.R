@@ -28,6 +28,7 @@ format_provider_data <- function(table = NULL, provider = NULL) {
         # Extract the TSN number from the taxonID string
         tsn <- stringr::str_extract(taxonID,
                                     "(?<=ITIS:)\\d+")
+        message(tsn)
         # If no TSN is found, return NA
         if (is.na(tsn)) return(NA)
         # Call the taxon_authorship function with the extracted TSN

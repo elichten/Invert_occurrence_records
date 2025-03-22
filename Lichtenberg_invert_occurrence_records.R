@@ -26,6 +26,7 @@ if (!require("remotes", quietly = TRUE)) install.packages("remotes", repos = "ht
 # Download !AND! load rnaturalearthhires
 ## NOTE: The order of installation matters here. Make sure this is done before installing BeeBDC
 ## if the below code isn't working, then reference the github page for download instructions
+
 remotes::install_github("ropensci/rnaturalearthhires")
 install.packages("rnaturalearthhires", repos = "https://ropensci.r-universe.dev",type = "source") 
 #rnaturalearthhires needs to be loaded before BeeBDC package, so it can be loaded above as long as you load in that order
@@ -67,6 +68,11 @@ library(raster)
 library(red)
 library(purrr)
 
+# Load custom scripts
+
+scripts_folder <- file.path(DataPath, "Scripts")
+R.utils::sourceDirectory(scripts_folder)
+
 #****************
 ## Set up environment----
 
@@ -92,10 +98,8 @@ BeeBDC::dirMaker(RootPath = RootPath, RDoc = "Lichtenberg_invert_occurrence_reco
   ## Adds paths created by this function to the environment()
   list2env(envir = parent.env(environment()))
 
-# Add path for custom scripts used by this project
-CustomScriptsPath <- file.path(DataPath, "Scripts")
-
 ## Store the default par settings so they can be restored
+
 .pardefaults <- par(no.readonly = T)
 
 
@@ -105,14 +109,12 @@ CustomScriptsPath <- file.path(DataPath, "Scripts")
 # ----Create species list----
 
 ## Create a list of accepted canonical (no authorship included) names of your species of interest. This list will be used to filter and reduce the size of backbones. It can also be used for querying occurrence records in later steps.
-
 sppList <- c("Apis mellifera",
              "Bombus pensylvanicus",
              "Halictus ligatus",
              "Xylocopa virginica")
 
 ## If the user is unsure of the taxonomic status of listed names, they can be harmonized with the backbones available through APIs.
-
 sppList <- c("Apis mellifica",  # Using outdated synonym of Apis mellifera
              "Bombus pensylvanicus",
              "Halictus ligatus",
@@ -140,13 +142,7 @@ taxonomyFile<-read_csv(file.path(DataPath,"your_taxonomic_backbone.csv"))
 ### Discover Life's backbone for Anthophila comes with the BeeBDC download via beesTaxonomy()
 
 #TODO: This is a fixed version of BeeBDC::BeesTaxonomy, which should reliably work now. Still needs to be tested on macOS
-source(file.path(CustomScriptsPath, "BeesTaxonomy_fixed.R"))
-taxonomyFile <- beesTaxonomy_fixed()
-
-#TODO: Test above code on macOS and remove this section below
-######## beesTaxonomy() often fails to download the backbone. If this happens, download the latest version of the DiscoverLife taxonomy by entering the URL provided in the "Usage" section of the beesTaxonomy help file into your browser. After downloading the file into the DiscLifePath, use base::readRDS to read in the .rds file.
-######## BeeBDC::beesTaxonomy # find the URL in the help file, enter into your browser and file should begin downloading
-######## taxonomyFile <- base::readRDS(file.path(DiscLifePath,"beesTaxonomy_2024-06-17.Rda"))
+taxonomyFile <- beesTaxonomy_fixed() # Custom script
 
 
 ### Option 3: download taxonomic backbone from API----
@@ -159,6 +155,8 @@ taxonomyFile <- taxadbToBeeBDC(name = "Hymenoptera",
                              ignore_case = FALSE, # ignore_case = FALSE needs to be specified when querying Order, otherwise there is SQL error
                              provider = "gbif")
 
+
+
 #****************
 ## Create taxonomic backbone from multiple sources----
 ### Read in source backbones----
@@ -170,8 +168,7 @@ taxonomyFile <- taxadbToBeeBDC(name = "Hymenoptera",
 #### Read in Discover Life taxonomy from BeeBDC. See option 2 from the single-source backbone instructions above for troubleshooting.
 taxDLog <- base::readRDS(file.path(DiscLifePath,"beesTaxonomy_2024-06-17.Rda"))
 #### Format DL table
-source(file.path(CustomScriptsPath, "FormatProviderData.R"))
-taxDL <- format_provider_data(taxDLog, 'dl')
+taxDL <- format_provider_data(taxDLog, 'dl') # Custom script
   
 #******
 ### GBIF
@@ -181,8 +178,7 @@ taxGBIFog <- taxadbToBeeBDC(name = "Hymenoptera",
                             ignore_case = FALSE, # ignore_case = FALSE needs to be specified when querying Order, otherwise there is SQL error
                             provider = "gbif")
 #### Format GBIF table
-source(file.path(CustomScriptsPath, "FormatProviderData.R"))
-taxGBIF <- format_provider_data(taxGBIFog, 'gbif')
+taxGBIF <- format_provider_data(taxGBIFog, 'gbif') # Custom script
 
 #******
 ### ITIS
@@ -193,9 +189,9 @@ taxITISog <- taxadbToBeeBDC(name = "Hymenoptera",
                             provider = "itis")
 #### Format ITIS table
 # TODO: Getting ITIS authorship currently takes prohibitively long for large taxa
+# TODO: Errors with the ITIS server are also ambiguous right now
 # TODO: The best option is mostly likely to do a custom download from the ITIS data hosted on GBIF
-source(file.path(CustomScriptsPath, "FormatProviderData.R"))
-taxITIS <- format_provider_data(taxITISog, 'itis')
+taxITIS <- format_provider_data(taxITISog, 'itis') # Custom script
 
 #******
 ### Merge backbones with priority----
@@ -211,9 +207,7 @@ joinedTaxonomy <- possibleTables %>%
 
 ### Coalesce each column in the three tables into a single column, using the first non-NA value encountered.
 ### Table priority is determined by the order in which the table names are provided to the mergeTaxonomy() function.
-
-source(file.path(CustomScriptsPath, "MergeTaxonomy.R"))
-mergedTaxonomy <- merge_taxonomy(joinedTaxonomy, c('dl', 'gbif', 'itis'))
+mergedTaxonomy <- merge_taxonomy(joinedTaxonomy, c('dl', 'gbif', 'itis')) # Custom script
 
 ### Correct orphaned accids
 #### Create a reference table for instances of orphaned accids. This happens when a unique synonym occurs in a lower-priority taxonomic backbone but refers to an accepted name shared by a higher priority backbone.
@@ -238,15 +232,11 @@ taxonomyFile <- mergedTaxonomy %>%
 #### Remove spent databases
 
 # Take possible variable names from above
-possibleVariables <- c("acceptedIDs","joinedTaxonomy","mergedTaxonomy","taxDL",
-                       "taxDLog","taxGBIF","taxGBIFog","taxITIS","taxITISog")
-
-# Filter down to variables that are currently being used in the session
-source(file.path(CustomScriptsPath, "GetExistingVariables.R"))
-existingVariables <- get_existing_variables(possibleVariables)
-
-# Remove existing variables
-rm(existingVariables, possibleVariables)
+existingVariables <- c("acceptedIDs","joinedTaxonomy","mergedTaxonomy","taxDL",
+                       "taxDLog","taxGBIF","taxGBIFog","taxITIS","taxITISog") %>%
+                     get_existing_variables(.) # Custom script to get currently in-use variables
+                     
+rm(list = existingVariables) # Remove existing variables
 
 #******
 ## Filter taxonomyFile to species of interest and synonyms----
@@ -284,8 +274,7 @@ gbifTaxonKeys <- sppList %>%
 
 ### Set up your environment with your GBIF credentials
 # TODO: Could probably combine this step with the occ_download step to avoid confusion
-source(file.path(CustomScriptsPath, "HandleGbifCreds.R"))
-check_gbif_creds()
+check_gbif_creds() # Custom script
 
 ## Intialize download of occurrence data, providing search parameters as needed
 ### This search uses the gbifTaxonKey values generated in the previous step
@@ -452,21 +441,19 @@ PaigeNAm <- readr::read_csv(file.path(DataPath,
 #****************
 ## Merge all occurrence data----
 ## Merge all locally-stored and API-derived datasets
-source(file.path(CustomScriptsPath, "GetExistingVariables.R"))
 
 # Take possible variable names from above
-possibleDatasets <- c("Bal_std", "BMin_std", "Ecd_std", "FSCA_std", 
-                       "gbifOccs", "GeoL_std", "INHS_std", "KP_std", 
-                       "PaigeNAm", "SMC_std")
+existingDatasets <- c("Bal_std", "BMin_std", "Ecd_std", "FSCA_std", 
+                      "gbifOccs", "GeoL_std", "INHS_std", "KP_std", 
+                      "PaigeNAm", "SMC_std") %>%
+                    get_existing_variables() # Custom script to filter to used variables only
 
-# Filter down to variables that are currently being used in the session
-existingDatasets <- get_existing_variables(possibleDatasets)
-
-# Merge datasets in filtered list
-db_standardized <- bind_rows(existingDatasets)
+# Merge datasets in filtered list of names
+db_standardized <- lapply(existingDatasets, function(name) get(name, envir = .GlobalEnv)) %>%
+                   bind_rows(.)
 
 ## Remove spent databases
-rm(existingDatasets, possibleDatasets)
+rm(list = existingDatasets)
 
 ### Save the dataset
 
