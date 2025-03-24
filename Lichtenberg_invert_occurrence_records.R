@@ -50,7 +50,6 @@ lapply(c("ComplexHeatmap", "magrittr"), library, character.only = TRUE)
 ### Load libraries----
 
 # NOTE: Jump here if all above packages have been installed previously
-
 library(rgbif)
 library(ritis)
 library(rgnparser)
@@ -64,10 +63,6 @@ library(tigris)
 library(raster)
 library(red)
 library(purrr)
-
-# Load custom scripts
-scripts_folder <- file.path(DataPath, "Scripts")
-R.utils::sourceDirectory(scripts_folder)
 
 #****************
 ## Set up environment----
@@ -91,6 +86,9 @@ BeeBDC::dirMaker(RootPath = RootPath, RDoc = "Lichtenberg_invert_occurrence_reco
 
 ## Store the default par settings so they can be restored
 .pardefaults <- par(no.readonly = T)
+
+# Load custom scripts needed for this project
+R.utils::sourceDirectory(file.path(DataPath, "Scripts"))
 
 #************************************
 #************************************
@@ -173,9 +171,9 @@ taxITISog <- taxadbToBeeBDC(name = "Hymenoptera",
                             rank = "Order",
                             ignore_case = FALSE,
                             provider = "itis")
-# TODO: Getting ITIS authorship currently takes prohibitively long for large taxa
-# TODO: Errors with the ITIS server are also ambiguous right now
-# TODO: The best option is mostly likely to do a custom download from the ITIS data hosted on GBIF
+# ITIS authorship data is not returned through the above query
+# For ITIS, this step uses ritis::taxon_authorship() to fill authorship column
+# Warning: this can take prohibitively long for large datasets—try filtering to sppList first if needed
 taxITIS <- format_provider_data(taxITISog, 'itis') # Format using custom script
 
 #******
@@ -218,7 +216,7 @@ existingVariables <- c("acceptedIDs","joinedTaxonomy","mergedTaxonomy","taxDL",
                        "taxDLog","taxGBIF","taxGBIFog","taxITIS","taxITISog") %>%
                      get_existing_variables(.) # Custom script to get currently in-use variables
                      
-rm(list = existingVariables) # Remove existing variables
+rm(list = existingVariables, existingVariables) # Remove existing variables
 
 #******
 ## Filter taxonomyFile to species of interest and synonyms----
@@ -248,10 +246,10 @@ filteredTaxonomyFile <- taxonomyFile %>%
 ### See https://docs.ropensci.org/rgbif/articles/downloading_a_long_species_list.html for another example and further explanation.
 
 ### Collect and add synonyms to sppList from current backbone
-sppList <- filteredTaxonomyFile$canonical
+synSppList <- filteredTaxonomyFile$canonical
 
 ### Get the taxon keys for each species in list. gbifTaxonKeys should be a long vector like this c(2977832,2977901,2977966,2977835,2977863)
-gbifTaxonKeys <- sppList %>% 
+gbifTaxonKeys <- synSppList %>% 
   name_backbone_checklist(strict = T) %>% # match to backbone 
   filter(matchType == "EXACT") %>% # get matched names
   pull(usageKey)
@@ -289,12 +287,14 @@ occ_download_wait('your_download_key')
 gbifOccs <- occ_download_get('your_download_key') %>%
   occ_download_import()
 
-## reformat to BeeBDC::colTypeR() standards
-gbifOccs <- gbifOccs%>%
+## reformat to BeeBDC::ColTypeR() standards
+gbifOccs <- gbifOccs %>%
   mutate(dateIdentified = as.character(dateIdentified),
-         recordNumber=as.character(recordNumber),
+         recordNumber = as.character(recordNumber),
          database_id = paste0("GBIF_4bees_",seq_len(nrow(gbifOccs))),
-         datasetID = "GBIF_4bees"
+         datasetID = "GBIF_4bees",
+         dataSource = "GBIF",
+         country = ""
   )
 
 # Or load previously downloaded database
@@ -302,10 +302,11 @@ gbifOccs <- gbifOccs%>%
 # GBIF simple-CSV downloads default to a tab-delimited format. Change the delim argument if needed
 gbifOccs <- read_delim(file.path(DataPath,"Additional_Datasets", "your_file_name.csv"), delim='\t')%>%
   mutate(dateIdentified = as.character(dateIdentified),
-         recordNumber=as.character(recordNumber),
+         recordNumber = as.character(recordNumber),
          database_id = paste0("GBIF_4bees_",seq_len(nrow(.))),
          datasetID = "GBIF_4bees",
-         dataSource = "GBIF"
+         dataSource = "GBIF",
+         country = ""
   )
 
 #****************
@@ -316,11 +317,10 @@ gbifOccs <- read_delim(file.path(DataPath,"Additional_Datasets", "your_file_name
 #### Read in standardized data set
 # TODO: Create note about which columns are necessary for code to run
 
-# TODO: Make sure this is the cleaned dataset
-Bal_std <- readr::read_csv(file.path(DataPath,
-                                     "Additional_Datasets",
-                                     "jbd_Bal_data.csv"),
-                           col_types = BeeBDC::ColTypeR())%>%
+# TODO: Make sure this isq the cleaned dataset
+Bal_std <- readr::read_csv(file.path(DataPath,"Additional_Datasets",
+                                              "jbd_Bal_data.csv"),
+                           col_types = BeeBDC::ColTypeR()) %>%
   mutate(city = word(locality, 1, sep = ","),
          county = word(locality, 2, sep = ","),
          state = word(locality, 3, sep = ","),
@@ -328,7 +328,7 @@ Bal_std <- readr::read_csv(file.path(DataPath,
          countryCode = "US", # Assuming country code for the USA is "US"
          basisOfRecord = "HUMAN_OBSERVATION")
 
-# TODO: Remove this code
+# TODO: Remove this code?
 #### For comparison, read in the unstandardized version of Ballare data
 # Bal_Data <- BeeBDC::readr_BeeBDC(dataset = "Bal",
 #                                  path = file.path(DataPath, "Additional_Datasets"),
@@ -417,8 +417,6 @@ PaigeNAm <- readr::read_csv(file.path(DataPath,
 #****************
 ## Merge all occurrence data----
 
-## Merge all locally-stored and API-derived datasets
-
 # Take possible variable names from above
 existingDatasets <- c("Bal_std", "BMin_std", "Ecd_std", "FSCA_std", 
                       "gbifOccs", "GeoL_std", "INHS_std", "KP_std", 
@@ -430,7 +428,7 @@ db_standardized <- lapply(existingDatasets, function(name) get(name, envir = .Gl
                    bind_rows(.)
 
 ## Remove spent databases
-rm(list = existingDatasets)
+rm(list = existingDatasets, existingDatasets)
 
 ### Save the dataset
 db_standardized %>%
@@ -542,6 +540,7 @@ check_pf <- bdc::bdc_basisOfRecords_notStandard(
 ## Harmonize country names----
 
 ### Create a separate dataset with harmonized country names and associated info
+# This requires the table to have country and countryCode columns
 check_pf_noNa <- BeeBDC::countryNameCleanR(
   data = check_pf,
   ### Create a Tibble of common issues in country names and their replacements
@@ -552,8 +551,6 @@ check_pf_noNa <- BeeBDC::countryNameCleanR(
                                          'United States of America','United States of America',
                                          'United States of America','United States of America',
                                          'United States of America',"Mexico")))
-
-## Run function
 
 ### Get country name from coordinates using a wrapper around the jbd_country_from_coordinates() function. Because our dataset is much larger than those used to design bdc, we have made it so that you can analyse data in smaller pieces. Additionally, like some other functions in BeeBDC, we have implemented parallel operations (using mc.cores = #cores in stepSize = #rowsPerOperation); see ‘?jbd_CfC_chunker()’ for details. NOTE: In an actual run you should use scale = “large”
 ### Creates another dataset containing just the databaseID and the country name based on coordinates
@@ -572,25 +569,23 @@ suppressWarnings(
                                            mc.cores = 1),
   classes = "warning")
 
-## Re-Merge
-
-### Join these datasets
-check_pf <- dplyr::left_join(check_pf, countryOutput, by = "database_id", suffix = c("",
-                                                                                     "CO")) %>%
+### Re-join these datasets
+check_pf <- dplyr::left_join(check_pf, 
+                             countryOutput, 
+                             by = "database_id", 
+                             suffix = c("", "CO")) %>%
   # Take the new country name if the original is NA
   dplyr::mutate(country = dplyr::if_else(is.na(country), countryCO, country)) %>%
   # Remove duplicates if they arose from left_join!
   dplyr::distinct()
 
 ## Save the dataset
-
 check_pf %>%
   readr::write_excel_csv(., file.path(OutPath_Intermediate, 
                                       "01_prefilter_database.csv")
                          )
 
-## Read in if necessary
-
+## Read in previously saved dataset if necessary
 if (!exists("check_pf")) {
   check_pf <- readr::read_csv(file.path(DataPath, 
                                         "Output", 
@@ -600,7 +595,6 @@ if (!exists("check_pf")) {
 }
 
 ## Remove these interim datasets
-
 rm(check_pf_noNa, countryOutput)
 
 #****************
@@ -616,7 +610,7 @@ check_pf <- bdc::bdc_country_standardized(
   country = "country"
 ) 
 
-
+#****************
 ## Correct transposed coordinates----
 
 ### Flag and correct records when decimalLatitude and decimalLongitude appear to be transposed. We created this chunked version of bdc::bdc_coordinates_transposed() because it is very RAM-heavy  using our large bee dataset. Like many of our other ‘jbd_…’ functions there are other improvement - e.g., parallel running.
@@ -662,9 +656,10 @@ if (!exists("check_pf")) {
                               col_types = BeeBDC::ColTypeR())
 }
 
+#****************
 ## Flag coordinates inconsistent with country names----
-### Collect all country names in the country_suggested column. We rebuilt a bdc function to flag occurrences where the coordinates are inconsistent with the provided country name.
 
+### Collect all country names in the country_suggested column. We rebuilt a bdc function to flag occurrences where the coordinates are inconsistent with the provided country name.
 check_pf <- BeeBDC::jbd_coordCountryInconsistent(data = check_pf, lon = "decimalLongitude",
                                                  lat = "decimalLatitude", scale = 50, pointBuffer = 0.01)
 
