@@ -19,6 +19,7 @@ format_provider_data <- function(table = NULL, provider = NULL) {
                         by = c("accid" = "id"),
                         suffix = c("", "_accepted"))
   
+  # TODO: Separate this function out
   # If provider is ITIS, get authorship information (this can take a long time)
   if (tolower(provider) == 'itis') {
     get_itis_authorship <- function(taxonID) {
@@ -61,7 +62,7 @@ format_provider_data <- function(table = NULL, provider = NULL) {
     
     # Add authorship to table using map_chr (inital get_itis_authorship call)
     table <- table %>%
-      mutate(table, authorship = map_chr(taxonID, get_itis_authorship),
+      mutate(table, authorship = map_chr(taxonID, get_itis_authorship, .progress = TRUE),
              validName = paste0(validName, " ", authorship))
   }
   

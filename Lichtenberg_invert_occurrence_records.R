@@ -294,8 +294,10 @@ gbifOccs <- gbifOccs %>%
          database_id = paste0("GBIF_4bees_",seq_len(nrow(gbifOccs))),
          datasetID = "GBIF_4bees",
          dataSource = "GBIF",
-         country = ""
-  )
+         country = "",
+         # TODO: This is needed for some flagging steps. Does it break anything?
+         id = gbifOccs$gbifID) %>%
+  rename(datasetID = datasetKey)
 
 # Or load previously downloaded database
 
@@ -303,11 +305,13 @@ gbifOccs <- gbifOccs %>%
 gbifOccs <- read_delim(file.path(DataPath,"Additional_Datasets", "your_file_name.csv"), delim='\t')%>%
   mutate(dateIdentified = as.character(dateIdentified),
          recordNumber = as.character(recordNumber),
-         database_id = paste0("GBIF_4bees_",seq_len(nrow(.))),
+         database_id = paste0("GBIF_4bees_",seq_len(nrow(gbifOccs))),
          datasetID = "GBIF_4bees",
          dataSource = "GBIF",
-         country = ""
-  )
+         country = "",
+         # TODO: This is needed for some flagging steps. Does it break anything?
+         id = gbifOccs$gbifID) %>%
+  rename(datasetID = datasetKey)
 
 #****************
 ## Import local geographically-relevant data sets (BeeBDC examples)----
@@ -443,20 +447,11 @@ if(!exists("db_standardized")){
                                      col_types = BeeBDC::ColTypeR())
   }
 
-# To re-start in the middle of the flagging and harmonization process, read in the most recent intermediate file you outputted, replacing "03_space_inter_database.csv" with that file's name.
-if (!exists("check_space")) {
-  check_space <- readr::read_csv(file.path(OutPath_Intermediate, 
-                                           "03_space_inter_database.csv"), 
-                                 col_types = ColTypeR())
-}
-
 #****************
 # (Optional) Load sample datasets provided by BeeBDC package for working through the code. Only do this if you want to quickly run through the workflow with a dataset small enough to run quickly even in RAM-heavy operations
 
-data("bees3sp",
-     package = "BeeBDC")
-data("beesRaw",
-     package = "BeeBDC")
+data("bees3sp", package = "BeeBDC")
+data("beesRaw", package = "BeeBDC")
 db_standardized <- dplyr::bind_rows(beesRaw, 
                                 # Only keep a subset of columns from bees3sp
                                 bees3sp %>%
@@ -472,6 +467,14 @@ db_standardized <- dplyr::bind_rows(beesRaw,
 
 # Flag Data ---------------------------------------------------------------
 
+
+# To re-start in the middle of the flagging and harmonization process, 
+# read in the most recent intermediate file you outputted, replacing "03_space_inter_database.csv" with that file's name.
+if (!exists("check_space")) {
+  check_space <- readr::read_csv(file.path(OutPath_Intermediate, 
+                                           "03_space_inter_database.csv"), 
+                                 col_types = ColTypeR())
+}
 
 #****************
 ## Flag occurrences without scientificName present----
@@ -615,7 +618,7 @@ check_pf <- bdc::bdc_country_standardized(
 
 ### Flag and correct records when decimalLatitude and decimalLongitude appear to be transposed. We created this chunked version of bdc::bdc_coordinates_transposed() because it is very RAM-heavy  using our large bee dataset. Like many of our other ‘jbd_…’ functions there are other improvement - e.g., parallel running.
 ### NOTE: Usually you would use scale = “large”, which requires rnaturalearthhires
-### Adds column "coordinates_transposed"
+### Adds column "coordinates_transposed" if transpositions are made
 ### USE SAMPLE DATASET IF TESTING THIS FUNCTION (TAKES LONG AND USES A LOT RAM)
 check_pf <- BeeBDC::jbd_Ctrans_chunker(
   # bdc_coordinates_transposed inputs
@@ -639,17 +642,16 @@ check_pf <- BeeBDC::jbd_Ctrans_chunker(
   mc.cores = 1
 ) 
 
+# If transpositions were made, use this to view how many were corrected
 table(check_pf$coordinates_transposed, useNA = "always") # NOTE: F = transposed/corrected records, T = already correct records 
 
 ### Save the dataset
-
 check_pf %>%
   readr::write_excel_csv(., file.path(OutPath_Intermediate, 
                                       "01_prefilter_database.csv")
                          )
 
 ### Read in the data again if needed
-
 if (!exists("check_pf")) {
   check_pf <- readr::read_csv(file.path(OutPath_Intermediate, 
                                     "01_prefilter_database.csv"), 
@@ -660,11 +662,14 @@ if (!exists("check_pf")) {
 ## Flag coordinates inconsistent with country names----
 
 ### Collect all country names in the country_suggested column. We rebuilt a bdc function to flag occurrences where the coordinates are inconsistent with the provided country name.
-check_pf <- BeeBDC::jbd_coordCountryInconsistent(data = check_pf, lon = "decimalLongitude",
-                                                 lat = "decimalLatitude", scale = 50, pointBuffer = 0.01)
+# TODO: Non-breaking warnings regarding database_id column
+check_pf <- BeeBDC::jbd_coordCountryInconsistent(data = check_pf, 
+                                                 lon = "decimalLongitude",
+                                                 lat = "decimalLatitude", 
+                                                 scale = 50, 
+                                                 pointBuffer = 0.01)
 
 ### Save dataset
-
 check_pf %>%
   readr::write_excel_csv(., file.path(OutPath_Intermediate, 
                                       "01_prefilter_database.csv")
@@ -672,33 +677,34 @@ check_pf %>%
 
 #****************
 ## Flag GeoRef Issues----
-### This function identifies records whose coordinates can potentially be extracted from locality
-### information, which must be manually checked later.
 
-xyFromLocality <- bdc::bdc_coordinates_from_locality(data = check_pf, locality = "locality",
-                                                     lon = "decimalLongitude", lat = "decimalLatitude", save_outputs = FALSE)
+### This function identifies records whose coordinates can potentially be 
+### extracted from locality information, which must be manually checked later.
+xyFromLocality <- bdc::bdc_coordinates_from_locality(data = check_pf, 
+                                                     locality = "locality",
+                                                     lon = "decimalLongitude", 
+                                                     lat = "decimalLatitude", 
+                                                     save_outputs = FALSE)
 
 ### Save resultant data
-
 xyFromLocality %>%
   readr::write_excel_csv(file.path(OutPath_Check, 
                                    "01_coordinates_from_locality.csv")
                          )
 
 ### Remove spent data
-
 rm(xyFromLocality)
 
 #****************
 ## Flag records marked as "absent"----
-### Run function
 
+### Run function
 check_pf <- BeeBDC::flagAbsent(data = check_pf,PresAbs = "occurrenceStatus") #if occurrenceStatus is absent, skip this step
 
 #****************
 ## Flag License----
-### Flag the records that may not be used according to their license information.
 
+### Flag the records that may not be used according to their license information.
 check_pf <- BeeBDC::flagLicense(data = check_pf,
                                 strings_to_restrict = "all",
                                 # DON'T flag if in the following dataSource(s)
@@ -706,16 +712,21 @@ check_pf <- BeeBDC::flagLicense(data = check_pf,
 
 #****************
 ## Flag GBIF issues----
+
 ### Flag select issues that are flagged by GBIF
-
-check_pf <- BeeBDC::GBIFissues(data = check_pf, issueColumn = "issue", GBIFflags = c("COORDINATE_INVALID",
-                                                                                     "ZERO_COORDINATE"))
-
+check_pf <- BeeBDC::GBIFissues(data = check_pf, 
+                               issueColumn = "issue", 
+                               GBIFflags = c("COORDINATE_INVALID",
+                                             "ZERO_COORDINATE")
+                               )
 #****************
 ## Flag reports----
-### Save flags
-#### Save the flags so far. This function will make sure that you keep a copy of everything that has been flagged up until now. This will be updated throughout the script and can accessed at the end, so be wary of moving files around manually. However, these data  will also still be maintained in the main running file, so this is an optional fail-safe.
 
+#### Save the flags so far. This function will create a copy of everything that 
+#### has been flagged up until now. This will be updated throughout the script 
+#### and can accessed at the end, so be wary of moving files around manually. 
+#### However, these data  will also still be maintained in the main running file, 
+#### so this is an optional fail-safe.
 flagFile <- BeeBDC::flagRecorder(
   data = check_pf,
   outPath = OutPath_Report,
@@ -730,7 +741,6 @@ flagFile <- BeeBDC::flagRecorder(
   append = FALSE)
 
 ### Update the .summary column
-
 check_pf <- BeeBDC::summaryFun(
   data = check_pf,
   # Don't filter these columns (or NULL)
@@ -740,9 +750,8 @@ check_pf <- BeeBDC::summaryFun(
   # Filter to ONLY cleaned data?
   filterClean = FALSE)
 
-### Reporting
 #### Use bdc to generate reports
-
+# TODO: (minor) Errors if nothing has been flagged
 (report <- bdc::bdc_create_report(data = check_pf,
                                   database_id = "database_id",
                                   workflow_step = "prefilter",
@@ -750,8 +759,8 @@ check_pf <- BeeBDC::summaryFun(
 
 #****************
 ## Save----
-### Save the intermediate dataset
 
+### Save the intermediate dataset
 check_pf %>%
   readr::write_excel_csv(., file.path(OutPath_Intermediate,
                                       "01_prefilter_output.csv")
@@ -765,7 +774,6 @@ check_pf %>%
 
 
 ## Read in the filtered dataset or rename the 3.x dataset for 4.0 (refers to vignette section)
-
 if (!exists("check_pf")) {
   database <- readr::read_csv(file.path(OutPath_Intermediate, 
                                         "01_prefilter_output.csv"), 
@@ -778,45 +786,41 @@ if (!exists("check_pf")) {
 }
 
 ## Remove *names_clean* if you've already run the following functions before on this dataset before
-
 database <- database %>%
   dplyr::select(!tidyselect::any_of("names_clean"))
 
 #****************             
 ## Prep data names----
-### This step cleans the database's scientificName column
 
+### Cleans the scientificName column
 parse_names <- bdc::bdc_clean_names(sci_names = database$scientificName,
                                     save_outputs = FALSE)
 
 ### Keep only the .uncer_terms and names_clean columns
-
 parse_names <- parse_names %>%
   dplyr::select(.uncer_terms,
                 names_clean)
 
 ### Merge names with complete dataset
-
 database <- dplyr::bind_cols(database,
                              parse_names)
+
 rm(parse_names)
 
 #****************
 ## Harmonize taxonomy----
+
 ### Download custom taxonomy file from the BeeBDC package and DiscoverLife website
 ### Harmonize the names in the occurrence tibble.This flags the occurrences without a matched name and matches names to their correct name according to Discover Life. You can also use multiple cores to achieve this. See ‘?harmoniseR()’ for details.
-
 database <- BeeBDC::harmoniseR(path = DataPath, #The path to a folder that the output can be saved
                                taxonomy = filteredTaxonomyFile, # The formatted taxonomy file
                                data = database,
                                mc.cores = 1)
 
 ### Remove taxonomy file
-
 rm(filteredTaxonomyFile)
 
 ### Save the harmonized file
-
 database %>%
   readr::write_excel_csv(., file.path(DataPath, 
                                       "Output",
@@ -825,7 +829,6 @@ database %>%
                          )
 
 ## Save flags----
-
 flagFile <- BeeBDC::flagRecorder(data = database, 
                                  outPath = OutPath_Report, 
                                  fileName = paste0("flagsRecorded_", 
@@ -845,29 +848,26 @@ flagFile <- BeeBDC::flagRecorder(data = database,
 # Space -------------------------------------------------------------------
 
 
-## Read in latest database
-
+## Read in latest database if needed
 if (!exists("database")) {
   database <- readr::read_csv(file.path(OutPath_Intermediate,
                                         "02_taxonomy_database.csv"), 
                               col_types = BeeBDC::ColTypeR())
 }
 
-
+#****************
 ## Coordinate precision----
-### Below function identifies records with a coordinate precision below a specified number of decimal places. The major difference between bdc and BeeBDC functions is that jbd_coordinates_precision() will only flag occurences if BOTH latitude and longitude are rounded, while BeeBDC::jbd_coordinates_precision flags if only one is rounded.
 
+### Below function identifies records with a coordinate precision below a specified number of decimal places. The major difference between bdc and BeeBDC functions is that jbd_coordinates_precision() will only flag occurences if BOTH latitude and longitude are rounded, while BeeBDC::jbd_coordinates_precision flags if only one is rounded.
 check_space <- BeeBDC::jbd_coordinates_precision(data = database, 
                                                  lon = "decimalLongitude",
                                                  lat = "decimalLatitude", 
                                                  ndec = 2)  # number of decimals to be tested
 
 ### Remove spent database
-
 rm(database)
 
 ### Save resulting file
-
 check_space %>%
   readr::write_excel_csv(., file.path(OutPath_Intermediate,
                                       "03_space_inter_database.csv")
@@ -877,13 +877,11 @@ check_space %>%
 ## Common spatial issues----
 
 ### Only run for occurrences through clean_coordinates() that are spatially "valid"
-
 tempSpace <- check_space %>%
   dplyr::filter(!.coordinates_empty == FALSE) %>%
   dplyr::filter(!.coordinates_outOfRange == FALSE)
 
 ### Flag common spatial issues using functions from the package "CoordinateCleaner", which addresses common issues in biodiversity datasets
-
 tempSpace <-
   CoordinateCleaner::clean_coordinates(
     x =  tempSpace,
@@ -920,18 +918,15 @@ tempSpace <-
   dplyr::tibble()
 
 ### Re-merge the datasets
-
 check_space <- tempSpace %>%
   # Re-bind with the records that were removed earlier
   dplyr::bind_rows(check_space %>%
                      dplyr::filter(.coordinates_empty == FALSE | .coordinates_outOfRange == FALSE))
 
 ### Remove temporary dataset
-
 rm(tempSpace)
 
 ### Save the intermediate dataset
-
 check_space %>%
   readr::write_excel_csv(file.path(OutPath_Intermediate,
                                "03_space_inter_database.csv")
@@ -941,7 +936,6 @@ check_space %>%
 ## Diagonal and Grid Issues----
 
 ### Load most recent database, if necessary
-
 if (!exists("check_space")) {
   check_space <- readr::read_csv(file.path(OutPath_Intermediate,
                                            "03_space_inter_database.csv"), 
@@ -949,7 +943,6 @@ if (!exists("check_space")) {
 }
 
 ### Finds sequential numbers that could be fill-down errors in lat and long, and groups by the ‘groupingColumns'. This is accomplished by using a sliding window with the length determined by minRepeats. Only coordinates of precision ‘ndec’ (number of decimals in decimal degree format) will be examined. Note, that this function is very RAM-intensive and so the use of multiple threads should be approached with caution depending on your data set. However, the option is provided.
-
 check_space <- BeeBDC::diagonAlley(
   data = check_space,
   # The minimum number of repeats needed to find a sequence in for flagging
@@ -961,7 +954,6 @@ check_space <- BeeBDC::diagonAlley(
   mc.cores = 1)
 
 ### Spatial gridding from rasterization: Select only records with more than X occurrences
-
 griddingDF <- check_space %>%
   # Exclude NA lat and lon values
   tidyr::drop_na(c("decimalLatitude",
@@ -977,7 +969,6 @@ griddingDF <- check_space %>%
   dplyr::ungroup()
 
 ### Run the gridding analysis to find datasets that might be gridded.
-
 gridded_datasets <- CoordinateCleaner::cd_round(x = griddingDF, 
                                                 lon = "decimalLongitude",
                                                 lat = "decimalLatitude", 
