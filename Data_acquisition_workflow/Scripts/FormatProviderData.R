@@ -1,4 +1,5 @@
 format_provider_data <- function(table = NULL, provider = NULL) {
+  # Argument errors
   if (is.null(table)) {
     stop(" - Please provide a BeeBDC-formatted table")
   }
@@ -6,8 +7,8 @@ format_provider_data <- function(table = NULL, provider = NULL) {
     stop(" - Please indicate table source (gbif, itis, or dl)")
   }
   
+  # Reformat provider name to allow for case differences, check if accepted
   provider <- tolower(provider)
-  
   if (!provider %in% c("itis", "dl", "gbif")) {
     stop(" - Please indicate provider (gbif, itis, or dl)")
   }
@@ -18,33 +19,32 @@ format_provider_data <- function(table = NULL, provider = NULL) {
                         by = c("accid" = "id"),
                         suffix = c("", "_accepted"))
   
-  # TODO: get_itis_authorship takes prohibitively long
+  # If provider is ITIS, get authorship information (this can take a long time)
   if (tolower(provider) == 'itis') {
-    #### The ITIS API doesn't provide authorship information in taxonomic backbone downloads, but it can be queried using taxonID (aka tsn) with ritis::taxon_authorship. Below is a function that can be mapped to the "taxonID" column to extract the numeric tsn to query authorship. This function is best used when sppList <10 species in length, as larger datasets will cause throttling issues with the ITIS api, drastically increasing processing time.
     get_itis_authorship <- function(taxonID) {
+      # Set maximum retry attempts for each tsn when encountering issues
       attempt <- 1
       max_attempts <- 10
-      # Attempt 5 times for each tsn (ITIS sometimes has 404 problems)
       while (attempt <= max_attempts) {
         tryCatch({
           # Extract the TSN number from the taxonID string
           tsn <- stringr::str_extract(taxonID, "(?<=ITIS:)\\d+")
           
-          # If no TSN is found, return NA
+          # If no TSN can be extracted, return NA as value
           if (is.na(tsn)) {
             message("No TSN found. Returning NA.")
             return(NA)
           }
           
-          # Call the taxon_authorship function with the extracted TSN
+          # Call the ritis::taxon_authorship function with the extracted TSN
           message("Getting authorship for tsn: ", tsn)
           result <- ritis::taxon_authorship(as.numeric(tsn))
           
-          # If successful, set attempt to 1
+          # If successful, return authorship info
           return(result$authorship)
           
+        # Catch errors (e.g., network issue, API issues) and retry
         }, error = function(e) {
-          # Catch errors (e.g., network issue, API issues) and retry
           message("Error in taxon_authorship: ", e$message)
           message("Attempt ", attempt, " of ", max_attempts, ". Retrying...")
           
@@ -52,12 +52,14 @@ format_provider_data <- function(table = NULL, provider = NULL) {
           attempt <<- attempt + 1
         })
       }
+      # Ultimately, if unsuccessful, return NA value
       message("No response in maximum attempts. Returning NA")
       return(NA)
     }
-    
     message('Getting ITIS authorship data...')
     message('This may take a moment...')
+    
+    # Add authorship to table using map_chr (inital get_itis_authorship call)
     table <- table %>%
       mutate(table, authorship = map_chr(taxonID, get_itis_authorship),
              validName = paste0(validName, " ", authorship))
