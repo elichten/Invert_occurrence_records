@@ -17,15 +17,13 @@
 
 # First, install BiocManager, devtools, ComplexHeatmap, and rnaturalearthhires. Complete these installations prior to installing BeeBDC
 ## NOTE: Dorey provides code for managing packages for with "renv", but we don't use it here.
-
 if (!require("BiocManager", quietly = TRUE)) install.packages("BiocManager", repos = "http://cran.us.r-project.org")
 BiocManager::install("ComplexHeatmap")
 
 # Install remotes if needed
-
 if (!require("remotes", quietly = TRUE)) install.packages("remotes", repos = "http://cran.us.r-project.org")
 
-# Download !AND! load rnaturalearthhires
+# Download and load rnaturalearthhires
 ## NOTE: The order of installation matters here. Make sure this is done before installing BeeBDC
 ## if the below code isn't working, then reference the github page for download instructions
 remotes::install_github("ropensci/rnaturalearthhires")
@@ -94,7 +92,6 @@ BeeBDC::dirMaker(RootPath = RootPath, RDoc = "Lichtenberg_invert_occurrence_reco
 ## Store the default par settings so they can be restored
 .pardefaults <- par(no.readonly = T)
 
-
 #************************************
 #************************************
 
@@ -116,7 +113,6 @@ sppList <- c("Apis mellifica",  # Using outdated synonym of Apis mellifera
 
 sppListHarmonized <- rgbif::name_backbone_checklist(sppList) #Checking names using GBIF taxonomic backbone
 sppList <- sppListHarmonized$species # Output list of accepted names
-
 
 #************************************
 #************************************
@@ -472,7 +468,6 @@ db_standardized <- dplyr::bind_rows(beesRaw,
 #****************
 # Import proprietary data - make sure it is in DarwinCore format
 
-
 #************************************
 #************************************
 
@@ -767,7 +762,6 @@ check_pf %>%
                                       "01_prefilter_output.csv")
                          )
 
-
 #************************************
 #************************************
 
@@ -848,7 +842,6 @@ flagFile <- BeeBDC::flagRecorder(data = database,
                                                "dataSource"), 
                                  append = TRUE, 
                                  printSummary = TRUE)
-
 
 #************************************
 #************************************
@@ -1180,7 +1173,6 @@ check_space %>%
                                       "03_space_database.csv")
                          )
 
-
 #************************************
 #************************************
 
@@ -1292,7 +1284,6 @@ BeeBDC::flagRecorder(data = check_time,
                      append = TRUE, 
                      printSummary = TRUE)
 
-
 #************************************
 #************************************
 
@@ -1382,7 +1373,6 @@ BeeBDC::flagRecorder(data = check_time,
                      append = TRUE, 
                      printSummary = TRUE)
 
-
 #************************************
 #************************************
 
@@ -1446,7 +1436,6 @@ cleanData %>%
                                       "Cleaned",
                                       "05_cleaned_database.csv")
                          )
-
 
 #************************************
 #************************************
@@ -1522,7 +1511,6 @@ BeeBDC::dupePlotR(
   ASP = "ASP", CAES = "CAES", Ecd = "Ecd",
   returnPlot = TRUE
 )
-
 
 #************************************
 #************************************
