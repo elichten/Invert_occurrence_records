@@ -1410,6 +1410,20 @@ cleanData <- BeeBDC::summaryFun(
   filterClean = TRUE)
 
 ## TODO: We need to be able to filter by defined geographic range
+#create object of area of interest boundary, which we will need when calculating aoc. Modify to your region of interest. Pick ONE of these options to run based on what your geographic range of interest is
+  #filter by country  
+boundary <- nation() %>%
+  filter(NAME == 'United States') %>%
+  st_transform(boundary, crs = 4326)
+#filter by state
+boundary <- states(cb = TRUE) %>%
+  filter(NAME == 'Texas') %>%
+  st_transform(boundary, crs = 4326)
+#filter by county
+boundary <- counties(state = 'Texas') %>%
+  filter(NAME == 'Denton') %>%
+  st_transform(boundary, crs = 4326)
+#filter by your own unique geographic region
 
 ## Save the cleaned dataset
 # TODO: Check if this makes a directory
