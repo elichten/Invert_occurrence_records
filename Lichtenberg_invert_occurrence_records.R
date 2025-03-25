@@ -215,9 +215,9 @@ existingVariables <- c("acceptedIDs","joinedTaxonomy","mergedTaxonomy","taxDL",
 rm(list = existingVariables, existingVariables) # Remove existing variables
 
 #******
-## Filter taxonomyFile to species of interest and synonyms----
+## [Optional] Filter taxonomyFile to species of interest and synonyms----
 
-filteredTaxonomyFile <- taxonomyFile %>%
+taxonomyFile <- taxonomyFile %>%
   left_join(
     taxonomyFile %>%
       dplyr::select(id, canonical, authorship),
@@ -241,12 +241,13 @@ filteredTaxonomyFile <- taxonomyFile %>%
 ### Users have the option of using rgbif::occ_search or rgbif::occ_download. occ_search() is only meant for smaller requests and generally not recommended for research. For larger requests, use rgbif::occ_download.
 ### See https://docs.ropensci.org/rgbif/articles/downloading_a_long_species_list.html for another example and further explanation.
 
-### Collect and add synonyms to sppList from current backbone
-synSppList <- filteredTaxonomyFile$canonical
+### Compile species list from taxonomyFile (filter to sppList in previous step if desired)
+synSppList <- taxonomyFile$canonical
 
-### Get the taxon keys for each species in list. gbifTaxonKeys should be a long vector like this c(2977832,2977901,2977966,2977835,2977863)
+### Get the taxon keys for each species in list. 
+### gbifTaxonKeys should be a long vector like this c(2977832,2977901,2977966,2977835,2977863)
 gbifTaxonKeys <- synSppList %>% 
-  name_backbone_checklist(strict = T) %>% # match to backbone 
+  name_backbone_checklist(strict = T, kingdom = "Animalia") %>% # Change kingdom to your use-case
   filter(matchType == "EXACT") %>% # get matched names
   pull(usageKey)
 
@@ -256,7 +257,7 @@ check_gbif_creds() # Custom script
 
 ## Intialize download of occurrence data, providing search parameters as needed
 ### This search uses the gbifTaxonKey values generated in the previous step
-### For help with constructing queries, see https://docs.ropensci.org/rgbif/index.html.
+## Read more about adding predicates here: https://www.rdocumentation.org/packages/rgbif/versions/3.8.0/topics/download_predicate_dsl
 occ_download(
   pred_in("taxonKey", gbifTaxonKeys),  # Search for all taxonKeys in the list
   pred("occurrenceStatus", "PRESENT"),
@@ -265,7 +266,6 @@ occ_download(
   pred("hasCoordinate", TRUE),
   pred_gte("year", 1960),  # Include only records from 1960 onwards
   ## Uncomment the section below to define a bounding box. Otherwise global occurrence data will be downloaded.
-  ## Read more about adding predicates here: https://www.rdocumentation.org/packages/rgbif/versions/3.8.0/topics/download_predicate_dsl
   # pred_or(
   #   pred_in("stateProvince",c("Texas","Arkansas","Louisiana","Oklahoma","New Mexico","Tamaulipas", "Nuevo Leon", "Coahuila","Chihuahua")),
   #   pred_within("POLYGON ((-107.24 25.6, -107.24 36.88, -92.52 36.88, -92.52 25.6, -107.24 25.6))")
@@ -292,8 +292,7 @@ gbifOccs <- gbifOccs %>%
          dataSource = "GBIF",
          country = "",
          # TODO: This is needed for some flagging steps. Does it break anything?
-         id = gbifOccs$gbifID) %>%
-  rename(datasetID = datasetKey)
+         id = gbifOccs$gbifID)
 
 # Or load previously downloaded database
 
@@ -306,18 +305,20 @@ gbifOccs <- read_delim(file.path(DataPath,"Additional_Datasets", "your_file_name
          dataSource = "GBIF",
          country = "",
          # TODO: This is needed for some flagging steps. Does it break anything?
-         id = gbifOccs$gbifID) %>%
-  rename(datasetID = datasetKey)
+         id = gbifOccs$gbifID)
 
 #****************
 ## Import local geographically-relevant data sets (BeeBDC examples)----
+
+# TODO: Template code for importing local dataset
+# TODO: Include info on what colTypes are REQUIRED (BeeBDC::ColTypeR())
 
 ## The datasets provided by Dorey that are relevant to Texas include
 ### Ballare et al., 2019 (Bal)
 #### Read in standardized data set
 # TODO: Create note about which columns are necessary for code to run
 
-# TODO: Make sure this isq the cleaned dataset
+# TODO: Make sure this is the standardized dataset
 Bal_std <- readr::read_csv(file.path(DataPath,"Additional_Datasets",
                                               "jbd_Bal_data.csv"),
                            col_types = BeeBDC::ColTypeR()) %>%
@@ -327,16 +328,6 @@ Bal_std <- readr::read_csv(file.path(DataPath,"Additional_Datasets",
          country = "USA", # Assuming all localities are in the USA
          countryCode = "US", # Assuming country code for the USA is "US"
          basisOfRecord = "HUMAN_OBSERVATION")
-
-# TODO: Remove this code?
-#### For comparison, read in the unstandardized version of Ballare data
-# Bal_Data <- BeeBDC::readr_BeeBDC(dataset = "Bal",
-#                                  path = file.path(DataPath, "Additional_Datasets"),
-#                                  inFile = file.path("InputDatasets", "Beedata_ballare.xlsx"),
-#                                 outFile = "jbd_Bal_Data.csv",
-#                                sheet = "animal_data",
-#                                dataLicense = "https://creativecommons.org/licenses/by-nc-sa/4.0/")
-
 
 ### Bob Minckley data (BMin)
 BMin_std <- readr::read_csv(file.path(DataPath,
@@ -418,6 +409,7 @@ PaigeNAm <- readr::read_csv(file.path(DataPath,
 ## Merge all occurrence data----
 
 # Take possible variable names from above
+# TODO: Is this step TOO specific to bee-data?
 existingDatasets <- c("Bal_std", "BMin_std", "Ecd_std", "FSCA_std", 
                       "gbifOccs", "GeoL_std", "INHS_std", "KP_std", 
                       "PaigeNAm", "SMC_std") %>%
@@ -809,7 +801,7 @@ rm(parse_names)
 ### Download custom taxonomy file from the BeeBDC package and DiscoverLife website
 ### Harmonize the names in the occurrence tibble.This flags the occurrences without a matched name and matches names to their correct name according to Discover Life. You can also use multiple cores to achieve this. See ‘?harmoniseR()’ for details.
 database <- BeeBDC::harmoniseR(path = DataPath, #The path to a folder that the output can be saved
-                               taxonomy = filteredTaxonomyFile, # The formatted taxonomy file
+                               taxonomy = taxonomyFile, # The formatted taxonomy file
                                data = database,
                                mc.cores = 1)
 
@@ -978,7 +970,7 @@ gridded_datasets <- CoordinateCleaner::cd_round(x = griddingDF,
                                                 reg_out_thresh = 2,
                                                 reg_dist_min = 0.1, 
                                                 reg_dist_max = 2) %>%
-  dplyr::tibble()
+                    dplyr::tibble()
 ### The griddingDF is no longer needed. remove it.
 
 rm(griddingDF)
