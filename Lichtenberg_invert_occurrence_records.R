@@ -455,6 +455,8 @@ db_standardized <- dplyr::bind_rows(beesRaw,
 
 # Flag Data ---------------------------------------------------------------
 
+# TODO: These flags are counter intuitive. .coordinates_empty == FALSE means
+# the row was positively flagged for empty coordinates and vice versa
 
 # To re-start in the middle of the flagging and harmonization process, 
 # read in the most recent intermediate file you outputted, replacing "03_space_inter_database.csv" with that file's name.
@@ -472,7 +474,7 @@ check_pf <- bdc::bdc_scientificName_empty(data = db_standardized,
                                           sci_names = "scientificName")
 
 # Remove db_standardized dataset to reduce data storage space
-rm(db_standardized) 
+rm(db_standardized)
 
 #****************
 ## Flag occurrences with missing decimalLatitude and decimalLongitude----
@@ -482,7 +484,7 @@ check_pf <- bdc::bdc_coordinates_empty(data = check_pf, lat = "decimalLatitude",
                                        lon = "decimalLongitude")
 
 #****************
-## Flag occurences that are not on Earth----
+## Flag occurrences that are not on Earth----
 
 ### Adds column ".coordinates_outOfRange"
 check_pf <- bdc::bdc_coordinates_outOfRange(data = check_pf, lat = "decimalLatitude",
@@ -558,17 +560,19 @@ suppressWarnings(
                                            # Normally, please use scale = "large"
                                            scale = "large",
                                            mc.cores = 1),
-  classes = "warning")
+                    classes = "warning")
 
 ### Re-join these datasets
 check_pf <- dplyr::left_join(check_pf, 
                              countryOutput, 
                              by = "database_id", 
                              suffix = c("", "CO")) %>%
-  # Take the new country name if the original is NA
-  dplyr::mutate(country = dplyr::if_else(is.na(country), countryCO, country)) %>%
-  # Remove duplicates if they arose from left_join!
-  dplyr::distinct()
+            # Take the new country name if the original is NA
+            dplyr::mutate(country = dplyr::if_else(is.na(country), 
+                                                   countryCO,
+                                                   country)) %>%
+            # Remove duplicates if they arose from left_join!
+            dplyr::distinct()
 
 ## Save the dataset
 check_pf %>%
@@ -631,6 +635,7 @@ check_pf <- BeeBDC::jbd_Ctrans_chunker(
 ) 
 
 # If transpositions were made, use this to view how many were corrected
+# TODO: Can we handle "Unknown or uninitialised column" error for tables with no transposed coords?
 table(check_pf$coordinates_transposed, useNA = "always") # NOTE: F = transposed/corrected records, T = already correct records 
 
 ### Save the dataset
@@ -649,8 +654,9 @@ if (!exists("check_pf")) {
 #****************
 ## Flag coordinates inconsistent with country names----
 
-### Collect all country names in the country_suggested column. We rebuilt a bdc function to flag occurrences where the coordinates are inconsistent with the provided country name.
-# TODO: Non-breaking warnings regarding database_id column
+### Collect all country names in the country_suggested column. 
+# We rebuilt a BDC function to flag occurrences where the coordinates are inconsistent with the provided country name.
+# This will error in an ambiguous way if all rows have empty or out of range coords flags
 check_pf <- BeeBDC::jbd_coordCountryInconsistent(data = check_pf, 
                                                  lon = "decimalLongitude",
                                                  lat = "decimalLatitude", 
@@ -687,7 +693,8 @@ rm(xyFromLocality)
 ## Flag records marked as "absent"----
 
 ### Run function
-check_pf <- BeeBDC::flagAbsent(data = check_pf,PresAbs = "occurrenceStatus") #if occurrenceStatus is absent, skip this step
+### You can skip this step if the table is missing occurrenceStatus column
+check_pf <- BeeBDC::flagAbsent(data = check_pf,PresAbs = "occurrenceStatus")
 
 #****************
 ## Flag License----
@@ -702,6 +709,7 @@ check_pf <- BeeBDC::flagLicense(data = check_pf,
 ## Flag GBIF issues----
 
 ### Flag select issues that are flagged by GBIF
+### Don't run this if you're not using GBIF data
 check_pf <- BeeBDC::GBIFissues(data = check_pf, 
                                issueColumn = "issue", 
                                GBIFflags = c("COORDINATE_INVALID",
@@ -740,10 +748,14 @@ check_pf <- BeeBDC::summaryFun(
 
 #### Use bdc to generate reports
 # TODO: (minor) Errors if nothing has been flagged
+# TODO: Uses here::here to save output, resulting in top-level directory
 (report <- bdc::bdc_create_report(data = check_pf,
                                   database_id = "database_id",
                                   workflow_step = "prefilter",
-                                  save_report = TRUE))
+                                  save_report = TRUE) %>%
+           readr::write_excel_csv(file.path(OutPath_Report, 
+                                     "01_Report_Prefilter.csv")
+           )
 
 #****************
 ## Save----
@@ -799,14 +811,16 @@ rm(parse_names)
 ## Harmonize taxonomy----
 
 ### Download custom taxonomy file from the BeeBDC package and DiscoverLife website
-### Harmonize the names in the occurrence tibble.This flags the occurrences without a matched name and matches names to their correct name according to Discover Life. You can also use multiple cores to achieve this. See ‘?harmoniseR()’ for details.
+### Harmonize the names in the occurrence tibble.
+### This flags the occurrences without a matched name and matches names to their correct name according to Discover Life. 
+### You can also use multiple cores to achieve this. See ‘?harmoniseR()’ for details.
 database <- BeeBDC::harmoniseR(path = DataPath, #The path to a folder that the output can be saved
                                taxonomy = taxonomyFile, # The formatted taxonomy file
                                data = database,
                                mc.cores = 1)
 
 ### Remove taxonomy file
-rm(filteredTaxonomyFile)
+rm(taxonomyFile)
 
 ### Save the harmonized file
 database %>%
