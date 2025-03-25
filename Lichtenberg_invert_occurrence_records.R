@@ -12,11 +12,10 @@
 #****************
 ## Install packages----
 
-### NOTE: Only code for installation of BeeBDC-related packages shown below, but also need to install/use packages "countrycode", "rgbif","spocc","taxize", and "tidyverse". 
-### NOTE: Remove ### to install packages as needed.
+### NOTE: We've only provided code for the installation of BeeBDC-related packages below, but you will also need to install packages "countrycode", "rgbif","spocc","taxize", and "tidyverse" to run this script. For more information on how to install R packages, see this guide: https://cran.r-project.org/doc/manuals/r-patched/R-admin.html
+# Once you've installed these packages, you won't need to run this section of code again. Instead, jump right to the 'Load libraries' section and start from there.
 
 # First, install BiocManager, devtools, ComplexHeatmap, and rnaturalearthhires. Complete these installations prior to installing BeeBDC
-## NOTE: Dorey provides code for managing packages for with "renv", but we don't use it here.
 if (!require("BiocManager", quietly = TRUE)) install.packages("BiocManager", repos = "http://cran.us.r-project.org")
 BiocManager::install("ComplexHeatmap")
 
@@ -24,40 +23,37 @@ BiocManager::install("ComplexHeatmap")
 if (!require("remotes", quietly = TRUE)) install.packages("remotes", repos = "http://cran.us.r-project.org")
 
 # Download and load rnaturalearthhires
-## NOTE: The order of installation matters here. Make sure this is done before installing BeeBDC
-## if the below code isn't working, then reference the github page for download instructions
+## NOTE: The order of installation matters here. Make sure this is done BEFORE installing BeeBDC. If the below code isn't working, then reference the github page (https://github.com/ropensci/rnaturalearthhires) for download instructions
 remotes::install_github("ropensci/rnaturalearthhires")
 install.packages("rnaturalearthhires", repos = "https://ropensci.r-universe.dev",type = "source") 
 
-# Now install and load BeeBDC
+# Install BeeBDC
 install.packages("BeeBDC",
                  dependencies = T)
 
-# Loads the remaining relevant BeeBDC packages
-lapply(c("ComplexHeatmap", "magrittr"), library, character.only = TRUE)
-
 # Install rgnparser
-## For Macs
-### You may need to install gnparser through terminal
-## For Windows
-### Make sure you have latest R, R studio, and packages. 'Check that package 'rgnparser' is installed.'rgnparser' package can be installed, but will not run unless the latest version of 'gnparser' (a component function of rgnparser package) is downloaded and placed anywhere in your PC's environmental PATH variables.
-### You can download latest version of 'gnparser' from https://github.com/gnames/gnparser/releases/tag/v1.6.9
-### If you'd like to place 'gnparser' in a folder outside of Widows default PATH variables, you'll have to edit your PC's PATH variables to include the folder you choose. This is difficult to do if working without administrator access on your PC.
+  ## For Macs:
+    ### You may need to install gnparser through the terminal
+  ## For Windows:
+    ### Make sure you have latest R, R studio, and packages. Check that package 'rgnparser' is installed.'rgnparser' package can be installed, but will not run unless the latest version of 'gnparser' (a component function of rgnparser package) is downloaded and placed anywhere in your PC's environmental PATH variables.
+    ### You can download latest version of 'gnparser' from https://github.com/gnames/gnparser/releases/tag/v1.6.9
+    ### If you'd like to place 'gnparser' in a folder outside of Widows default PATH variables, you'll have to edit your PC's PATH variables to include the folder you choose. This is difficult to do if working without administrator access on your PC.
 
 ### See https://github.com/gnames/gnparser#installation
 
 #****************
 ### Load libraries----
 
-# NOTE: Jump here if all above packages have been installed previously
+# NOTE: Jump here if all above packages have already been installed 
 library(rgbif)
 library(ritis)
 library(rgnparser)
 library(spocc)
 library(tidyverse)
-library(rnaturalearthhires) ## Ensure that "rnaturalearthhires" is loaded before loading "BeeBDC"
+library(rnaturalearthhires) ## Ensure that "rnaturalearthhires" is loaded BEFORE loading "BeeBDC"
 library(BeeBDC)
-lapply(c("ComplexHeatmap", "magrittr"), library, character.only = TRUE)
+library(ComplexHeatmap)
+library(magrittr)
 library(sf)
 library(tigris)
 library(raster)
