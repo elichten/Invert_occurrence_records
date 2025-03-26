@@ -1,4 +1,4 @@
-format_provider_data <- function(table = NULL, provider = NULL) {
+format_provider_data <- function(table = NULL, provider = NULL, verbose = FALSE) {
   # Argument errors
   if (is.null(table)) {
     stop(" - Please provide a BeeBDC-formatted table")
@@ -38,7 +38,9 @@ format_provider_data <- function(table = NULL, provider = NULL) {
           }
           
           # Call the ritis::taxon_authorship function with the extracted TSN
-          message("Getting authorship for tsn: ", tsn)
+          if (verbose) {
+            message("Getting authorship for tsn: ", tsn)
+          }
           result <- ritis::taxon_authorship(as.numeric(tsn))
           
           # If successful, return authorship info
@@ -46,8 +48,10 @@ format_provider_data <- function(table = NULL, provider = NULL) {
           
         # Catch errors (e.g., network issue, API issues) and retry
         }, error = function(e) {
-          message("Error in taxon_authorship: ", e$message)
-          message("Attempt ", attempt, " of ", max_attempts, ". Retrying...")
+          if (verbose) {
+            message("Error in taxon_authorship: ", e$message)
+            message("Attempt ", attempt, " of ", max_attempts, ". Retrying...")
+          }
           
           # Increment attempt count and try again
           attempt <<- attempt + 1

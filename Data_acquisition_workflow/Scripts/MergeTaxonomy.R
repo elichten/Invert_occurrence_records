@@ -7,7 +7,7 @@ merge_taxonomy <- function(table, table_names) {
                "taxon_rank", "valid", "notes", "canonical_accepted", "authorship_accepted")
   
   # Dynamically coalesce columns and perform the join at the same time
-  mergedTaxonomy <- joinedTaxonomy
+  mergedTaxonomy <- table
   
   for (column in columns) {
 
@@ -19,7 +19,7 @@ merge_taxonomy <- function(table, table_names) {
       mutate(
         !!column := purrr::reduce(
           purrr::map(full_column_names, ~ {
-            if (.x %in% colnames(mergedTaxonomy)) {
+            if (.x %in% colnames(table)) {
               return(mergedTaxonomy[[.x]])
             } else {
               return(NA)  # If column doesn't exist, return NA
@@ -32,5 +32,5 @@ merge_taxonomy <- function(table, table_names) {
   
   # Finally, select the desired columns
   mergedTaxonomy <- mergedTaxonomy %>%
-    dplyr::select(colnames(taxDLog), canonical_accepted, authorship_accepted)
+    dplyr::select(all_of(columns), canonical_accepted, authorship_accepted)
 }
