@@ -31,15 +31,11 @@ install.packages("rnaturalearthhires", repos = "https://ropensci.r-universe.dev"
 install.packages("BeeBDC",
                  dependencies = T)
 
-# Install rgnparser
-  ## For Macs:
-    ### You may need to install gnparser through the terminal
-  ## For Windows:
-    ### Make sure you have latest R, R studio, and packages. Check that package 'rgnparser' is installed.'rgnparser' package can be installed, but will not run unless the latest version of 'gnparser' (a component function of rgnparser package) is downloaded and placed anywhere in your PC's environmental PATH variables.
-    ### You can download latest version of 'gnparser' from https://github.com/gnames/gnparser/releases/tag/v1.6.9
-    ### If you'd like to place 'gnparser' in a folder outside of Widows default PATH variables, you'll have to edit your PC's PATH variables to include the folder you choose. This is difficult to do if working without administrator access on your PC.
-
-### See https://github.com/gnames/gnparser#installation
+# Install gnparser and rgnparser
+  # gnparser needs to be installed and up to date before you can install/run rgnparser. Make sure you have latest R, R studio, and packages. Then, follow this link for instructions on how to install gnparser on your device (windows/linux/mac): https://github.com/gnames/gnparser#installation
+  # When you get to the step where you need to move the file to a specific location on your computer, we recommend putting it in the same location as your R packages. 
+  # After you've successfully installed gnparser, then go ahead and install rgnparser, like you would a normal R package (e.g., 'install.packages('rgnparser')')
+  
 
 #****************
 ### Load libraries----
