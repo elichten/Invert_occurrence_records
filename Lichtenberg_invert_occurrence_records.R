@@ -36,7 +36,6 @@ install.packages("BeeBDC",
   # When you get to the step where you need to move the file to a specific location on your computer, we recommend putting it in the same location as your R packages. 
   # After you've successfully installed gnparser, then go ahead and install rgnparser, like you would a normal R package (e.g., 'install.packages('rgnparser')')
   
-
 #****************
 ### Load libraries----
 
@@ -744,14 +743,13 @@ check_pf <- BeeBDC::summaryFun(
 
 #### Use bdc to generate reports
 # TODO: (minor) Errors if nothing has been flagged
-# TODO: Uses here::here to save output, resulting in top-level directory
 (report <- bdc::bdc_create_report(data = check_pf,
-                                  database_id = "database_id",
-                                  workflow_step = "prefilter",
-                                  save_report = TRUE) %>%
-           readr::write_excel_csv(file.path(OutPath_Report, 
-                                     "01_Report_Prefilter.csv")
-           )
+                                 database_id = "database_id",
+                                 workflow_step = "prefilter"))
+
+# Save report to Data_acquisition_workflow/Output/Report
+readr::write_csv(report$x$data, file.path(OutPath_Report, 
+                                          "01_Report_Prefilter.csv"))
 
 #****************
 ## Save----
@@ -1098,8 +1096,11 @@ check_space %>%
 (report <- bdc::bdc_create_report(data = dplyr::tibble(check_space %>%
                                                          dplyr::select(!.uncer_terms)), 
                                   database_id = "database_id",
-                                  workflow_step = "space",
-                                  save_report = TRUE))
+                                  workflow_step = "space"))
+
+# Save report to Data_acquisition_workflow/Output/Report
+readr::write_csv(report$x$data, file.path(OutPath_Report, 
+                                          "03_Report_space.csv"))
 
 #****************
 ## Space Figures----
