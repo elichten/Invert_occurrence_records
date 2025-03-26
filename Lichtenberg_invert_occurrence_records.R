@@ -75,6 +75,9 @@ BeeBDC::dirMaker(RootPath = RootPath, RDoc = "Lichtenberg_invert_occurrence_reco
   ## Adds paths created by this function to the environment()
   list2env(envir = parent.env(environment()))
 
+# Check if the Cleaned directory exists, and if not, create it
+dir.create(file.path(OutPath, "Cleaned"), showWarnings = FALSE)
+
 ## Store the default par settings so they can be restored
 .pardefaults <- par(no.readonly = T)
 
@@ -209,7 +212,8 @@ existingVariables <- c("acceptedIDs","joinedTaxonomy","mergedTaxonomy","taxDL",
                      
 rm(list = existingVariables, existingVariables) # Remove existing variables
 
-#******
+
+#****************
 ## [Optional] Filter taxonomyFile to species of interest and synonyms----
 
 taxonomyFile <- taxonomyFile %>%
@@ -400,6 +404,7 @@ PaigeNAm <- readr::read_csv(file.path(DataPath,
 #                                     "jbd_Lic_Data.csv"))%>%
 #   mutate(eventDate = as.character(eventDate))
 
+
 #****************
 ## Merge all occurrence data----
 
@@ -407,7 +412,7 @@ PaigeNAm <- readr::read_csv(file.path(DataPath,
 # TODO: Is this step TOO specific to bee-data?
 existingDatasets <- c("Bal_std", "BMin_std", "Ecd_std", "FSCA_std", 
                       "gbifOccs", "GeoL_std", "INHS_std", "KP_std", 
-                      "PaigeNAm", "SMC_std") %>%
+                      "PaigeNAm", "SMC_std", "custom_dataset") %>%
                     get_existing_variables() # Custom script to filter to used variables only
 
 # Merge datasets in filtered list of names
@@ -416,6 +421,8 @@ db_standardized <- lapply(existingDatasets, function(name) get(name, envir = .Gl
 
 ## Remove spent databases
 rm(list = existingDatasets, existingDatasets)
+
+
 
 ### Save the dataset
 db_standardized %>%
@@ -428,7 +435,8 @@ if(!exists("db_standardized")){
   db_standardized <- readr::read_csv(file.path(OutPath_Intermediate, 
                                                "00_prefilter_database.csv"), 
                                      col_types = BeeBDC::ColTypeR())
-  }
+}
+
 
 #****************
 # (Optional) Load sample datasets provided by BeeBDC package for working through the code. Only do this if you want to quickly run through the workflow with a dataset small enough to run quickly even in RAM-heavy operations
@@ -555,7 +563,7 @@ suppressWarnings(
                                            # Normally, please use scale = "large"
                                            scale = "large",
                                            mc.cores = 1),
-                    classes = "warning")
+                   classes = "warning")
 
 ### Re-join these datasets
 check_pf <- dplyr::left_join(check_pf, 
@@ -651,7 +659,8 @@ if (!exists("check_pf")) {
 
 ### Collect all country names in the country_suggested column. 
 # We rebuilt a BDC function to flag occurrences where the coordinates are inconsistent with the provided country name.
-# This will error in an ambiguous way if all rows have empty or out of range coords flags
+# TODO: This will error in an ambiguous way if all rows have empty or out of range coords flags
+# TODO: Non-breaking warnings regarding database_id column
 check_pf <- BeeBDC::jbd_coordCountryInconsistent(data = check_pf, 
                                                  lon = "decimalLongitude",
                                                  lat = "decimalLatitude", 
@@ -704,12 +713,13 @@ check_pf <- BeeBDC::flagLicense(data = check_pf,
 ## Flag GBIF issues----
 
 ### Flag select issues that are flagged by GBIF
-### Don't run this if you're not using GBIF data
+### You can skip this if you're not using GBIF data
 check_pf <- BeeBDC::GBIFissues(data = check_pf, 
                                issueColumn = "issue", 
                                GBIFflags = c("COORDINATE_INVALID",
                                              "ZERO_COORDINATE")
                                )
+
 #****************
 ## Flag reports----
 
@@ -979,12 +989,11 @@ gridded_datasets <- CoordinateCleaner::cd_round(x = griddingDF,
                                                 reg_dist_min = 0.1, 
                                                 reg_dist_max = 2) %>%
                     dplyr::tibble()
-### The griddingDF is no longer needed. remove it.
 
+### The griddingDF is no longer needed. remove it.
 rm(griddingDF)
 
 ### Integrate results with main dataset
-
 check_space <- check_space %>%
   # Join the datasets
   dplyr::left_join(
@@ -1004,27 +1013,27 @@ check_space <- check_space %>%
                    lat.flag, summary))
 
 ### Save the gridded_datasets file for later examination and remove.
-
 gridded_datasets %>%
   readr::write_excel_csv(file.path(OutPath_Intermediate,
                                    "03_space_griddedDatasets.csv")
                          )
+
+# Remove old variable
 rm(gridded_datasets)
 
 #****************
 ## Uncertainty----
 
 ### Flag records that exceed a coordinateUncertaintyInMeters threshold
-
 check_space <- BeeBDC::coordUncerFlagR(data = check_space, 
                                        uncerColumn = "coordinateUncertaintyInMeters",
                                        threshold = 1000)
+
 #****************
 ## Country Checklist----
 
 ### This step identifies mismatches between the Discover Life country checklist (beesChecklist) and your occurrence dataset for bee species, identifying potential misidentifications, outliers, etc.’
 ### Download the country-level checklist.
-
 bee.checklist <- read_csv(file.path(RootPath,
                                     "BDC_repo", 
                                     "DiscoverLife_Data", 
@@ -1044,7 +1053,6 @@ check_space <- BeeBDC::countryOutlieRs(checklist = bee.checklist,
                                        mc.cores = 1)
 
 ### Since version 1.1.2 a new function, BeeBDC::continentOutlieRs(), has been released which is conceptually the same as BeeBDC::countryOutlieRs() except it works on the level of continents. Users might appreciate that generating a continent-level checklist is much easier than a country-level one and so might actually be of more wide-spread use (beyond bees).
-
 check_space <- BeeBDC::continentOutlieRs(checklist = bee.checklist,
                                          data = check_space,
                                          keepAdjacentContinent = FALSE,
@@ -1055,7 +1063,6 @@ check_space <- BeeBDC::continentOutlieRs(checklist = bee.checklist,
                                          mc.cores = 1)
 
 ### A list of failed species-country combinations and their numbers can be output here
-
 view(check_space %>%
        dplyr::filter(.countryOutlier == FALSE) %>%
        dplyr::select(database_id, scientificName, country) %>%
@@ -1070,14 +1077,12 @@ view(check_space %>%
 
 ### Assemble maps of potential spatial errors and outliers, either one flag at a time or using the .summary column. 
 ### First, you need to rebuild the .summary column.
-
 check_space <- BeeBDC::summaryFun(data = check_space,
                                   dontFilterThese = NULL,
                                   removeFilterColumns = FALSE,
                                   filterClean = FALSE)
 
 ### Use col_to_map in order to map ONE spatial flag at a time or map the .summary column for all flags.
-
 check_space %>%
   dplyr::filter(.summary == FALSE) %>% # map only records flagged as FALSE
   bdc::bdc_quickmap(
@@ -1092,7 +1097,6 @@ check_space %>%
 ## Space Report----
 
 ### Create the report using bdc
-
 (report <- bdc::bdc_create_report(data = dplyr::tibble(check_space %>%
                                                          dplyr::select(!.uncer_terms)), 
                                   database_id = "database_id",
@@ -1106,14 +1110,13 @@ readr::write_csv(report$x$data, file.path(OutPath_Report,
 ## Space Figures----
 
 ### Create figures for the spatial data filtering results
-
+# TODO: I believe this fails ambiguously if no filtering occurs
 (figures <- BeeBDC::jbd_create_figures(data = dplyr::tibble(check_space %>%
                                                               dplyr::select(!.uncer_terms)), 
                                        path = DataPath, 
                                        database_id = "database_id",
                                        workflow_step = "space", 
                                        save_figures = TRUE))
-
 
 ### For examining the figures, the options are:
 
@@ -1128,18 +1131,15 @@ readr::write_csv(report$x$data, file.path(OutPath_Report,
 #### .urb = Records within urban areas — (Likely not relevant for bees.)
 
 ### You can examine the figures. For example, run figures$.rou
-
 figures$summary_all_tests
 
 ### Save interim dataset
-
 check_space %>%
   readr::write_excel_csv(file.path(OutPath_Intermediate,
                                    "03_space_inter_database.csv")
                          )
 
 ### Save the flags so far
-
 BeeBDC::flagRecorder(data = check_space, 
                      outPath = OutPath_Report,
                      fileName = paste0("flagsRecorded_", Sys.Date(), ".csv"), 
@@ -1152,7 +1152,6 @@ BeeBDC::flagRecorder(data = check_space,
                      printSummary = TRUE)
 
 ### Save the intermediate dataset
-
 check_space %>%
   readr::write_excel_csv(., file.path(OutPath_Intermediate,
                                       "03_space_database.csv")
@@ -1166,7 +1165,6 @@ check_space %>%
 
 
 ## Read in the last database, if needed
-
 if (!exists("check_space")) {
   check_time <- readr::read_csv(file.path(OutPath_Intermediate,
                                           "03_space_database.csv"),
@@ -1180,16 +1178,14 @@ if (!exists("check_space")) {
 ## Plot histogram of dates
 
 ### Parse dates with lubridate
-
+# TODO: Would be helpful to provide examples of acceptable datetime formats
 check_time$eventDate<-lubridate::ymd_hms(check_time$eventDate, truncated = 5)
 
 ### Define range of dates to filter out those that were parsed incorrectly
-
 earliest_date <- as.POSIXct("1863-01-01")
 latest_date <- Sys.time()
 
 ### Create histogram
-
 hist(check_time$eventDate, 
      breaks = 365*10, 
      main = "Histogram of eventDates",
@@ -1197,7 +1193,6 @@ hist(check_time$eventDate,
               latest_date))
 
 ### Further filters to remove unreasonable dates
-
 check_time$year <- ifelse(check_time$year > lubridate::year(Sys.Date()) | check_time$year <
                             1600, NA, check_time$year)
 check_time$month <- ifelse(check_time$month > 12 | check_time$month < 1, NA, check_time$month)
@@ -1207,7 +1202,7 @@ check_time$day <- ifelse(check_time$day > 31 | check_time$day < 1, NA, check_tim
 ## Recover dates----
 
 ### The dateFindR() function will search through some other columns in order to find and rescue dates that may not have made it into the correct columns. It will further update the eventDate, day, month, and year columns where these data were a) missing and b) located in one of the searched columns.
-
+# TODO: Should this happen before filtering in order to catch issues in unfiltered data first?
 check_time <- BeeBDC::dateFindR(data = check_time,
                                 # Years above this are removed (from the recovered dates only)
                                 maxYear = lubridate::year(Sys.Date()),
@@ -1218,21 +1213,18 @@ check_time <- BeeBDC::dateFindR(data = check_time,
 ## No eventDate----
 
 ### Flag records missing eventDate
-
 check_time <- bdc::bdc_eventDate_empty(data = check_time, eventDate = "eventDate")
 
 #****************
 ## Old records----
 
 ### This will flag records prior to the date selected. 1970 is frequently chosen for SDM work. You may not need to filter old records at all, so think critically about your use. We have chosen 1950 as a lower extreme.
-
 check_time <- bdc::bdc_year_outOfRange(data = check_time, eventDate = "year", year_threshold = 1950)
 
 #****************
 ## Time report----
 
 ### Create a time report that updates the .summary column
-
 check_time <- BeeBDC::summaryFun(
   data = check_time,
   # Don't filter these columns (or NULL)
@@ -1246,7 +1238,6 @@ check_time <- BeeBDC::summaryFun(
 ## Time figures----
 
 ### Create time results figures
-
 figures <- BeeBDC::jbd_create_figures(data = check_time,
                                       path = DataPath,
                                       database_id = "database_id",
@@ -1259,7 +1250,6 @@ figures <- BeeBDC::jbd_create_figures(data = check_time,
 ## Save flags----
 
 ### Save all flags so far
-
 BeeBDC::flagRecorder(data = check_time,
                      outPath = OutPath_Report,
                      fileName = paste0("flagsRecorded_", Sys.Date(), ".csv"),
@@ -1281,7 +1271,6 @@ BeeBDC::flagRecorder(data = check_time,
 ## Duplicates are identified iteratively and will be tallied up, duplicate pairs clustered, and sorted at the end of the function. 
 ## The function is designed to work with Darwin Core data with a database_id column, but it is also modifiable to work with other columns. 
 ## I would encourage you to see ‘?dupeSummary()’ for more details as this function is quite modifiable to user needs.
-
 check_time <- BeeBDC::dupeSummary(
   data = check_time,
   path = OutPath_Report,
@@ -1339,14 +1328,12 @@ check_time <- BeeBDC::dupeSummary(
   dplyr::as_tibble(col_types = BeeBDC::ColTypeR())
 
 ## Save the dataset into the intermediate folder
-
 check_time %>%
   readr::write_excel_csv(., file.path(OutPath_Intermediate, 
                                       "04_2_dup_database.csv")
                          )
 
 ## Save flags so far
-
 BeeBDC::flagRecorder(data = check_time,
                      outPath = OutPath_Report,
                      fileName = paste0("flagsRecorded_", Sys.Date(), ".csv"),
@@ -1366,14 +1353,12 @@ BeeBDC::flagRecorder(data = check_time,
 
 
 # Read in the most-recent duplicates file (generated by dupeSummary()) in order to identify the duplicates of the expert outliers
-
 if (!exists("duplicates")) {
   duplicates <- BeeBDC::fileFinder(path = DataPath, fileName = "duplicateRun_")%>%
     readr::read_csv()
 }
 
 ## Identify the outliers and get a list of their database_ids. This would require the source outlier files provided with the BeeBDC paper. These files can further be modified to include more outliers.
-
 # check_time <- BeeBDC::manualOutlierFindeR(
 #   data = check_time,
 #   DataPath = DataPath,
@@ -1385,7 +1370,6 @@ if (!exists("duplicates")) {
 #   duplicates = duplicates)
 
 ### Save uncleaned dataset
-
 check_time <- BeeBDC::summaryFun(data = check_time, 
                                  dontFilterThese = c(".gridSummary",
                                                      ".lonFlag",
@@ -1394,7 +1378,6 @@ check_time <- BeeBDC::summaryFun(data = check_time,
                                                      ".uncertaintyThreshold"),
                                  removeFilterColumns = FALSE,
                                  filterClean = FALSE)
-
 
 #****************
 ## Filter
@@ -1429,7 +1412,6 @@ boundary <- counties(state = 'Texas') %>%
 #filter by your own unique geographic region
 
 ## Save the cleaned dataset
-# TODO: Check if this makes a directory
 cleanData %>%
   readr::write_excel_csv(., file.path(OutPath,
                                       "Cleaned",
@@ -1450,12 +1432,10 @@ if (!exists("duplicates")) {
 }
 
 ## Set global figure parameters
-
 par(mar = c(2, 2, 2, 2)/2, mfrow = c(1, 1))
 
 ## Create chordDiagram
 ### Many values can be left out depending on desired output, but the below code provides the default values. Since there are no duplicates present in the current dataset, BeeBDC will give an error message
-
 BeeBDC::chordDiagramR(
   # The duplicate data from the dupeSummary function output  
   dupeData = duplicates,
@@ -1481,8 +1461,8 @@ BeeBDC::chordDiagramR(
   niceFacing = TRUE)
 
 ## Duplicate histogram
-### Read in uncleaned data if necessary
 
+### Read in uncleaned data if necessary
 if (!exists("check_time")) {
   beeData <- readr::read_csv(file.path(OutPath_Intermediate, 
                                        "05_unCleaned_database.csv"), 
@@ -1494,7 +1474,6 @@ if (!exists("check_time")) {
 
 ### Create a plot with two bar graphs
 #### One bar shows the absolute number of duplicate records for each source, while the other shows the proportion of records that are duplicated within each data source.
-
 BeeBDC::dupePlotR(
   data = beeData,
   # The outPath to save the plot as
