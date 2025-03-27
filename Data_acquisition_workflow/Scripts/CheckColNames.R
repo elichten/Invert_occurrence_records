@@ -58,8 +58,6 @@ check_occ_table <- function(table) {
 check_taxon_table <- function(table) {
   
   # TODO: Is the column "valid" required?
-  # TODO: Is the column "flags" required?
-  # TODO: Is the column "canonical_withFlags" required?
   requiredColumns <- c("id",
                        "canonical",
                        "authorship",

@@ -118,7 +118,25 @@ sppList <- sppListHarmonized$species # Output list of accepted names
 
 ### Option 1: read in local taxonomic backbone----
 ### If users have a backbone made prior to this workflow, it can be read directly into taxonomyFile for use in later steps. Ensure that column names and types match BeeBDC format (for reference, download a small test backbone using taxadbToBeeBDC()). 
-### Key columns required for workflow: taxonomic_status, source, accid, id, [all taxonomic levels], validName, canonical, authorship, taxon_rank, valid.
+
+### These key columns are required for taxonomyFile: 
+      # taxonomic_status
+      # source
+      # accid
+      # id
+      # [all taxonomic levels]
+      # validName
+      # canonical
+      # authorship
+      # taxon_rank
+      # valid
+      # kingdom
+      # phylum
+      # class
+      # order
+      # family
+      # genus
+
 taxonomyFile<-read_csv(file.path(DataPath,"your_taxon_filename.csv")) %>%
               check_taxon_table() # Custom script
 
@@ -313,13 +331,35 @@ gbifOccs <- read_delim(file.path(DataPath,
 #****************
 ## Import local geographically-relevant data sets (BeeBDC examples)----
 
-## Template code for importing local dataset
-custom_dataset <- readr::read_csv(file.path(DataPath,
-                                     "Additional_Datasets",
-                                     "your_file_name.csv"),
-                         col_types = BeeBDC::ColTypeR()) %>%
-                  check_occ_table() # Custom script to check for required column names
+## These key columns are required for occurrence data: 
+      # scientificName
+      # decimalLatitude
+      # decimalLongitude
+      # basisOfRecord
+      # countryCode
+      # dataSource
+      # country
+      # database_id
+      # locality
+      # occurrenceStatus
+      # issue (perhaps optional. this is a gbif thing.)
+      # id
+      # catalogNumber
+      # occurrenceID
+      # eventDate
+      # recordedBy
+      # datasetName
+      # coordinateUncertaintyInMeters
+      # year
+      # month
+      # day
 
+## Template code for importing local dataset
+custom_dataset <- suppressWarnings(readr::read_delim(file.path(DataPath,
+                                     "Additional_Datasets",
+                                     "your_data_file.csv"),
+                         col_types = BeeBDC::ColTypeR())) %>%
+                  check_occ_table() # Custom script to check for required column names
 
 ## The datasets provided by Dorey that are relevant to Texas include
 ### Ballare et al., 2019 (Bal)
