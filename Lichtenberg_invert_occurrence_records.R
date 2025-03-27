@@ -119,7 +119,8 @@ sppList <- sppListHarmonized$species # Output list of accepted names
 ### Option 1: read in local taxonomic backbone----
 ### If users have a backbone made prior to this workflow, it can be read directly into taxonomyFile for use in later steps. Ensure that column names and types match BeeBDC format (for reference, download a small test backbone using taxadbToBeeBDC()). 
 ### Key columns required for workflow: taxonomic_status, source, accid, id, [all taxonomic levels], validName, canonical, authorship, taxon_rank, valid.
-taxonomyFile<-read_csv(file.path(DataPath,"your_taxonomic_backbone.csv"))
+taxonomyFile<-read_csv(file.path(DataPath,"your_taxon_filename.csv")) %>%
+              check_taxon_table() # Custom script
 
 
 ### Option 2: BeeBDC download of DiscoverLife's Backbone----
@@ -165,6 +166,7 @@ taxITISog <- taxadbToBeeBDC(name = "Hymenoptera",
                             rank = "Order",
                             ignore_case = FALSE,
                             provider = "itis")
+
 # ITIS authorship data is not returned through the above query
 # For ITIS, this step uses ritis::taxon_authorship() to fill authorship column
 # Warning: this can take prohibitively long for large datasets—try filtering to sppList first if needed
@@ -290,32 +292,38 @@ gbifOccs <- gbifOccs %>%
          datasetID = "GBIF_4bees",
          dataSource = "GBIF",
          country = "",
-         # TODO: This is needed for some flagging steps. Does it break anything?
+         datasetName = datasetKey,
          id = gbifOccs$gbifID)
 
 # Or load previously downloaded database
-
 # GBIF simple-CSV downloads default to a tab-delimited format. Change the delim argument if needed
-gbifOccs <- read_delim(file.path(DataPath,"Additional_Datasets", "your_file_name.csv"), delim='\t')%>%
+gbifOccs <- read_delim(file.path(DataPath,
+                                 "Additional_Datasets", 
+                                 "your_file_name.csv"), 
+                       delim='\t') %>%
   mutate(dateIdentified = as.character(dateIdentified),
          recordNumber = as.character(recordNumber),
          database_id = paste0("GBIF_4bees_",seq_len(nrow(gbifOccs))),
          datasetID = "GBIF_4bees",
          dataSource = "GBIF",
          country = "",
-         # TODO: This is needed for some flagging steps. Does it break anything?
+         datasetName = datasetKey,
          id = gbifOccs$gbifID)
 
 #****************
 ## Import local geographically-relevant data sets (BeeBDC examples)----
 
-# TODO: Template code for importing local dataset
-# TODO: Include info on what colTypes are REQUIRED (BeeBDC::ColTypeR())
+## Template code for importing local dataset
+custom_dataset <- readr::read_csv(file.path(DataPath,
+                                     "Additional_Datasets",
+                                     "your_file_name.csv"),
+                         col_types = BeeBDC::ColTypeR()) %>%
+                  check_occ_table() # Custom script to check for required column names
+
 
 ## The datasets provided by Dorey that are relevant to Texas include
 ### Ballare et al., 2019 (Bal)
 #### Read in standardized data set
-# TODO: Create note about which columns are necessary for code to run
 
 # TODO: Make sure this is the standardized dataset
 Bal_std <- readr::read_csv(file.path(DataPath,"Additional_Datasets",
@@ -427,8 +435,7 @@ rm(list = existingDatasets, existingDatasets)
 ### Save the dataset
 db_standardized %>%
   readr::write_excel_csv(., file.path(OutPath_Intermediate, 
-                                      "00_prefilter_database.csv")
-                         )
+                                      "00_prefilter_database.csv"))
 
 # If db_standardized has been previously created and saved, read in here:
 if(!exists("db_standardized")){
@@ -638,7 +645,7 @@ check_pf <- BeeBDC::jbd_Ctrans_chunker(
 ) 
 
 # If transpositions were made, use this to view how many were corrected
-# TODO: Can we handle "Unknown or uninitialised column" error for tables with no transposed coords?
+# Will output a warning if there are no transposed occurrences
 table(check_pf$coordinates_transposed, useNA = "always") # NOTE: F = transposed/corrected records, T = already correct records 
 
 ### Save the dataset
@@ -814,14 +821,13 @@ rm(parse_names)
 #****************
 ## Harmonize taxonomy----
 
-### Download custom taxonomy file from the BeeBDC package and DiscoverLife website
-### Harmonize the names in the occurrence tibble.
-### This flags the occurrences without a matched name and matches names to their correct name according to Discover Life. 
+### Harmonize occurrence data and flag those that do not match the taxonomyFile
 ### You can also use multiple cores to achieve this. See ‘?harmoniseR()’ for details.
-database <- BeeBDC::harmoniseR(path = DataPath, #The path to a folder that the output can be saved
-                               taxonomy = taxonomyFile, # The formatted taxonomy file
-                               data = database,
-                               mc.cores = 1)
+database <- prepare_harmonise(taxonomyFile) %>% # Custom function to add empty "flags" and "canonical_withFlags" columns if missing
+      BeeBDC::harmoniseR(path = DataPath, #The path to a folder that the output can be saved
+                         taxonomy = ., # The formatted taxonomy file
+                         data = database,
+                         mc.cores = 1)
 
 ### Remove taxonomy file
 rm(taxonomyFile)
@@ -975,6 +981,7 @@ griddingDF <- check_space %>%
   dplyr::ungroup()
 
 ### Run the gridding analysis to find datasets that might be gridded.
+# TODO: This can take quite a while and has no update messaging
 gridded_datasets <- CoordinateCleaner::cd_round(x = griddingDF, 
                                                 lon = "decimalLongitude",
                                                 lat = "decimalLatitude", 
@@ -1034,6 +1041,7 @@ check_space <- BeeBDC::coordUncerFlagR(data = check_space,
 
 ### This step identifies mismatches between the Discover Life country checklist (beesChecklist) and your occurrence dataset for bee species, identifying potential misidentifications, outliers, etc.’
 ### Download the country-level checklist.
+# TODO: ^^ How?
 bee.checklist <- read_csv(file.path(RootPath,
                                     "BDC_repo", 
                                     "DiscoverLife_Data", 
@@ -1195,7 +1203,9 @@ hist(check_time$eventDate,
 ### Further filters to remove unreasonable dates
 check_time$year <- ifelse(check_time$year > lubridate::year(Sys.Date()) | check_time$year <
                             1600, NA, check_time$year)
+
 check_time$month <- ifelse(check_time$month > 12 | check_time$month < 1, NA, check_time$month)
+
 check_time$day <- ifelse(check_time$day > 31 | check_time$day < 1, NA, check_time$day)
 
 #****************
