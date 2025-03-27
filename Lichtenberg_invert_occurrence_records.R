@@ -116,9 +116,6 @@ sppList <- sppListHarmonized$species # Output list of accepted names
 #****************
 ## Taxonomic backbone from a single source----
 
-### Option 1: read in local taxonomic backbone----
-### If users have a backbone made prior to this workflow, it can be read directly into taxonomyFile for use in later steps. Ensure that column names and types match BeeBDC format (for reference, download a small test backbone using taxadbToBeeBDC()). 
-
 ### These key columns are required for taxonomyFile: 
       # taxonomic_status
       # source
@@ -137,15 +134,18 @@ sppList <- sppListHarmonized$species # Output list of accepted names
       # family
       # genus
 
+#******
+### Option 1: read in local taxonomic backbone----
+### If users have a backbone made prior to this workflow, it can be read directly into taxonomyFile for use in later steps. Ensure that column names and types match BeeBDC format (for reference, download a small test backbone using taxadbToBeeBDC()). 
 taxonomyFile<-read_csv(file.path(DataPath,"your_taxon_filename.csv")) %>%
               check_taxon_table() # Custom script
 
-
+#******
 ### Option 2: BeeBDC download of DiscoverLife's Backbone----
 ### Discover Life's backbone for Anthophila comes with the BeeBDC download via beesTaxonomy()
 taxonomyFile <- beesTaxonomy_fixed() # TODO: This is a fixed version of BeeBDC::BeesTaxonomy, which should reliably work now. Still needs to be tested on macOS
 
-
+#******
 ### Option 3: download taxonomic backbone from API----
 ### It's best to download backbones at higher taxonomic level encompassing all species of interest to capture as many synonyms as possible. The backbone can then be filtered using sppList. 
 ### taxadbToBeeBDC() will download backbones from several sources in BeeBDC format. 
@@ -184,7 +184,6 @@ taxITISog <- taxadbToBeeBDC(name = "Hymenoptera",
                             rank = "Order",
                             ignore_case = FALSE,
                             provider = "itis")
-
 # ITIS authorship data is not returned through the above query
 # For ITIS, this step uses ritis::taxon_authorship() to fill authorship column
 # Warning: this can take prohibitively long for large datasets—try filtering to sppList first if needed
@@ -206,6 +205,7 @@ joinedTaxonomy <- possibleTables %>%
 ### Table priority is determined by the order in which the table names are provided to the mergeTaxonomy() function.
 mergedTaxonomy <- merge_taxonomy(joinedTaxonomy, c('dl', 'gbif', 'itis')) # Custom script
 
+# TODO: Determine if this is needed anymore!
 ### Correct orphaned accids
 #### Create a reference table for instances of orphaned accids. This happens when a unique synonym occurs in a lower-priority taxonomic backbone but refers to an accepted name shared by a higher priority backbone.
 acceptedIDs <- mergedTaxonomy %>%
@@ -363,8 +363,8 @@ custom_dataset <- suppressWarnings(readr::read_delim(file.path(DataPath,
 
 ## The datasets provided by Dorey that are relevant to Texas include
 ### Ballare et al., 2019 (Bal)
-#### Read in standardized data set
 
+#### Read in standardized data set
 # TODO: Make sure this is the standardized dataset
 Bal_std <- readr::read_csv(file.path(DataPath,"Additional_Datasets",
                                               "jbd_Bal_data.csv"),

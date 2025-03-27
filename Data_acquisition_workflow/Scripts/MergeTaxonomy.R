@@ -6,31 +6,28 @@ merge_taxonomy <- function(table, table_names) {
                "genus", "subgenus", "species", "infraspecies", "authorship", 
                "taxon_rank", "valid", "notes", "canonical_accepted", "authorship_accepted")
   
-  # Dynamically coalesce columns and perform the join at the same time
   mergedTaxonomy <- table
   
   for (column in columns) {
-
-    # Dynamically generate column names for each source
+    # Create full column names for each source (e.g., "scientificName_gbif", "scientificName_itis")
     full_column_names <- paste0(column, "_", table_names)
     
-    # Dynamically check for the existence of the columns and coalesce them
+    # Check if the columns exist in the table, if not, replace with NA
+    existing_columns <- purrr::map(full_column_names, ~ if (.x %in% colnames(table)) .x else NA)
+    
+    # Remove NAs using purrr::discard to get valid column names
+    existing_columns_char <- purrr::discard(existing_columns, is.na)
+    
+    # Dynamically generate the merged column by coalescing (only valid columns will be kept)
     mergedTaxonomy <- mergedTaxonomy %>%
       mutate(
-        !!column := purrr::reduce(
-          purrr::map(full_column_names, ~ {
-            if (.x %in% colnames(table)) {
-              return(mergedTaxonomy[[.x]])
-            } else {
-              return(NA)  # If column doesn't exist, return NA
-            }
-          }),
-          ~ ifelse(!is.na(.x), .x, .y)  # Coalesce the values (first non-NA wins)
-        )
+        !!column := coalesce(!!!syms(existing_columns_char))  # Coalesce across the columns, handling missing columns as NA
       )
   }
   
-  # Finally, select the desired columns
+  # Finally, select the columns we want to keep (including coalesced ones)
   mergedTaxonomy <- mergedTaxonomy %>%
     dplyr::select(all_of(columns), canonical_accepted, authorship_accepted)
+  
+  return(mergedTaxonomy)
 }
