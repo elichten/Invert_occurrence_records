@@ -103,6 +103,7 @@ sppList <- c("Apis mellifica",  # Using outdated synonym of Apis mellifera
              "Halictus ligatus",
              "Xylocopa virginica")
 
+# Optional: Use GBIF backbone to convert names on sppList to accepted names
 sppListHarmonized <- rgbif::name_backbone_checklist(sppList) #Checking names using GBIF taxonomic backbone
 sppList <- sppListHarmonized$species # Output list of accepted names
 
@@ -165,7 +166,9 @@ taxonomyFile <- taxadbToBeeBDC(name = "Hymenoptera",
 #******
 ### Discover Life
 #### Read in Discover Life taxonomy from BeeBDC. See option 2 from the single-source backbone instructions above for troubleshooting.
-taxDLog <- base::readRDS(file.path(DiscLifePath,"beesTaxonomy_2024-06-17.Rda"))
+taxDLog <- beesTaxonomy_fixed()
+# TODO: Why does this local option exist when the note references the method above?
+#taxDLog <- base::readRDS(file.path(DiscLifePath,"beesTaxonomy_2024-06-17.Rda"))
 taxDL <- format_provider_data(taxDLog, 'dl') # Format using custom script
   
 #******
@@ -205,8 +208,9 @@ joinedTaxonomy <- possibleTables %>%
 ### Table priority is determined by the order in which the table names are provided to the mergeTaxonomy() function.
 mergedTaxonomy <- merge_taxonomy(joinedTaxonomy, c('dl', 'gbif', 'itis')) # Custom script
 
-# TODO: Determine if this is needed anymore!
+
 ### Correct orphaned accids
+
 #### Create a reference table for instances of orphaned accids. This happens when a unique synonym occurs in a lower-priority taxonomic backbone but refers to an accepted name shared by a higher priority backbone.
 acceptedIDs <- mergedTaxonomy %>%
   filter(taxonomic_status == "accepted") %>%
@@ -292,41 +296,28 @@ occ_download(
   format = "SIMPLE_CSV"  # Download format as CSV for easier handling
 )
 
-## Check download progress
-
 ### After executing the download, a message will be output in the console with instructions for checking download progress, retrieving data, citation info, and other associated metadata for the download.
 ### Copy and paste your resulting Download Key in the code below
-occ_download_wait('your_download_key')
+## Load the downloaded dataset and save (this saves to Data_acquisition_workflow/Additional_Datasets)
+gbifOccs <- get_typed_gbif_download("your_download_key")
 
-## Load the downloaded dataset and save (this saves to the working directory unless specified with path = )
-gbifOccs <- occ_download_get('your_download_key') %>%
-  occ_download_import()
-
-## reformat to BeeBDC::ColTypeR() standards
-gbifOccs <- gbifOccs %>%
-  mutate(dateIdentified = as.character(dateIdentified),
-         recordNumber = as.character(recordNumber),
-         database_id = paste0("GBIF_4bees_",seq_len(nrow(gbifOccs))),
-         datasetID = "GBIF_4bees",
-         dataSource = "GBIF",
-         country = "",
-         datasetName = datasetKey,
-         id = gbifOccs$gbifID)
-
-# Or load previously downloaded database
+# Or load previously downloaded GBIF database
 # GBIF simple-CSV downloads default to a tab-delimited format. Change the delim argument if needed
 gbifOccs <- read_delim(file.path(DataPath,
                                  "Additional_Datasets", 
                                  "your_file_name.csv"), 
-                       delim='\t') %>%
-  mutate(dateIdentified = as.character(dateIdentified),
-         recordNumber = as.character(recordNumber),
-         database_id = paste0("GBIF_4bees_",seq_len(nrow(gbifOccs))),
-         datasetID = "GBIF_4bees",
-         dataSource = "GBIF",
-         country = "",
-         datasetName = datasetKey,
-         id = gbifOccs$gbifID)
+                       delim = '\t',
+                       col_types = (c(BeeBDC::ColTypeR()$cols)))
+
+## Then reformat to BeeBDC::ColTypeR() standards
+gbifOccs <- gbifOccs %>%
+    mutate(database_id = paste0("GBIF_4bees_",seq_len(nrow(gbifOccs))),
+           datasetID = "GBIF_4bees",
+           dataSource = "GBIF",
+           country = "",
+           datasetName = datasetKey,
+           id = gbifOccs$gbifID) %>%
+    filter_to_BeeBDC()
 
 #****************
 ## Import local geographically-relevant data sets (BeeBDC examples)----
@@ -357,8 +348,8 @@ gbifOccs <- read_delim(file.path(DataPath,
 ## Template code for importing local dataset
 custom_dataset <- suppressWarnings(readr::read_delim(file.path(DataPath,
                                      "Additional_Datasets",
-                                     "your_data_file.csv"),
-                         col_types = BeeBDC::ColTypeR())) %>%
+                                     "your_file_name.csv"),
+                  col_types = BeeBDC::ColTypeR())) %>%
                   check_occ_table() # Custom script to check for required column names
 
 ## The datasets provided by Dorey that are relevant to Texas include
@@ -457,7 +448,8 @@ PaigeNAm <- readr::read_csv(file.path(DataPath,
 ## Merge all occurrence data----
 
 # Take possible variable names from above
-# TODO: Is this step TOO specific to bee-data?
+# TODO: Is this step too specific? Could this be solved partially by reading in
+# the entire BeeBDC dataset instead of these piecemeal options?
 existingDatasets <- c("Bal_std", "BMin_std", "Ecd_std", "FSCA_std", 
                       "gbifOccs", "GeoL_std", "INHS_std", "KP_std", 
                       "PaigeNAm", "SMC_std", "custom_dataset") %>%
@@ -466,6 +458,8 @@ existingDatasets <- c("Bal_std", "BMin_std", "Ecd_std", "FSCA_std",
 # Merge datasets in filtered list of names
 db_standardized <- lapply(existingDatasets, function(name) get(name, envir = .GlobalEnv)) %>%
                    bind_rows(.)
+
+custom_dataset <- custom_dataset %>% mutate(.)
 
 ## Remove spent databases
 rm(list = existingDatasets, existingDatasets)

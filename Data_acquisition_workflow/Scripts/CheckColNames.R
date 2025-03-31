@@ -1,21 +1,31 @@
 # Script check table for required column names
+# TODO: This needs to error and not return anything if it breaks
 check_col_names <- function(table, requiredColumns, desiredColumns = NULL) {
   
   # Filter to only required/desired names which are NOT present in table
   missingRequired <- setdiff(requiredColumns, colnames(table))
   missingDesired <- setdiff(desiredColumns, colnames(table))
   
-  # Warn user about missing desired names
-  if (length(missingDesired) != 0) {
-    warning(paste('The following columns are not required, but can be helpful for this script:\n\t', 
-                  paste(missingDesired, collapse=", ")))
-  }
-  
   # Throw error if table is missing required names
   if (length(missingRequired) != 0) {
-    stop(paste("The provided table is missing the following required columns:\n\t", 
-               paste(missingRequired, collapse=", ")))
+    cli::cli_alert_danger("{.strong The following required columns are missing from the data frame:}")
+    
+    # Show missing required columns with an error icon
+    for (col in missingRequired) {
+      cli::cli_alert_danger("    {col}")
+    }
   }
+  
+  # Warn user about missing desired names
+  if (length(missingDesired) != 0) {
+    cli::cli_alert_warning("{.strong The following columns are not required, but can be helpful for this script:}")
+    
+    # Show missing desired columns with a warning icon
+    for (col in missingDesired) {
+      cli::cli_alert_warning("    {col}")
+    }
+  }
+  
   return(table)
 }
 
