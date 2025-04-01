@@ -1469,7 +1469,7 @@ sf_polygon <- st_sf(geometry = polygon)
 st_crs(sf_polygon) <- 4326
 
   # OR: read in your own unique shape file
-fname <- system.file([insert your file path]".shp", package="sf")
+fname <- system.file(paste0(DataPath, '/your file name.shp'), package="sf")
 boundary <- st_read(fname)
 
 
