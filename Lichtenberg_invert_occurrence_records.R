@@ -1441,7 +1441,8 @@ cleanData <- BeeBDC::summaryFun(
 
 ## TODO: We need to be able to filter by defined geographic range
 #create object of area of interest boundary, which we will need when calculating aoc. Modify to your region of interest. Pick ONE of these options to run based on what your geographic range of interest is
-  #filter by country  
+  
+#filter by country  
 boundary <- nation() %>%
   filter(NAME == 'United States') %>%
   st_transform(boundary, crs = 4326)
@@ -1454,6 +1455,23 @@ boundary <- counties(state = 'Texas') %>%
   filter(NAME == 'Denton') %>%
   st_transform(boundary, crs = 4326)
 #filter by your own unique geographic region
+  # EITHER: provides coordinates of your region
+  #provide the coordinates of the corners of your region (if a normal polygon)
+coords <- matrix(c(-107.24, 25.6,
+                   -107.24, 36.88,
+                   -92.52, 36.88,
+                   -92.52, 25.6,
+                   -107.24, 25.6), 
+                 ncol = 2, byrow = TRUE) 
+  # transform those coordinates into a spatial object (sf) and set the coordinate system (crs = 4326)
+polygon <- st_sfc(st_polygon(list(coords)))
+sf_polygon <- st_sf(geometry = polygon) 
+st_crs(sf_polygon) <- 4326
+
+  # OR: read in your own unique shape file
+fname <- system.file([insert your file path]".shp", package="sf")
+boundary <- st_read(fname)
+
 
 ## Save the cleaned dataset
 cleanData %>%
