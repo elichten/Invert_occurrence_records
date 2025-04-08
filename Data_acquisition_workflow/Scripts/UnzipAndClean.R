@@ -1,6 +1,6 @@
 # This script takes a filepath to a .zip file, unzips the contents in place,
 # and deletes the original .zip file.
-unzip_and_clean <- function(fp) {
+unzip_and_clean <- function(fp, files = NULL) {
   # Check if the file exists
   if (!file.exists(fp)) {
     stop("Error: The specified file does not exist.")
@@ -17,7 +17,8 @@ unzip_and_clean <- function(fp) {
   # Unzip the file
   unzip_path <- 
     tryCatch({
-        unzip(fp, exdir = dest_folder)
+      zipName <- tools::file_path_sans_ext(basename(fp))
+      unzip(fp, exdir = file.path(dest_folder, zipName), files, overwrite = TRUE)
       }, error = function(e) {
         stop("Error during unzipping: ", e$message)
       }

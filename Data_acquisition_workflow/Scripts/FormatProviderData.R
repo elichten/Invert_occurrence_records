@@ -1,3 +1,7 @@
+# Script to format taxonomic backbone tables, either from a local source or
+# from DiscoverLife, GBIF, or ITIS. 
+# This table must be in BeeBDC format (see BeeBDC::ColTypeR())
+# This step adds identifiers to the column names in preperation for a merge
 format_provider_data <- function(table = NULL, provider = NULL, verbose = FALSE) {
   # Argument errors
   if (is.null(table)) {
@@ -9,8 +13,8 @@ format_provider_data <- function(table = NULL, provider = NULL, verbose = FALSE)
   
   # Reformat provider name to allow for case differences, check if accepted
   provider <- tolower(provider)
-  if (!provider %in% c("itis", "dl", "gbif")) {
-    stop(" - Please indicate provider (gbif, itis, or dl)")
+  if (!provider %in% c("itis", "dl", "gbif", "custom")) {
+    stop(" - Please indicate provider ('gbif', 'itis', 'dl', or 'custom')")
   }
   
   # Create column for accepted ids
