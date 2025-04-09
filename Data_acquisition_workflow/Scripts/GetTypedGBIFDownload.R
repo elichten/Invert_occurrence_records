@@ -15,11 +15,10 @@ get_typed_gbif_download <- function(downloadKey) {
     {
       fp <- file.path(outPath, downloadKey)
 
-      zipFp <- occ_download_get(key=downloadKey, path=outPath)
+      zipFp <- occ_download_get(key=downloadKey, path=outPath, overwrite=TRUE)
       
       # Check if DWCA or simple_csv
       isDWCA <- "occurrence.txt" %in% (unzip(file.path(zipFp), list = TRUE)$Name)
-      
       # If not DWCA, unzip .csv and rename
       if (!isDWCA) {
         temp_fp <- unzip_and_clean(zipFp)

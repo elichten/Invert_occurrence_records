@@ -8,15 +8,21 @@ dateFindR_fixed <- function (data = NULL, maxYear = lubridate::year(Sys.Date()),
   timeStart <- Sys.time()
   writeLines(" - Preparing data...")
   originalDateCount <- sum(complete.cases(data$eventDate))
-  noDATEa <- data %>% dplyr::mutate(eventDate_in = eventDate, 
-    .before = eventDate) %>% dplyr::mutate(eventDate = eventDate %>% 
-    lubridate::parse_date_time(eventDate_in, orders = c("ymd", 
-      "ymdHMS", "dmy", "mdy"), truncated = 5, quiet = TRUE, 
-      tz = "UTC", locale = Sys.getlocale("LC_TIME"))) %>% 
+  noDATEa <- data %>% 
+    dplyr::mutate(eventDate_in = eventDate, .before = eventDate) %>% 
+    dplyr::mutate(eventDate = lubridate::parse_date_time(eventDate_in, 
+                                                         orders = c("ymd", 
+                                                                    "ymdHMS", 
+                                                                    "dmy", 
+                                                                    "mdy"), 
+                                                         truncated = 5, 
+                                                         quiet = TRUE, 
+                                                         tz = "UTC", 
+                                                         locale = Sys.getlocale("LC_TIME"))) %>% 
     dplyr::mutate(eventDate = dplyr::if_else(is.na(eventDate), 
-      lubridate::ymd_hms(eventDate_in, quiet = TRUE, truncated = 5), 
-      eventDate)) %>% dplyr::mutate(dateSuccess = dplyr::if_else(is.na(eventDate), 
-    FALSE, TRUE))
+                    lubridate::ymd_hms(eventDate_in, quiet = TRUE, truncated = 5), 
+                    eventDate)) %>% 
+    dplyr::mutate(dateSuccess = dplyr::if_else(is.na(eventDate), FALSE, TRUE))
   ymd_hms_0 <- noDATEa %>% dplyr::filter(complete.cases(eventDate)) %>% 
     dplyr::select(database_id, eventDate) %>% setNames(object = ., 
     c("database_id", "date"))
@@ -263,8 +269,9 @@ dateFindR_fixed <- function (data = NULL, maxYear = lubridate::year(Sys.Date()),
     complete.cases(amb_fieldNotes)) %>% tidyr::unite(col = date, 
     amb_vEV, amb_locality, amb_locationRemarks, amb_fieldNotes, 
     na.rm = TRUE)
-  writeLines(paste(" - Formating and combining the new data..", 
+  writeLines(paste(" - Formatting and combining the new data..", 
     sep = ""))
+  # TODO: Around here, we're tossing out ymd_hms dates
   occYr_2$date <- as.character(occYr_2$date) %>% lubridate::ymd_hms() %>% 
     lubridate::date()
   ymd_keepers_21$date <- lubridate::ymd(ymd_keepers_21$date)
@@ -276,7 +283,16 @@ dateFindR_fixed <- function (data = NULL, maxYear = lubridate::year(Sys.Date()),
     dplyr::select(database_id, date)
   datesOut_full <- data %>% dplyr::right_join(saveTheDates, 
     by = "database_id")
-  datesOut_full$eventDate <- lubridate::ymd(datesOut_full$date)
+  # TODO: Here is the problem. The ymd_hms format from the ymd_hms0 table does not get parsed.
+  datesOut_full$eventDate <- lubridate::parse_date_time(datesOut_full$date, 
+                                                         orders = c("ymd", 
+                                                                    "ymdHMS", 
+                                                                    "dmy", 
+                                                                    "mdy"), 
+                                                         truncated = 5, 
+                                                         quiet = TRUE, 
+                                                         tz = "UTC", 
+                                                         locale = Sys.getlocale("LC_TIME"))
   datesOut_full$year <- lubridate::year(datesOut_full$date)
   datesOut_full$month <- lubridate::month(datesOut_full$date)
   datesOut_full$day <- lubridate::day(datesOut_full$date)

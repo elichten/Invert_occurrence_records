@@ -165,6 +165,9 @@ taxonomyFile <- taxadbToBeeBDC(name = "Hymenoptera",
                              ignore_case = FALSE, # ignore_case = FALSE needs to be specified when querying Order, otherwise there is SQL error
                              provider = "gbif")
 
+# TODO: Do we want a custom backbone option as Option 4?
+# It currently only shows up in the multiples sources section vvvv
+
 
 #****************
 ## Taxonomic backbone from multiple sources----
@@ -197,21 +200,20 @@ taxITISog <- taxadbToBeeBDC(name = "Hymenoptera",
 # ITIS authorship data is not returned through the above query
 # For ITIS, this step uses ritis::taxon_authorship() to fill authorship column
 # Warning: this can take prohibitively long for large datasets—try filtering to sppList first if needed
-taxITIS <- format_provider_data(taxITISog, 'itis') # Format table for joining
-
-# TODO: ## OR download the ITIS backbone from GBIF
-# occ_download()
+# TODO: Is it really all that important to get authorship from itis?
+# TODO: Run a test on a relatively large genus. See if anything differs with merging and harmonization.
+taxITIS <- format_provider_data(taxITISog, "itis") # Format table for joining
 
 #******
 ### Local taxonomic backbone
-taxonomyFile<-read_csv(file.path(DataPath,"your_taxon_filename.csv")) %>%
+custom_backbone <- read_csv(file.path(DataPath,"your_backbone_file.csv")) %>%
+  format_provider_data(., "custom")
   check_taxon_table() # Verify that table has required columns
-
 
 #******
 ### Merge backbones with priority----
 ### Join taxonomic backbones
-
+  
 # Take possible tables from above
 possibleTables <- c("taxDL", "taxGBIF", "taxITIS", "custom")
 # Join tables that are currently being used in the session
@@ -253,7 +255,6 @@ existingVariables <- c("acceptedIDs","joinedTaxonomy","mergedTaxonomy","taxDL",
                      
 rm(list = existingVariables, existingVariables) # Remove existing variables
 
-
 #****************
 ## Filter taxonomyFile to species of interest and synonyms----
 ## TODO: Currently, this doesn't allow for filtering by any taxonomic level other than species
@@ -282,17 +283,18 @@ taxonomyFile <- taxonomyFile %>%
 ### See https://docs.ropensci.org/rgbif/articles/downloading_a_long_species_list.html for another example and further explanation.
 
 ### Compile species list from taxonomyFile (filter to sppList in previous step if desired)
-synSppList <- taxonomyFile$canonical
+fullSppList <- taxonomyFile$canonical
 
 ### Get the taxon keys for each species in list. 
 ### gbifTaxonKeys should be a long vector like this c(2977832,2977901,2977966,2977835,2977863)
-gbifTaxonKeys <- synSppList %>% 
+### This can take a long time for very long lists.
+gbifTaxonKeys <- fullSppList %>% 
   name_backbone_checklist(strict = T, kingdom = "Animalia") %>% # Change kingdom to your use-case
   filter(matchType == "EXACT") %>% # get matched names
   pull(usageKey)
 
 ### Set up your environment with your GBIF credentials
-check_gbif_creds() # Custom script
+check_gbif_creds() # Securely input GBIF creds into local environment
 
 ## Intialize download of occurrence data, providing search parameters as needed
 ### This search uses the gbifTaxonKey values generated in the previous step
@@ -326,7 +328,7 @@ gbifOccs <- get_typed_gbif_download("your_download_key") %>%
 
 
 ### Or load previously downloaded GBIF database
-# GBIF simple-CSVs are tab-delimited — change the delim argument if needed
+# GBIF's downloads are tab-delimited — change the delim argument if needed
 # This step can also handle occurrence.txt files from a DWCA download
 gbifOccs <- suppressWarnings(
                     read_delim(file.path(DataPath,
@@ -493,6 +495,9 @@ if(!exists("db_standardized")){
 
 #****************
 ## (Optional)
+# TODO: Do we want to have the option to filter out SOME stuff at this point?
+# TODO: This would only be necessary with really large datasets
+# TODO: Is there anything we could safely cut before the flagging?
 # Filter your occurrence data 
 
 
@@ -717,6 +722,7 @@ if (!exists("check_pf")) {
 ### Collect all country names in the country_suggested column. 
 # We rebuilt a BDC function to flag occurrences where the coordinates are inconsistent with the provided country name.
 # TODO: This will error in an ambiguous way if all rows have empty or out of range coords flags
+# TODO: Look into missing "database_id" warning. I think it's a bug.
 check_pf <- BeeBDC::jbd_coordCountryInconsistent(data = check_pf, 
                                                  lon = "decimalLongitude",
                                                  lat = "decimalLatitude", 
@@ -932,7 +938,8 @@ tempSpace <- check_space %>%
   dplyr::filter(!.coordinates_empty == FALSE) %>%
   dplyr::filter(!.coordinates_outOfRange == FALSE)
 
-### Flag common spatial issues using functions from the package "CoordinateCleaner", which addresses common issues in biodiversity datasets
+### Flag common spatial issues using functions from the package 
+# "CoordinateCleaner", which addresses common issues in biodiversity datasets
 tempSpace <-
   CoordinateCleaner::clean_coordinates(
     x =  tempSpace,
@@ -1235,14 +1242,13 @@ check_time$day <- ifelse(check_time$day > 31 | check_time$day < 1, NA, check_tim
 ## Recover dates----
 
 ### The dateFindR() function will search through some other columns in order to find and rescue dates that may not have made it into the correct columns. It will further update the eventDate, day, month, and year columns where these data were a) missing and b) located in one of the searched columns.
-# TODO: Should this happen before filtering in order to catch issues in unfiltered data first?
 # TODO: Is verbatimEventDate available by this step?
 # TODO: dateFindR_fixed should be working now (corrected the regex). This needs testing with a table with many verbatimDate options.
 check_time <- dateFindR_fixed(data = check_time,
-                                # Years above this are removed (from the recovered dates only)
-                                maxYear = lubridate::year(Sys.Date()),
-                                # Years below this are removed (from the recovered dates only)
-                                minYear = 1700)
+                              # Years above this are removed (from the recovered dates only)
+                              maxYear = lubridate::year(Sys.Date()),
+                              # Years below this are removed (from the recovered dates only)
+                              minYear = 1700)
 
 #****************
 ## No eventDate----
@@ -1306,6 +1312,7 @@ BeeBDC::flagRecorder(data = check_time,
 ## Duplicates are identified iteratively and will be tallied up, duplicate pairs clustered, and sorted at the end of the function. 
 ## The function is designed to work with Darwin Core data with a database_id column, but it is also modifiable to work with other columns. 
 ## I would encourage you to see ‘?dupeSummary()’ for more details as this function is quite modifiable to user needs.
+# TODO: As is, this function is using recordID, which is not being required or kept in the occurrence data
 check_time <- BeeBDC::dupeSummary(
   data = check_time,
   path = OutPath_Report,
