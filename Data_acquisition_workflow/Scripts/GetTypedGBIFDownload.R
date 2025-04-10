@@ -27,7 +27,6 @@ get_typed_gbif_download <- function(downloadKey) {
         # Else, only retrieve occurrence.txt, and rename to 
       } else if (isDWCA) {
         temp_fp <- unzip_and_clean(zipFp, files="occurrence.txt")
-        message(temp_fp, "HERE IT IS")
         file.rename(from=temp_fp, to=file.path(fp, paste0(downloadKey, "_DWCA.csv")))
         fp <- file.path(fp, paste0(downloadKey, "_DWCA.CSV"))
       }

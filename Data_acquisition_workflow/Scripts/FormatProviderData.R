@@ -2,7 +2,8 @@
 # from DiscoverLife, GBIF, or ITIS. 
 # This table must be in BeeBDC format (see BeeBDC::ColTypeR())
 # This step adds identifiers to the column names in preperation for a merge
-format_provider_data <- function(table = NULL, provider = NULL, verbose = FALSE) {
+format_provider_data <- function(table = NULL, provider = NULL, 
+                                 verbose = FALSE, getAuthorship = FALSE) {
   # Argument errors
   if (is.null(table)) {
     stop(" - Please provide a BeeBDC-formatted table")
@@ -65,13 +66,16 @@ format_provider_data <- function(table = NULL, provider = NULL, verbose = FALSE)
       message("No response in maximum attempts. Returning NA")
       return(NA)
     }
-    message('Getting ITIS authorship data...')
-    message('This may take a moment...')
     
-    # Add authorship to table using map_chr (inital get_itis_authorship call)
-    table <- table %>%
-      mutate(table, authorship = map_chr(taxonID, get_itis_authorship, .progress = TRUE),
-             validName = paste0(validName, " ", authorship))
+    if (getAuthorship == TRUE) {
+      message('Getting ITIS authorship data...')
+      message('This may take a moment...')
+      # Add authorship to table using map_chr (inital get_itis_authorship call)
+      table <- table %>%
+        mutate(., authorship = map_chr(taxonID, get_itis_authorship, .progress = TRUE),
+               validName = paste0(validName, " ", authorship))
+    }
+
   }
   
   # Create column to be used for joining accepted info to synonym rows

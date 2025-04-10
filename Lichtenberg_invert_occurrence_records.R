@@ -103,6 +103,7 @@ sppList <- c("Apis mellifera",
              "Bombus pensylvanicus",
              "Halictus ligatus",
              "Xylocopa virginica")
+
 ## If the user is unsure of the taxonomic status of listed names, they can be 
 # harmonized with the backbones available through APIs.
 sppList <- c("Apis mellifica",  # Using outdated synonym of Apis mellifera
@@ -147,8 +148,8 @@ sppList <- sppListHarmonized$species # Output list of accepted names
 #******
 ### Option 1: read in local taxonomic backbone----
 ### If users have a backbone made prior to this workflow, it can be read directly into taxonomyFile for use in later steps. Ensure that column names and types match BeeBDC format (for reference, download a small test backbone using taxadbToBeeBDC()). 
-taxonomyFile<-read_csv(file.path(DataPath,"your_taxon_filename.csv")) %>%
-              check_taxon_table() # Verify that table has required columns
+taxonomyFile <- read_csv(file.path(DataPath,"your_taxon_filename.csv")) %>%
+                check_taxon_table() # Verify that table has required columns
 
 #******
 ### Option 2: BeeBDC download of DiscoverLife's Backbone----
@@ -161,12 +162,9 @@ taxonomyFile <- beesTaxonomy_fixed() # TODO: This is a fixed version of BeeBDC::
 ### taxadbToBeeBDC() will download backbones from several sources in BeeBDC format. 
 #! add in comment about provider options and how to choose them
 taxonomyFile <- taxadbToBeeBDC(name = "Hymenoptera",
-                             rank = "Order",
-                             ignore_case = FALSE, # ignore_case = FALSE needs to be specified when querying Order, otherwise there is SQL error
-                             provider = "gbif")
-
-# TODO: Do we want a custom backbone option as Option 4?
-# It currently only shows up in the multiples sources section vvvv
+                               rank = "Order",
+                               ignore_case = FALSE, # ignore_case = FALSE needs to be specified when querying Order, otherwise there is SQL error
+                               provider = "gbif")
 
 
 #****************
@@ -197,12 +195,9 @@ taxITISog <- taxadbToBeeBDC(name = "Hymenoptera",
                             rank = "Order",
                             ignore_case = FALSE,
                             provider = "itis")
-# ITIS authorship data is not returned through the above query
-# For ITIS, this step uses ritis::taxon_authorship() to fill authorship column
+# This step uses ritis::taxon_authorship() to fill authorship column
 # Warning: this can take prohibitively long for large datasets—try filtering to sppList first if needed
-# TODO: Is it really all that important to get authorship from itis?
-# TODO: Run a test on a relatively large genus. See if anything differs with merging and harmonization.
-taxITIS <- format_provider_data(taxITISog, "itis") # Format table for joining
+taxITIS <- format_provider_data(taxITISog, "itis", getAuthorship=FALSE) # Format table for joining
 
 #******
 ### Local taxonomic backbone
@@ -256,7 +251,7 @@ existingVariables <- c("acceptedIDs","joinedTaxonomy","mergedTaxonomy","taxDL",
 rm(list = existingVariables, existingVariables) # Remove existing variables
 
 #****************
-## Filter taxonomyFile to species of interest and synonyms----
+## (Optional) Filter taxonomyFile to species of interest and synonyms----
 ## TODO: Currently, this doesn't allow for filtering by any taxonomic level other than species
 taxonomyFile <- taxonomyFile %>%
   left_join(
@@ -288,6 +283,7 @@ fullSppList <- taxonomyFile$canonical
 ### Get the taxon keys for each species in list. 
 ### gbifTaxonKeys should be a long vector like this c(2977832,2977901,2977966,2977835,2977863)
 ### This can take a long time for very long lists.
+
 gbifTaxonKeys <- fullSppList %>% 
   name_backbone_checklist(strict = T, kingdom = "Animalia") %>% # Change kingdom to your use-case
   filter(matchType == "EXACT") %>% # get matched names
@@ -325,7 +321,6 @@ occ_download(
 ## Load the downloaded dataset and save to Data_acquisition_workflow/Additional_Datasets
 gbifOccs <- get_typed_gbif_download("your_download_key") %>%
             format_gbif_import(.) # Format table to fit BeeBDC template
-
 
 ### Or load previously downloaded GBIF database
 # GBIF's downloads are tab-delimited — change the delim argument if needed
@@ -1279,6 +1274,7 @@ check_time <- BeeBDC::summaryFun(
 ## Time figures----
 
 ### Create time results figures
+# TODO: Error "object 'i' not found". I believe this is a bug in the create_figures code.
 figures <- BeeBDC::jbd_create_figures(data = check_time,
                                       path = DataPath,
                                       database_id = "database_id",
