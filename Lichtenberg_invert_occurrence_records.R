@@ -282,8 +282,7 @@ fullSppList <- taxonomyFile$canonical
 
 ### Get the taxon keys for each species in list. 
 ### gbifTaxonKeys should be a long vector like this c(2977832,2977901,2977966,2977835,2977863)
-### This can take a long time for very long lists.
-
+### This can take a long time for long lists.
 gbifTaxonKeys <- fullSppList %>% 
   name_backbone_checklist(strict = T, kingdom = "Animalia") %>% # Change kingdom to your use-case
   filter(matchType == "EXACT") %>% # get matched names

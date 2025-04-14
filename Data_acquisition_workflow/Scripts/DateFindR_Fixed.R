@@ -1,3 +1,4 @@
+# TODO: This SEVERELY needs some commenting
 dateFindR_fixed <- function (data = NULL, maxYear = lubridate::year(Sys.Date()), 
   minYear = 1700) 
 {
@@ -10,22 +11,24 @@ dateFindR_fixed <- function (data = NULL, maxYear = lubridate::year(Sys.Date()),
   originalDateCount <- sum(complete.cases(data$eventDate))
   noDATEa <- data %>% 
     dplyr::mutate(eventDate_in = eventDate, .before = eventDate) %>% 
-    dplyr::mutate(eventDate = lubridate::parse_date_time(eventDate_in, 
-                                                         orders = c("ymd", 
-                                                                    "ymdHMS", 
-                                                                    "dmy", 
-                                                                    "mdy"), 
-                                                         truncated = 5, 
-                                                         quiet = TRUE, 
-                                                         tz = "UTC", 
-                                                         locale = Sys.getlocale("LC_TIME"))) %>% 
+    dplyr::mutate(
+      eventDate = lubridate::parse_date_time(eventDate_in, 
+                                             orders = c("ymd","ymdHMS","dmy","mdy"), 
+                                             truncated = 5, 
+                                             quiet = TRUE, 
+                                             tz = "UTC", 
+                                             locale = Sys.getlocale("LC_TIME"))) %>% 
     dplyr::mutate(eventDate = dplyr::if_else(is.na(eventDate), 
-                    lubridate::ymd_hms(eventDate_in, quiet = TRUE, truncated = 5), 
-                    eventDate)) %>% 
-    dplyr::mutate(dateSuccess = dplyr::if_else(is.na(eventDate), FALSE, TRUE))
+                                             lubridate::ymd_hms(eventDate_in, 
+                                                                quiet = TRUE, 
+                                                                truncated = 5), 
+                                             eventDate)) %>% 
+    dplyr::mutate(dateSuccess = dplyr::if_else(is.na(eventDate), 
+                                               FALSE, 
+                                               TRUE))
   ymd_hms_0 <- noDATEa %>% dplyr::filter(complete.cases(eventDate)) %>% 
-    dplyr::select(database_id, eventDate) %>% setNames(object = ., 
-    c("database_id", "date"))
+    dplyr::select(database_id, eventDate) %>% 
+      setNames(object = ., c("database_id", "date"))
   writeLines(" - Extracting dates from year, month, day columns...")
   noDATEa <- noDATEa %>% dplyr::filter(is.na(eventDate))
   noDATEa <- noDATEa %>% dplyr::mutate(eventDate = dplyr::if_else(is.na(as.character(eventDate)), 
@@ -76,16 +79,24 @@ dateFindR_fixed <- function (data = NULL, maxYear = lubridate::year(Sys.Date()),
     "[0-9]{4}[\\s-/\\. ]+[0-9]{2}[\\s-/\\. ]+[0-9]{2}", 
     paste("[0-9]{4}", monthStrings, "[0-9]{2}", collapse = "|", sep = "[\\s-/\\. ]+"), 
     paste("[0-9]{4}", romanNumerals, "[0-9]{2}", collapse = "|", sep = "[\\s-/\\. ]+"))
-  ymd_unambiguous <- noDATEa %>% dplyr::mutate(ymd_vEV = stringr::str_extract(verbatimEventDate, 
-    pattern = paste(ymd_strings, collapse = "|", sep = "")), 
-    ymd_fieldNotes = stringr::str_extract(fieldNotes, pattern = paste(ymd_strings, 
-      collapse = "|", sep = "")), ymd_locationRemarks = stringr::str_extract(locationRemarks, 
-      pattern = paste(ymd_strings, collapse = "|", sep = ""))) %>% 
-    dplyr::select(database_id, ymd_vEV, ymd_fieldNotes, 
-      ymd_locationRemarks)
-  ymd_unambiguous$ymd_vEV <- ymd_unambiguous$ymd_vEV %>% stringr::str_replace(pattern = "/00$|/00/00$", 
-    replacement = "") %>% lubridate::ymd(truncated = 2, 
-    quiet = TRUE)
+  ymd_unambiguous <- noDATEa %>% 
+    dplyr::mutate(
+      ymd_vEV = stringr::str_extract(verbatimEventDate, 
+                                     pattern = paste(ymd_strings, 
+                                                     collapse = "|", 
+                                                     sep = "")), 
+      ymd_fieldNotes = stringr::str_extract(fieldNotes, 
+                                            pattern = paste(ymd_strings, 
+                                                            collapse = "|", 
+                                                            sep = "")), 
+      ymd_locationRemarks = stringr::str_extract(locationRemarks, 
+                                                 pattern = paste(ymd_strings, 
+                                                                 collapse = "|", 
+                                                                 sep = ""))) %>% 
+    dplyr::select(database_id, ymd_vEV, ymd_fieldNotes, ymd_locationRemarks)
+  ymd_unambiguous$ymd_vEV <- ymd_unambiguous$ymd_vEV %>% 
+    stringr::str_replace(pattern = "/00$|/00/00$", replacement = "") %>% 
+    lubridate::ymd(truncated = 2, quiet = TRUE)
   ymd_unambiguous$ymd_fieldNotes <- ymd_unambiguous$ymd_fieldNotes %>% 
     stringr::str_replace(pattern = "/00$|/00/00$", replacement = "") %>% 
     lubridate::ymd(truncated = 2, quiet = TRUE)
@@ -96,13 +107,14 @@ dateFindR_fixed <- function (data = NULL, maxYear = lubridate::year(Sys.Date()),
     complete.cases(ymd_locationRemarks) | complete.cases(ymd_fieldNotes)) %>% 
     tidyr::unite(col = date, ymd_vEV, ymd_locationRemarks, 
       ymd_fieldNotes, na.rm = TRUE)
+  # Note: When patterns contain an internal pipe ("|"), they'll need to be encapsulated in parentheses
   dmy_strings <- c(
     paste("[0-9]{1,2}[\\s-/\\. ]+", monthStrings, "[\\s-/\\. ]+[0-9]{4}", collapse = "|", sep = ""), 
     paste("[0-9]{1,2}[\\s-/\\. ]+", monthStrings, "[\\s-/\\. ]+[0-9]{2}", collapse = "|", sep = ""), 
     paste("[0-9]{1,2}[\\s-/\\. ]+", romanNumerals, "[\\s-/\\. ]+[0-9]{4}", collapse = "|", sep = ""), 
     paste("[0-9]{1,2}[\\s-/\\. ]+", romanNumerals, "[\\s-/\\. ]+[0-9]{2}", collapse = "|", sep = ""), 
-    "([1][3-9]|[2-3][0-9])[\\s-/\\. ]+([1-9]|1[0-2])[\\s-/\\. ]+[0-9]{4}", 
-    "([1][3-9]|[2-3][0-9])[\\s-/\\. ]+([1-9]|1[0-2])[\\s-/\\. ]+[0-9]{2}")
+    "(([1][3-9]|[2-3][0-9])[\\s-/\\. ]+([1-9]|1[0-2])[\\s-/\\. ]+[0-9]{4})", 
+    "(([1][3-9]|[2-3][0-9])[\\s-/\\. ]+([1-9]|1[0-2])[\\s-/\\. ]+[0-9]{2})")
   dmy_unambiguous <- noDATEa %>% dplyr::filter(!database_id %in% 
     ymd_keepers_21$database_id) %>% dplyr::mutate(dmy_vEV = stringr::str_extract(verbatimEventDate, 
     pattern = paste(dmy_strings, collapse = "|", sep = "")), 
@@ -132,19 +144,21 @@ dateFindR_fixed <- function (data = NULL, maxYear = lubridate::year(Sys.Date()),
       "[ -/]", sep = ""), replacement = numeralConversion) %>% 
     stringr::str_replace(pattern = "/00$|/00/00$", replacement = "") %>% 
     lubridate::dmy(truncated = 2, quiet = TRUE)
-  dmy_keepers_22 <- dmy_unambiguous %>% dplyr::filter(complete.cases(dmy_vEV) | 
-    complete.cases(dmy_locality) | complete.cases(dmy_locationRemarks) | 
-    complete.cases(dmy_fieldNotes)) %>% tidyr::unite(col = date, 
-    dmy_vEV, dmy_locality, dmy_locationRemarks, dmy_fieldNotes, 
-    na.rm = TRUE)
+  dmy_keepers_22 <- dmy_unambiguous %>% 
+    dplyr::filter(complete.cases(dmy_vEV) | 
+                  complete.cases(dmy_locality) | 
+                  complete.cases(dmy_locationRemarks) | 
+                  complete.cases(dmy_fieldNotes)) %>% 
+    tidyr::unite(col = date, dmy_vEV, dmy_locality, dmy_locationRemarks, dmy_fieldNotes, na.rm = TRUE)
+  # Note: When patterns contain an internal pipe ("|"), they'll need to be encapsulated in parentheses
   mdy_strings <- c(
-    paste("(", monthStrings, "[\\s-/ ]+[0-9]{1,2}[\\s-/, ]+[0-9]{4}", ")", collapse = "|", sep = ""), 
-    paste("(", monthStrings, "[\\s-/ ]+[0-9]{1,2}[\\s-/, ]+[0-9]{2}", ")", collapse = "|", sep = ""), 
-    paste("(", monthStrings, "[0-9]+[-\\u2013][0-9]+[\\s-/ ]+[0-9]{4}", ")", collapse = "|", sep = ""), 
-    paste("(", monthStrings, "[0-9]+[-\\u2013][0-9]+[\\s-/ ]+[0-9]{2}", ")", collapse = "|", sep = ""), 
-    paste("(", romanNumerals, "[\\s-/\\. ]+[0-9]{1,2}[\\s-/ ]+[0-9]{4}", ")", collapse = "|", sep = ""), 
-    paste("(", romanNumerals, "[\\s-/\\. ]+[0-9]{1,2}[\\s-/ ]+[0-9]{2}", ")", collapse = "|", sep = ""), 
-    "((1[0-2])[\\s- /]+([2-3][0-9])[\\s- /]+[0-9]{4})", 
+    paste(monthStrings, "[\\s-/ ]+[0-9]{1,2}[\\s-/, ]+[0-9]{4}", collapse = "|", sep = ""), 
+    paste(monthStrings, "[\\s-/ ]+[0-9]{1,2}[\\s-/, ]+[0-9]{2}", collapse = "|", sep = ""), 
+    paste(monthStrings, "[0-9]+[-\\u2013][0-9]+[\\s-/ ]+[0-9]{4}", collapse = "|", sep = ""), 
+    paste(monthStrings, "[0-9]+[-\\u2013][0-9]+[\\s-/ ]+[0-9]{2}", collapse = "|", sep = ""), 
+    paste(romanNumerals, "[\\s-/\\. ]+[0-9]{1,2}[\\s-/ ]+[0-9]{4}", collapse = "|", sep = ""), 
+    paste(romanNumerals, "[\\s-/\\. ]+[0-9]{1,2}[\\s-/ ]+[0-9]{2}", collapse = "|", sep = ""), 
+    "(1[0-2])[\\s- /]+([2-3][0-9])[\\s- /]+[0-9]{4}", 
     "(((1[0-2])|[1-9])[\\s-/\\. ]+([1][3-9])[\\s-/\\. ]+[0-9]{4})", 
     "(((1[0-2])|[1-9])[\\s-/\\. ]+([2-3][0-9])[\\s-/\\. ]+[0-9]{4})", 
     "(((1[0-2])|^[1-9])[\\s-/\\. ]+([1][3-9])[\\s-/\\. ]+[0-9]{4})", 
@@ -181,19 +195,28 @@ dateFindR_fixed <- function (data = NULL, maxYear = lubridate::year(Sys.Date()),
     mgsub::mgsub(pattern = paste("^", romanNumerals, "( |\\.|-)", 
       sep = ""), replacement = numeralConversion) %>% 
     lubridate::mdy(truncated = 2, quiet = TRUE)
-  mdy_keepers_23 <- mdy_unambiguous %>% dplyr::filter(complete.cases(mdy_vEV) | 
-    complete.cases(mdy_locality) | complete.cases(mdy_locationRemarks) | 
-    complete.cases(mdy_fieldNotes)) %>% tidyr::unite(col = date, 
-    mdy_vEV, mdy_locality, mdy_locationRemarks, mdy_fieldNotes, 
-    na.rm = TRUE, sep = "")
-  my_strings <- c(paste(romanNumerals, "[\\s-/ \\.]+[0-9]{4}", 
-    collapse = "|", sep = ""), paste(monthStrings, "[\\s-/ \\.]+[0-9]{4}", 
-    collapse = "|", sep = ""), paste(monthStrings, "[\\s-/ \\.]+[0-9]{2}", 
-    collapse = "|", sep = ""), paste(monthStrings, "[\\s-/ ]+[0-9]{4}", 
-    collapse = "|", sep = ""), paste(monthStrings, "[\\s-/ ]+[0-9]{2}", 
-    collapse = "|", sep = ""), paste("[\\s- /]+[0-9]{4}", 
-    monthStrings, collapse = "|", sep = ""), paste("[\\s- /]+[0-9]{2}", 
-    monthStrings, collapse = "|", sep = ""), "([1-9]|1[0-2])[\\s- /]+[0-9]{4}")
+  mdy_keepers_23 <- mdy_unambiguous %>% 
+    dplyr::filter(complete.cases(mdy_vEV) | 
+      complete.cases(mdy_locality) | 
+      complete.cases(mdy_locationRemarks) | 
+      complete.cases(mdy_fieldNotes)) %>% 
+    tidyr::unite(col = date, 
+                 mdy_vEV, 
+                 mdy_locality, 
+                 mdy_locationRemarks, 
+                 mdy_fieldNotes, 
+                 na.rm = TRUE, 
+                 sep = "")
+  # Note: When patterns contain an internal pipe ("|"), they'll need to be encapsulated in parentheses
+  my_strings <- c(
+    paste(romanNumerals, "[\\s-/ \\.]+[0-9]{4}", collapse = "|", sep = ""), 
+    paste(monthStrings, "[\\s-/ \\.]+[0-9]{4}", collapse = "|", sep = ""), 
+    paste(monthStrings, "[\\s-/ \\.]+[0-9]{2}", collapse = "|", sep = ""), 
+    paste(monthStrings, "[\\s-/ ]+[0-9]{4}", collapse = "|", sep = ""), 
+    paste(monthStrings, "[\\s-/ ]+[0-9]{2}", collapse = "|", sep = ""), 
+    paste("[\\s- /]+[0-9]{4}", monthStrings, collapse = "|", sep = ""), 
+    paste("[\\s- /]+[0-9]{2}", monthStrings, collapse = "|", sep = ""), 
+    "(([1-9]|1[0-2])[\\s- /]+[0-9]{4})")
   id2remove_24 <- c(mdy_keepers_23$database_id, id2remove_23)
   my_unambiguous <- noDATEa %>% dplyr::filter(!database_id %in% 
     id2remove_24) %>% dplyr::mutate(my_vEV = stringr::str_extract(verbatimEventDate, 
@@ -226,63 +249,66 @@ dateFindR_fixed <- function (data = NULL, maxYear = lubridate::year(Sys.Date()),
     pattern = "-[0-9]+-[0-9]+-[0-9]+", replacement = "")
   writeLines(paste(" - Extracting year from fieldNotes, locationRemarks, and verbatimEventDate ", 
     "columns in ambiguous formats...", sep = ""))
-  ambiguousDateStrings <- c("[0-9]{1,2}[\\s-/ ]+[0-9]{1,2}[\\s-/ ]+[0-9]{4}", 
-    "[0-9]{2}[\\s-/ ]+[0-9]{2}[\\s-/ ]+[0-9]{4}", "[0-9]{1,2}[\\s-/ ]+[0-9]{1,2}[\\s-/ ]+[0-9]{2}", 
+  ambiguousDateStrings <- c(
+    "[0-9]{1,2}[\\s-/ ]+[0-9]{1,2}[\\s-/ ]+[0-9]{4}", 
+    "[0-9]{2}[\\s-/ ]+[0-9]{2}[\\s-/ ]+[0-9]{4}", 
+    "[0-9]{1,2}[\\s-/ ]+[0-9]{1,2}[\\s-/ ]+[0-9]{2}", 
     "[0-9]{2}[\\s-/ ]+[0-9]{2}[\\s-/ ]+[0-9]{2}")
   id2remove_30 <- c(my_keepers_24$database_id, id2remove_24)
   ambiguousNames <- noDATEa %>% dplyr::filter(!database_id %in% 
     id2remove_30) %>% dplyr::mutate(amb_vEV = stringr::str_extract(verbatimEventDate, 
-    pattern = paste(ambiguousDateStrings, collapse = "|", 
-      sep = "")), amb_locality = stringr::str_extract(locality, 
-    pattern = paste(ambiguousDateStrings, collapse = "|", 
-      sep = "")), amb_fieldNotes = stringr::str_extract(fieldNotes, 
-    pattern = paste(ambiguousDateStrings, collapse = "|", 
-      sep = "")), amb_locationRemarks = stringr::str_extract(locationRemarks, 
-    pattern = paste(ambiguousDateStrings, collapse = "|", 
-      sep = ""))) %>% dplyr::select(database_id, amb_vEV, 
-    amb_locality, amb_fieldNotes, amb_locationRemarks)
-  ambiguousNames$amb_vEV <- ambiguousNames$amb_vEV %>% stringr::str_replace(pattern = "00[-/ ]00[-/ ]", 
-    replacement = "01-01-") %>% stringr::str_replace(pattern = "00[-/ ]", 
-    replacement = "01-") %>% stringr::str_replace(pattern = "00-00-|[-/ ]00$|[-/ ]00[-/ ]00$|^00|^00[-/ ]00[-/ ]", 
-    replacement = "") %>% lubridate::dmy(truncated = 2, 
-    quiet = TRUE)
+    pattern = paste(ambiguousDateStrings, collapse = "|", sep = "")), 
+    amb_locality = stringr::str_extract(locality, pattern = paste(ambiguousDateStrings, collapse = "|", sep = "")), 
+    amb_fieldNotes = stringr::str_extract(fieldNotes, pattern = paste(ambiguousDateStrings, collapse = "|", sep = "")), 
+    amb_locationRemarks = stringr::str_extract(locationRemarks, pattern = paste(ambiguousDateStrings, collapse = "|", sep = ""))) %>% 
+    dplyr::select(database_id, amb_vEV, amb_locality, amb_fieldNotes, amb_locationRemarks)
+  ambiguousNames$amb_vEV <- ambiguousNames$amb_vEV %>% 
+    stringr::str_replace(pattern = "00[-/ ]00[-/ ]", replacement = "01-01-") %>% 
+    stringr::str_replace(pattern = "00[-/ ]", replacement = "01-") %>% 
+    stringr::str_replace(pattern = "00-00-|[-/ ]00$|[-/ ]00[-/ ]00$|^00|^00[-/ ]00[-/ ]", replacement = "") %>% 
+    lubridate::dmy(truncated = 2, quiet = TRUE)
   ambiguousNames$amb_locality <- ambiguousNames$amb_locality %>% 
     stringr::str_replace(pattern = "00[-/ ]00[-/ ]", replacement = "01-01-") %>% 
     stringr::str_replace(pattern = "00[-/ ]", replacement = "01-") %>% 
-    stringr::str_replace(pattern = "00-00-|[-/ ]00$|[-/ ]00[-/ ]00$|^00|^00[-/ ]00[-/ ]", 
-      replacement = "") %>% lubridate::dmy(truncated = 2, 
-    quiet = TRUE)
+    stringr::str_replace(pattern = "00-00-|[-/ ]00$|[-/ ]00[-/ ]00$|^00|^00[-/ ]00[-/ ]", replacement = "") %>% 
+    lubridate::dmy(truncated = 2, quiet = TRUE)
   ambiguousNames$amb_fieldNotes <- ambiguousNames$amb_fieldNotes %>% 
     stringr::str_replace(pattern = "00[-/ ]00[-/ ]", replacement = "01-01-") %>% 
     stringr::str_replace(pattern = "00[-/ ]", replacement = "01-") %>% 
-    stringr::str_replace(pattern = "00-00-|[-/ ]00$|[-/ ]00[-/ ]00$|^00|^00[-/ ]00[-/ ]", 
-      replacement = "") %>% lubridate::dmy(truncated = 2, 
-    quiet = TRUE)
+    stringr::str_replace(pattern = "00-00-|[-/ ]00$|[-/ ]00[-/ ]00$|^00|^00[-/ ]00[-/ ]", replacement = "") %>% 
+    lubridate::dmy(truncated = 2, quiet = TRUE)
   ambiguousNames$amb_locationRemarks <- ambiguousNames$amb_locationRemarks %>% 
     stringr::str_replace(pattern = "00[-/ ]00[-/ ]", replacement = "01-01-") %>% 
     stringr::str_replace(pattern = "00[-/ ]", replacement = "01-") %>% 
-    stringr::str_replace(pattern = "00-00-|[-/ ]00$|[-/ ]00[-/ ]00$|^00|^00[-/ ]00[-/ ]", 
-      replacement = "") %>% lubridate::dmy(truncated = 2, 
-    quiet = TRUE)
-  amb_keepers_30 <- ambiguousNames %>% dplyr::filter(complete.cases(amb_vEV) | 
-    complete.cases(amb_locality) | complete.cases(amb_locationRemarks) | 
-    complete.cases(amb_fieldNotes)) %>% tidyr::unite(col = date, 
-    amb_vEV, amb_locality, amb_locationRemarks, amb_fieldNotes, 
-    na.rm = TRUE)
-  writeLines(paste(" - Formatting and combining the new data..", 
-    sep = ""))
-  # TODO: Around here, we're tossing out ymd_hms dates
-  occYr_2$date <- as.character(occYr_2$date) %>% lubridate::ymd_hms() %>% 
+    stringr::str_replace(pattern = "00-00-|[-/ ]00$|[-/ ]00[-/ ]00$|^00|^00[-/ ]00[-/ ]", replacement = "") %>% 
+    lubridate::dmy(truncated = 2,  quiet = TRUE)
+  amb_keepers_30 <- ambiguousNames %>% 
+    dplyr::filter(complete.cases(amb_vEV) | 
+    complete.cases(amb_locality) | 
+    complete.cases(amb_locationRemarks) | 
+    complete.cases(amb_fieldNotes)) %>% 
+    tidyr::unite(col = date, 
+                 amb_vEV, 
+                 amb_locality, 
+                 amb_locationRemarks, 
+                 amb_fieldNotes, 
+                 na.rm = TRUE)
+  writeLines(paste(" - Formatting and combining the new data..", sep = ""))
+  occYr_2$date <- as.character(occYr_2$date) %>% 
+    lubridate::ymd_hms() %>% 
     lubridate::date()
   ymd_keepers_21$date <- lubridate::ymd(ymd_keepers_21$date)
   dmy_keepers_22$date <- lubridate::ymd(dmy_keepers_22$date)
   mdy_keepers_23$date <- lubridate::ymd(mdy_keepers_23$date)
   my_keepers_24$date <- lubridate::ymd(my_keepers_24$date)
-  saveTheDates <- dplyr::bind_rows(ymd_hms_0, dmy_1, occYr_2, 
-    ymd_keepers_21, dmy_keepers_22, mdy_keepers_23) %>% 
-    dplyr::select(database_id, date)
-  datesOut_full <- data %>% dplyr::right_join(saveTheDates, 
-    by = "database_id")
+  saveTheDates <- dplyr::bind_rows(ymd_hms_0, 
+                                   dmy_1, 
+                                   occYr_2, 
+                                   ymd_keepers_21, 
+                                   dmy_keepers_22, 
+                                   mdy_keepers_23) %>% 
+                  dplyr::select(database_id, date)
+  datesOut_full <- data %>% dplyr::right_join(saveTheDates, by = "database_id")
   # TODO: Here is the problem. The ymd_hms format from the ymd_hms0 table does not get parsed.
   datesOut_full$eventDate <- lubridate::parse_date_time(datesOut_full$date, 
                                                          orders = c("ymd", 
@@ -296,44 +322,46 @@ dateFindR_fixed <- function (data = NULL, maxYear = lubridate::year(Sys.Date()),
   datesOut_full$year <- lubridate::year(datesOut_full$date)
   datesOut_full$month <- lubridate::month(datesOut_full$date)
   datesOut_full$day <- lubridate::day(datesOut_full$date)
-  datesOut_full <- datesOut_full %>% dplyr::filter(!year > 
-    maxYear) %>% dplyr::filter(!year < minYear) %>% dplyr::select(!date)
-  datesOut_noDay <- data %>% dplyr::right_join(my_keepers_24, 
-    by = "database_id")
-  datesOut_noDay$eventDate <- lubridate::ymd(datesOut_noDay$date, 
-    quiet = TRUE)
+  datesOut_full <- datesOut_full %>%
+    dplyr::filter(!year > maxYear) %>% 
+    dplyr::filter(!year < minYear) %>% 
+    dplyr::select(!date)
+  datesOut_noDay <- data %>% 
+    dplyr::right_join(my_keepers_24, by = "database_id")
+  datesOut_noDay$eventDate <- lubridate::ymd(datesOut_noDay$date, quiet = TRUE)
   datesOut_noDay$year <- lubridate::year(datesOut_noDay$date)
   datesOut_noDay$month <- lubridate::month(datesOut_noDay$date)
-  datesOut_noDay <- datesOut_noDay %>% dplyr::filter(!year > 
-    maxYear) %>% dplyr::filter(!year < minYear) %>% dplyr::select(!date)
-  datesOut_noMonth <- data %>% dplyr::right_join(amb_keepers_30, 
-    by = "database_id")
-  datesOut_noMonth$eventDate <- lubridate::ymd(datesOut_noMonth$date, 
-    quiet = TRUE)
+  datesOut_noDay <- datesOut_noDay %>% 
+    dplyr::filter(!year > maxYear) %>% 
+    dplyr::filter(!year < minYear) %>% 
+    dplyr::select(!date)
+  datesOut_noMonth <- data %>% 
+    dplyr::right_join(amb_keepers_30, by = "database_id")
+  datesOut_noMonth$eventDate <- lubridate::ymd(datesOut_noMonth$date, quiet = TRUE)
   datesOut_noMonth$year <- lubridate::year(datesOut_noMonth$date)
-  datesOut_noMonth <- datesOut_noMonth %>% dplyr::filter(!year > 
-    maxYear) %>% dplyr::filter(!year < minYear) %>% dplyr::select(!date)
-  writeLines(paste(" - Merging all data, nearly there...", 
-    sep = ""))
-  datesMerged <- dplyr::bind_rows(datesOut_full, datesOut_noDay, 
-    datesOut_noMonth)
+  datesOut_noMonth <- datesOut_noMonth %>% 
+    dplyr::filter(!year > maxYear) %>% 
+    dplyr::filter(!year < minYear) %>% 
+    dplyr::select(!date)
+  writeLines(paste(" - Merging all data, nearly there...", sep = ""))
+  datesMerged <- dplyr::bind_rows(datesOut_full, datesOut_noDay, datesOut_noMonth)
   datesOut <- data
-  datesOut$eventDate <- lubridate::ymd_hms(datesOut$eventDate, 
-    truncated = 5, quiet = TRUE)
-  datesOut <- datesOut %>% dplyr::filter(!database_id %in% 
+  datesOut$eventDate <- lubridate::ymd_hms(datesOut$eventDate, truncated = 5, quiet = TRUE)
+  datesOut <- datesOut %>% 
+    dplyr::filter(!database_id %in% 
     datesMerged$database_id)
-  datesOut$year <- ifelse(is.na(datesOut$year), lubridate::year(datesOut$eventDate), 
-    datesOut$year)
-  datesOut$month <- ifelse(is.na(datesOut$month), lubridate::month(datesOut$eventDate), 
-    datesOut$month)
-  datesOut$day <- ifelse(is.na(datesOut$day), lubridate::day(datesOut$eventDate), 
-    datesOut$day)
-  datesOut$month <- ifelse(datesOut$year > maxYear | datesOut$year < 
-    minYear, NA, datesOut$month)
-  datesOut$day <- ifelse(datesOut$year > maxYear | datesOut$year < 
-    minYear, NA, datesOut$day)
-  datesOut$year <- ifelse(datesOut$year > maxYear | datesOut$year < 
-    minYear, NA, datesOut$year)
+  datesOut$year <- ifelse(is.na(datesOut$year), lubridate::year(datesOut$eventDate), datesOut$year)
+  datesOut$month <- ifelse(is.na(datesOut$month), lubridate::month(datesOut$eventDate), datesOut$month)
+  datesOut$day <- ifelse(is.na(datesOut$day), lubridate::day(datesOut$eventDate), datesOut$day)
+  datesOut$month <- ifelse(datesOut$year > maxYear | datesOut$year <  minYear, 
+                           NA, 
+                           datesOut$month)
+  datesOut$day <- ifelse(datesOut$year > maxYear | datesOut$year < minYear, 
+                         NA, 
+                         datesOut$day)
+  datesOut$year <- ifelse(datesOut$year > maxYear | datesOut$year < minYear, 
+                          NA, 
+                          datesOut$year)
   datesOut$eventDate <- ifelse(lubridate::year(datesOut$eventDate) > 
     maxYear | lubridate::year(datesOut$eventDate) < minYear, 
     NA, as.character(datesOut$eventDate))
