@@ -24,8 +24,7 @@ dateFindR_fixed <- function (data = NULL, maxYear = lubridate::year(Sys.Date()),
                                                                 truncated = 5), 
                                              eventDate)) %>% 
     dplyr::mutate(dateSuccess = dplyr::if_else(is.na(eventDate), 
-                                               FALSE, 
-                                               TRUE))
+                                               FALSE, TRUE))
   ymd_hms_0 <- noDATEa %>% dplyr::filter(complete.cases(eventDate)) %>% 
     dplyr::select(database_id, eventDate) %>% 
       setNames(object = ., c("database_id", "date"))
@@ -33,7 +32,9 @@ dateFindR_fixed <- function (data = NULL, maxYear = lubridate::year(Sys.Date()),
   noDATEa <- noDATEa %>% dplyr::filter(is.na(eventDate))
   noDATEa <- noDATEa %>% dplyr::mutate(eventDate = dplyr::if_else(is.na(as.character(eventDate)), 
     lubridate::ymd(stringr::str_c(year, month, day, sep = "-"), 
-      quiet = TRUE, truncated = 2), eventDate))
+                   quiet = TRUE, 
+                   truncated = 2), 
+    eventDate))
   dmy_1 <- noDATEa %>% dplyr::filter(complete.cases(eventDate)) %>% 
     dplyr::select(database_id, eventDate) %>% setNames(object = ., 
     c("database_id", "date"))

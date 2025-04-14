@@ -166,7 +166,6 @@ taxonomyFile <- taxadbToBeeBDC(name = "Hymenoptera",
                                ignore_case = FALSE, # ignore_case = FALSE needs to be specified when querying Order, otherwise there is SQL error
                                provider = "gbif")
 
-
 #****************
 ## Taxonomic backbone from multiple sources----
 
@@ -197,7 +196,8 @@ taxITISog <- taxadbToBeeBDC(name = "Hymenoptera",
                             provider = "itis")
 # This step uses ritis::taxon_authorship() to fill authorship column
 # Warning: this can take prohibitively long for large datasets—try filtering to sppList first if needed
-taxITIS <- format_provider_data(taxITISog, "itis", getAuthorship=FALSE) # Format table for joining
+# TODO: note about getAuthorship
+taxITIS <- format_provider_data(taxITISog, "itis", getAuthorship=TRUE) # Format table for joining
 
 #******
 ### Local taxonomic backbone
@@ -251,17 +251,11 @@ existingVariables <- c("acceptedIDs","joinedTaxonomy","mergedTaxonomy","taxDL",
 rm(list = existingVariables, existingVariables) # Remove existing variables
 
 #****************
-## (Optional) Filter taxonomyFile to species of interest and synonyms----
-## TODO: Currently, this doesn't allow for filtering by any taxonomic level other than species
-taxonomyFile <- taxonomyFile %>%
-  left_join(
-    taxonomyFile %>%
-      dplyr::select(id, canonical, authorship),
-    by = c("accid" = "id"),
-    suffix = c("", "_accepted")
-  ) %>%
-  filter((canonical %in% sppList) |
-           (tolower(canonical_accepted) %in% tolower(sppList))) # filter to rows related to those in sppList
+## Filter taxonomyFile to species of interest and their synonyms----
+
+# This function accepts a list of scientific names from a single taxanomic level
+taxonomyFile <- filter_by_taxon(table=taxonomyFile, rank="species", names=sppList)
+
 
 #************************************
 #************************************
@@ -282,7 +276,7 @@ fullSppList <- taxonomyFile$canonical
 
 ### Get the taxon keys for each species in list. 
 ### gbifTaxonKeys should be a long vector like this c(2977832,2977901,2977966,2977835,2977863)
-### This can take a long time for long lists.
+### This can take a long time for long lists
 gbifTaxonKeys <- fullSppList %>% 
   name_backbone_checklist(strict = T, kingdom = "Animalia") %>% # Change kingdom to your use-case
   filter(matchType == "EXACT") %>% # get matched names
@@ -294,23 +288,25 @@ check_gbif_creds() # Securely input GBIF creds into local environment
 ## Intialize download of occurrence data, providing search parameters as needed
 ### This search uses the gbifTaxonKey values generated in the previous step
 ## Read more about adding predicates here: https://www.rdocumentation.org/packages/rgbif/versions/3.8.0/topics/download_predicate_dsl
-## DarwinCore (DWCA) format, although it is larger, is preferred as it preserves
-# fields like "verbatimEventDate", which can be used for data recovery in future steps
-# TODO: Filtering by year eliminates all observations that are lacking well-formatted evenDates
-
 occ_download(
   pred_in("taxonKey", gbifTaxonKeys),  # Search for all taxonKeys in the list
   pred("occurrenceStatus", "PRESENT"),
   pred_not(pred_in("basisOfRecord", c("FOSSIL_SPECIMEN", "LIVING_SPECIMEN", "MATERIAL_SAMPLE"))), #Excluding these types bases of record
-  pred_lte("coordinateUncertaintyInMeters", 2000), #Uncertainty less than or equal to 2000 m.
+  pred_or(
+    pred_lte("coordinateUncertaintyInMeters", 2000), #Uncertainty less than or equal to 2000 m.
+    pred_isnull("coordinateUncertaintyInMeters") # TODO: Do we want records without uncertainty provided?
+  ),
+  pred_or(
+    pred_gte("year", 1960),
+    pred_isnull("year")
+  ),
   pred("hasCoordinate", TRUE),
-  # pred_gte("year", 1960),  # Include only records from 1960 onwards
   ## Uncomment the section below to define a bounding box. Otherwise global occurrence data will be downloaded.
   # pred_or(
   #   pred_in("stateProvince",c("Texas","Arkansas","Louisiana","Oklahoma","New Mexico","Tamaulipas", "Nuevo Leon", "Coahuila","Chihuahua")),
   #   pred_within("POLYGON ((-107.24 25.6, -107.24 36.88, -92.52 36.88, -92.52 25.6, -107.24 25.6))")
   #),
-  format = "DWCA"  # Download format as CSV for easier handling
+  format = "DWCA"  # DarwinCore (DWCA) format preserves helpful fields like "verbatimEventDate"
 )
 
 ### After executing the download, a message will be output in the console with
@@ -1236,7 +1232,6 @@ check_time$day <- ifelse(check_time$day > 31 | check_time$day < 1, NA, check_tim
 ## Recover dates----
 
 ### The dateFindR() function will search through some other columns in order to find and rescue dates that may not have made it into the correct columns. It will further update the eventDate, day, month, and year columns where these data were a) missing and b) located in one of the searched columns.
-# TODO: Is verbatimEventDate available by this step?
 # TODO: dateFindR_fixed should be working now (corrected the regex). This needs testing with a table with many verbatimDate options.
 check_time <- dateFindR_fixed(data = check_time,
                               # Years above this are removed (from the recovered dates only)
