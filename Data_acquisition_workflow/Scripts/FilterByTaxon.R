@@ -15,7 +15,7 @@ filter_by_taxon <- function(table = NULL, names = NULL, rank = NULL, includeSyno
     stop(paste0("Please provide a singlerank from within this list: ", taxaList))
   }
   tryCatch({
-    reducedTable <- table %>%
+    table <- table %>%
       left_join(
         .,
         dplyr::select(table, all_of(c("id", "canonical", "authorship", taxaList))),
@@ -23,16 +23,16 @@ filter_by_taxon <- function(table = NULL, names = NULL, rank = NULL, includeSyno
         suffix = c("", "_accepted")
       )
     if (tolower(rank) == "species") {
-      filteredTable <- filter(reducedTable,
+      filteredTable <- filter(table,
                              (tolower(canonical) %in% tolower(names)) | 
                              (tolower(canonical_accepted) %in% tolower(names))) # filter to rows related to those in sppList
     } else {
       rank_col <- tolower(rank)
       rank_accepted_col <- paste0(rank_col, "_accepted")
 
-      filteredTable <- filter(reducedTable, 
-                             (!!sym(rank_col) %in% tolower(names)) |
-                             (!!sym(rank_accepted_col) %in% tolower(names)))
+      filteredTable <- filter(table, 
+                             (tolower(!!sym(rank_col)) %in% tolower(names)) |
+                             (tolower(!!sym(rank_accepted_col)) %in% tolower(names)))
     }
       
   }, error = function(e) {
