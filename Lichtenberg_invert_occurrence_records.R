@@ -221,7 +221,6 @@ joinedTaxonomy <- possibleTables %>%
 ### Table priority is determined by the order in which the table names are provided to the mergeTaxonomy() function.
 mergedTaxonomy <- merge_taxonomy(joinedTaxonomy, c('dl', 'gbif', 'itis', 'custom'))
 
-
 ### Correct orphaned accids
 
 #### Create a reference table for instances of orphaned accids. 
@@ -233,7 +232,6 @@ acceptedIDs <- mergedTaxonomy %>%
   rename(accid = id)
 
 #### Use reference table to reassign accids based on current accepted ids.
-### TODO: This may result in additional rows—are these duplicates a problem?
 taxonomyFile <- mergedTaxonomy %>%
   left_join(
     acceptedIDs,
@@ -241,15 +239,17 @@ taxonomyFile <- mergedTaxonomy %>%
     suffix = c("", "_replacement"),
     relationship = "many-to-many" # Multiple orphans for the same species may exist
   ) %>%
-  mutate(accid = if_else(taxonomic_status != "accepted", accid_replacement, accid)) %>%
+  mutate(accid = if_else(taxonomic_status != "accepted", 
+                         accid_replacement, 
+                         accid)) %>%
   dplyr::select(-canonical_accepted,-authorship_accepted,-accid_replacement)
 
 #### Remove spent databases
-# Determine which variables are being used in environment
+### Determine which variables are being used in environment
 existingVariables <- c("acceptedIDs","joinedTaxonomy","mergedTaxonomy","taxDL",
                        "taxDLog","taxGBIF","taxGBIFog","taxITIS","taxITISog") %>%
                      get_existing_variables(.) # Get currently in-use variables
-                     
+
 rm(list = existingVariables, existingVariables) # Remove existing variables
 
 #****************
@@ -257,9 +257,8 @@ rm(list = existingVariables, existingVariables) # Remove existing variables
 
 # This function accepts a list of scientific names from a single taxanomic level
 taxonomyFile <- filter_by_taxon(table = taxonomyFile, 
-                                rank = "Species", 
-                                names = c("Osmia imitatrix"))
-
+                                rank = "species", 
+                                names = sppList)
 
 #************************************
 #************************************
@@ -280,12 +279,12 @@ taxonomyFile <- filter_by_taxon(table = taxonomyFile,
 fullSppList <- taxonomyFile$canonical
 
 ### Get the taxon keys for each species in fullSppList 
-### gbifTaxonKeys should be a long vector like this c(2977832,2977901,2977966,2977835,2977863)
 ### This can take a long time for long lists
 gbifTaxonKeys <- fullSppList %>% 
   name_backbone_checklist(strict = T, kingdom = "Animalia") %>% # Change kingdom to your use-case
   filter(matchType == "EXACT") %>% # get matched names
-  pull(usageKey)
+  pull(usageKey) %>%
+  unique() # Filter out duplicates caused by spelling differences
 
 ### Set up your environment with your GBIF credentials
 check_gbif_creds() # Securely input GBIF creds into local environment

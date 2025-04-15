@@ -78,13 +78,14 @@ format_provider_data <- function(table = NULL, provider = NULL,
 
   }
   
-  # Create column to be used for joining accepted info to synonym rows
-  # Prefix ID values with "provider_"
+  ## Create column to be used for joining accepted info to synonym rows
+  # These join values will be stripped of diacritical marks
+  ## Prefix ID values with "provider_"
   table <- table %>% 
               mutate(joinCol = paste0(taxonomic_status, 
                                       gsub("[, ]", 
                                            "", 
-                                           validName)
+                                           normalize_accents(validName))
                                       ),
                      accid = paste0(provider, "_", accid),  # Prefix ID values with "provider_"
                      id = paste0(provider, "_", id)) %>%
