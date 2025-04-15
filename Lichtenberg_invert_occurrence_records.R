@@ -224,25 +224,27 @@ mergedTaxonomy <- merge_taxonomy(joinedTaxonomy, c('dl', 'gbif', 'itis', 'custom
 
 ### Correct orphaned accids
 
-#### Create a reference table for instances of orphaned accids. This happens when a unique synonym occurs in a lower-priority taxonomic backbone but refers to an accepted name shared by a higher priority backbone.
+#### Create a reference table for instances of orphaned accids. 
+### This happens when a unique synonym occurs in a lower-priority taxonomic 
+### backbone but refers to an accepted name shared by a higher priority backbone.
 acceptedIDs <- mergedTaxonomy %>%
   filter(taxonomic_status == "accepted") %>%
   dplyr::select(id, canonical) %>%
-  mutate(accid = id) %>%
-  dplyr::select(accid, canonical)
+  rename(accid = id)
 
 #### Use reference table to reassign accids based on current accepted ids.
+### TODO: This may result in additional rows—are these duplicates a problem?
 taxonomyFile <- mergedTaxonomy %>%
   left_join(
     acceptedIDs,
-    by = c("canonical_accepted" = "canonical"),
-    suffix = c("", "_replacement")
+    by = join_by(canonical_accepted == canonical),
+    suffix = c("", "_replacement"),
+    relationship = "many-to-many" # Multiple orphans for the same species may exist
   ) %>%
   mutate(accid = if_else(taxonomic_status != "accepted", accid_replacement, accid)) %>%
   dplyr::select(-canonical_accepted,-authorship_accepted,-accid_replacement)
 
 #### Remove spent databases
-# TODO: This could be reduced into a single function call
 # Determine which variables are being used in environment
 existingVariables <- c("acceptedIDs","joinedTaxonomy","mergedTaxonomy","taxDL",
                        "taxDLog","taxGBIF","taxGBIFog","taxITIS","taxITISog") %>%
@@ -254,7 +256,9 @@ rm(list = existingVariables, existingVariables) # Remove existing variables
 ## Filter taxonomyFile to species of interest and their synonyms----
 
 # This function accepts a list of scientific names from a single taxanomic level
-taxonomyFile <- filter_by_taxon(table=taxonomyFile, rank="species", names=sppList)
+taxonomyFile <- filter_by_taxon(table = taxonomyFile, 
+                                rank = "Species", 
+                                names = c("Osmia imitatrix"))
 
 
 #************************************
@@ -271,10 +275,11 @@ taxonomyFile <- filter_by_taxon(table=taxonomyFile, rank="species", names=sppLis
 ### Users have the option of using rgbif::occ_search or rgbif::occ_download. occ_search() is only meant for smaller requests and generally not recommended for research. For larger requests, use rgbif::occ_download.
 ### See https://docs.ropensci.org/rgbif/articles/downloading_a_long_species_list.html for another example and further explanation.
 
-### Compile species list from taxonomyFile (filter to sppList in previous step if desired)
+### Compile list of all species names from taxonomyFile 
+## (filter to sppList in previous step if desired)
 fullSppList <- taxonomyFile$canonical
 
-### Get the taxon keys for each species in list. 
+### Get the taxon keys for each species in fullSppList 
 ### gbifTaxonKeys should be a long vector like this c(2977832,2977901,2977966,2977835,2977863)
 ### This can take a long time for long lists
 gbifTaxonKeys <- fullSppList %>% 
@@ -287,7 +292,7 @@ check_gbif_creds() # Securely input GBIF creds into local environment
 
 ## Intialize download of occurrence data, providing search parameters as needed
 ### This search uses the gbifTaxonKey values generated in the previous step
-## Read more about adding predicates here: https://www.rdocumentation.org/packages/rgbif/versions/3.8.0/topics/download_predicate_dsl
+## Read more about adding custom predicates here: https://www.rdocumentation.org/packages/rgbif/versions/3.8.0/topics/download_predicate_dsl
 occ_download(
   pred_in("taxonKey", gbifTaxonKeys),  # Search for all taxonKeys in the list
   pred("occurrenceStatus", "PRESENT"),
@@ -310,8 +315,8 @@ occ_download(
 )
 
 ### After executing the download, a message will be output in the console with
-# various instructions for viewing your download, as well as a Download Key.
-### Copy and paste your resulting Download Key in the code below
+## various instructions for viewing your download, as well as a Download Key.
+### Copy and paste your resulting Download Key into the code below
 
 ## Load the downloaded dataset and save to Data_acquisition_workflow/Additional_Datasets
 gbifOccs <- get_typed_gbif_download("your_download_key") %>%

@@ -11,7 +11,7 @@ filter_by_taxon <- function(table = NULL, names = NULL, rank = NULL, includeSyno
   if (is.null(names)) {
     stop("Please provide a vector of scientific names (of the same rank)")
   }
-  if ((!tolower(rank) %in% taxaList) | is.null(rank) | length(rank) != 1) {
+  if ((!(tolower(rank) %in% taxaList)) | (is.null(rank)) | (length(rank) != 1)) {
     stop(paste0("Please provide a singlerank from within this list: ", taxaList))
   }
   tryCatch({
@@ -27,9 +27,12 @@ filter_by_taxon <- function(table = NULL, names = NULL, rank = NULL, includeSyno
                              (tolower(canonical) %in% tolower(names)) | 
                              (tolower(canonical_accepted) %in% tolower(names))) # filter to rows related to those in sppList
     } else {
+      rank_col <- tolower(rank)
+      rank_accepted_col <- paste0(rank_col, "_accepted")
+
       filteredTable <- filter(reducedTable, 
-                             (tolower(!!sym(rank)) %in% tolower(names)) |
-                             (paste0(tolower(!!sym(rank)), "_accepted") %in% tolower(names)))
+                             (!!sym(rank_col) %in% tolower(names)) |
+                             (!!sym(rank_accepted_col) %in% tolower(names)))
     }
       
   }, error = function(e) {
