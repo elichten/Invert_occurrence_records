@@ -154,7 +154,7 @@ taxonomyFile <- read_csv(file.path(DataPath,"your_taxon_filename.csv")) %>%
 #******
 ### Option 2: BeeBDC download of DiscoverLife's Backbone----
 ### Discover Life's backbone for Anthophila comes with the BeeBDC download via beesTaxonomy()
-taxonomyFile <- beesTaxonomy_fixed() # TODO: This is a fixed version of BeeBDC::BeesTaxonomy, which should reliably work now. Still needs to be tested on macOS
+taxonomyFile <- beesTaxonomy_fixed()
 
 #******
 ### Option 3: download taxonomic backbone from API----
@@ -276,7 +276,8 @@ taxonomyFile <- filter_by_taxon(table = taxonomyFile,
 
 ### Compile list of all species names from taxonomyFile 
 ## (filter to sppList in previous step if desired)
-fullSppList <- taxonomyFile$canonical
+fullSppList <- taxonomyFile$canonical %>%
+               unique()
 
 ### Get the taxon keys for each species in fullSppList 
 ### This can take a long time for long lists
@@ -1019,19 +1020,19 @@ griddingDF <- check_space %>%
   dplyr::ungroup()
 
 ### Run the gridding analysis to find datasets that might be gridded.
-# TODO: This can take quite a while and has no update messaging
+# TODO: This can take a very long time and has no update messaging
 gridded_datasets <- CoordinateCleaner::cd_round(x = griddingDF, 
                                                 lon = "decimalLongitude",
-                                                lat = "decimalLatitude", 
-                                                ds = "datasetName", 
-                                                T1 = 7, 
+                                                lat = "decimalLatitude",
+                                                ds = "datasetName",
+                                                T1 = 7,
                                                 min_unique_ds_size = 4,
-                                                test = "both", 
-                                                value = "dataset", 
-                                                graphs = FALSE, 
-                                                verbose = TRUE, 
+                                                test = "both",
+                                                value = "dataset",
+                                                graphs = FALSE,
+                                                verbose = TRUE,
                                                 reg_out_thresh = 2,
-                                                reg_dist_min = 0.1, 
+                                                reg_dist_min = 0.1,
                                                 reg_dist_max = 2) %>%
                     dplyr::tibble()
 
@@ -1072,10 +1073,21 @@ check_space <- BeeBDC::coordUncerFlagR(data = check_space,
                                        uncerColumn = "coordinateUncertaintyInMeters",
                                        threshold = 1000)
 
+
 #****************
 ## Country Checklist----
 
-### This step identifies mismatches between the Discover Life country checklist (beesChecklist) and your occurrence dataset for bee species, identifying potential misidentifications, outliers, etc.’
+
+### This step identifies mismatches between the Discover Life country checklist 
+## (beesChecklist) and your occurrence dataset for bee species, identifying 
+## potential misidentifications, outliers, etc.
+
+### WARNING: This step is designed to be used with the BeeBDD beesChecklist
+## If you intend to use a custom checklist, download and view the beesChecklist
+## below for reference
+# TODO: Do we want to facilitate this further? Also, the default behavior for
+# using a mismatched checklist is for observations to get flagged.
+
 ### Download the country-level checklist.
 bee.checklist <- beesChecklist_fixed()
 
@@ -1088,7 +1100,11 @@ check_space <- BeeBDC::countryOutlieRs(checklist = bee.checklist,
                                        scale = 50,
                                        mc.cores = 1)
 
-### Since version 1.1.2 a new function, BeeBDC::continentOutlieRs(), has been released which is conceptually the same as BeeBDC::countryOutlieRs() except it works on the level of continents. Users might appreciate that generating a continent-level checklist is much easier than a country-level one and so might actually be of more wide-spread use (beyond bees).
+### Since version 1.1.2 a new function, BeeBDC::continentOutlieRs(), 
+## has been released which is conceptually the same as BeeBDC::countryOutlieRs() 
+## except it works on the level of continents. Users might appreciate that 
+## generating a continent-level checklist is much easier than a country-level 
+## one and so might actually be of more wide-spread use (beyond bees).
 check_space <- BeeBDC::continentOutlieRs(checklist = bee.checklist,
                                          data = check_space,
                                          keepAdjacentContinent = FALSE,

@@ -11,3 +11,6 @@ Data_acquisition_workflow/*
 
 # Ignore all .zip files
 *.zip
+
+# Ignore .DS_Store files from macOS
+*.DS_Store

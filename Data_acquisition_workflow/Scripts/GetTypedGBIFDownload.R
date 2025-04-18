@@ -9,6 +9,14 @@ get_typed_gbif_download <- function(downloadKey) {
   # TODO: The messaging from this function is unclear and confusing.
   occ_download_wait(downloadKey)
   
+  # Create an Additional_Datasets subdirectory, if needed
+  # TODO: This relies on "DataPath" which was previosuly created by BeeBDC
+  # TODO: This isn't the best assumption. We should make an outPath arg
+  if (!dir.exists(file.path(DataPath, "Additional_Datasets"))) {
+    message(paste0("Creating Additional_Datasets directory at ", DataPath))
+    dir.create(file.path(DataPath, "Additional_Datasets"))
+  }
+  
   outPath = file.path(DataPath, "Additional_Datasets")
 
   tryCatch(
