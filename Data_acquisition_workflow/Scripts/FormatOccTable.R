@@ -19,7 +19,8 @@ format_occ_table <- function(table) {
                        "coordinateUncertaintyInMeters",
                        "year",
                        "month",
-                       "day")
+                       "day",
+                       "recordId")
   
   for (column in requiredColumns) {
     if (!column %in% names(table)) {

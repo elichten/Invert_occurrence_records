@@ -252,6 +252,7 @@ existingVariables <- c("acceptedIDs","joinedTaxonomy","mergedTaxonomy","taxDL",
 
 rm(list = existingVariables, existingVariables) # Remove existing variables
 
+
 #****************
 ## Filter taxonomyFile to species of interest and their synonyms----
 
@@ -372,7 +373,8 @@ if (!exists("occDatasets")) {
   occDatasets <- list()
 }
 
-## Template code for importing local dataset
+#******
+## Import a custom dataset
 occDatasets$custom_dataset <- check_occ_table( suppressWarnings(
                             readr::read_delim(file.path(DataPath,
                                                         "Additional_Datasets",
@@ -380,7 +382,8 @@ occDatasets$custom_dataset <- check_occ_table( suppressWarnings(
                                               col_types = BeeBDC::ColTypeR())))
 
 
-## The datasets provided by Dorey that are relevant to Texas include
+#******
+## Datasets provided by Dorey that are relevant to Texas include
 
 ### Ballare et al., 2019 (Bal)
 occDatasets$Bal_std <- readr::read_csv(file.path(DataPath,
@@ -476,7 +479,7 @@ occDatasets$PaigeNAm <- readr::read_csv(file.path(DataPath,
 
 # Merge datasets
 db_standardized <- bind_rows(occDatasets) %>%
-                   format_occ_table(.)
+                   format_occ_table(.) # TODO: Among other required columns, this is currently adding "recordId" to tables without it. Where does this standard come from?
 
 ## Remove spent datasets
 rm(occDatasets)
@@ -498,6 +501,7 @@ if(!exists("db_standardized")){
 # TODO: This would only be necessary with really large datasets
 # TODO: Is there anything we could safely cut before the flagging?
 # Filter your occurrence data 
+# TODO: For instance, couldn't we sort by species list here?
 
 
 #****************
@@ -720,9 +724,10 @@ if (!exists("check_pf")) {
 ## Flag coordinates inconsistent with country names----
 
 ### Collect all country names in the country_suggested column. 
-# We rebuilt a BDC function to flag occurrences where the coordinates are inconsistent with the provided country name.
-# TODO: This will error in an ambiguous way if all rows have empty or out of range coords flags
-# TODO: Look into missing "database_id" warning. I think it's a bug.
+## We rebuilt a BDC function to flag occurrences where the coordinates are inconsistent with the provided country name.
+## NOTE: A "no simple features geometry column present" can result from ALL 
+# observations being flagged for .coordinates_empty OR .coordinates_outOfRange
+# TODO: database_id warning caused by issues with code
 check_pf <- BeeBDC::jbd_coordCountryInconsistent(data = check_pf, 
                                                  lon = "decimalLongitude",
                                                  lat = "decimalLatitude", 
@@ -1258,7 +1263,7 @@ check_time$day <- ifelse(check_time$day > 31 | check_time$day < 1, NA, check_tim
 ## Recover dates----
 
 ### The dateFindR() function will search through some other columns in order to find and rescue dates that may not have made it into the correct columns. It will further update the eventDate, day, month, and year columns where these data were a) missing and b) located in one of the searched columns.
-# TODO: dateFindR_fixed should be working now (corrected the regex). This needs testing with a table with many verbatimDate options.
+# TODO: This fix needs testing with a table with many verbatimDate options.
 check_time <- dateFindR_fixed(data = check_time,
                               # Years above this are removed (from the recovered dates only)
                               maxYear = lubridate::year(Sys.Date()),
