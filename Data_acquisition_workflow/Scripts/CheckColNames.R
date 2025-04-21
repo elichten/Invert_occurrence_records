@@ -26,6 +26,11 @@ check_col_names <- function(table, requiredColumns, desiredColumns = NULL) {
     }
   }
   
+  # Exit if any missing required fields
+  if (length(missingRequired) != 0) {
+    stop("Missing required columns. Table not imported.")
+  }
+  
   return(table)
 }
 

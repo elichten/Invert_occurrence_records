@@ -125,18 +125,18 @@ sppList <- sppListHarmonized$species # Output list of accepted names
 #****************
 ## Taxonomic backbone from a single source----
 
-### These key columns are required for taxonomyFile: 
-# TODO: Add basic types for these columns
-# TODO: See where "valid" is used and clarify what it is
-      # taxonomic_status
-      # source
-      # accid
-      # id
-      # validName
-      # canonical
-      # authorship
-      # taxon_rank
-      # valid <boolean> (TRUE if this is an accepted taxon, FALSE if not)
+### These key columns are required for taxonomyFile:
+## Enter "?BeeBDC::testTaxonomy" into the console for more information
+
+      # taxonomic_status (e.g., "invalid", "accepted", "synonym")
+      # source           (e.g., "DiscoverLife", "MyDataset")
+      # accid            (e.g., "10094", "0")
+      # id               (e.g., "10094", "291844")
+      # validName        (e.g., "Osmia bicolor (Schrank, 1781)")
+      # canonical        (e.g., "Osmia bicolor")
+      # authorship       (e.g., "(Schrank, 1781)")
+      # taxon_rank       (e.g., "Species", "Subspecies")
+      # valid            ("TRUE" if this is an accepted taxon, "FALSE" if not)
       # kingdom
       # phylum
       # class
@@ -299,7 +299,7 @@ occ_download(
   pred_not(pred_in("basisOfRecord", c("FOSSIL_SPECIMEN", "LIVING_SPECIMEN", "MATERIAL_SAMPLE"))), #Excluding these types bases of record
   pred_or(
     pred_lte("coordinateUncertaintyInMeters", 2000), #Uncertainty less than or equal to 2000 m.
-    pred_isnull("coordinateUncertaintyInMeters") # TODO: Do we want records without uncertainty provided?
+    pred_isnull("coordinateUncertaintyInMeters")
   ),
   pred_or(
     pred_gte("year", 1960),
@@ -314,18 +314,23 @@ occ_download(
   format = "DWCA"  # DarwinCore (DWCA) format preserves helpful fields like "verbatimEventDate"
 )
 
+# Create an empty occDatasets list if needed
+if (!exists("occDatasets")) {
+  occDatasets <- list()
+}
+
 ### After executing the download, a message will be output in the console with
 ## various instructions for viewing your download, as well as a Download Key.
-### Copy and paste your resulting Download Key into the code below
+### Copy and paste your resulting Download Key into the function below
 
 ## Load the downloaded dataset and save to Data_acquisition_workflow/Additional_Datasets
-gbifOccs <- get_typed_gbif_download("your_download_key") %>%
+occDatasets$gbifOccs <- get_typed_gbif_download("your_download_key") %>%
             format_gbif_import(.) # Format table to fit BeeBDC template
 
 ### Or load previously downloaded GBIF database
 # GBIF's downloads are tab-delimited — change the delim argument if needed
 # This step can also handle occurrence.txt files from a DWCA download
-gbifOccs <- suppressWarnings(
+occDatasets$gbifOccs <- suppressWarnings(
                     read_delim(file.path(DataPath,
                                          "Additional_Datasets", 
                                          "your_file_name"), 
@@ -334,21 +339,24 @@ gbifOccs <- suppressWarnings(
                     format_gbif_import(.) # Format table to fit BeeBDC template
 
 #****************
-## Import local geographically-relevant data sets (BeeBDC examples)----
+## Import local geographically-relevant datasets (BeeBDC examples)----
 
-## These key columns are required for occurrence data: 
+### These key columns are required for occurrence data: 
+
+  ## These columns are more unique to BeeBDC
+      # dataSource        (e.g., "GBIF", "BMin_Anthophila", "My_dataSource")
+      # database_id       (e.g., "GBIF_22", "GBIF_23", "BMin_data_1093")
+      # TODO: What's the intended difference between "id" and "occurrenceID"?
+
+  ## These columns follow DarwinCore format (https://dwc.tdwg.org/terms/)
       # scientificName
       # decimalLatitude
       # decimalLongitude
       # basisOfRecord
       # countryCode
-      # dataSource
-      # country
-      # database_id
+      # country 
       # locality
       # occurrenceStatus
-      # issue (perhaps optional. this is a gbif thing.)
-      # id
       # catalogNumber
       # occurrenceID
       # eventDate
@@ -359,73 +367,78 @@ gbifOccs <- suppressWarnings(
       # month
       # day
 
+# Create an empty occDatasets list if needed
+if (!exists("occDatasets")) {
+  occDatasets <- list()
+}
+
 ## Template code for importing local dataset
-# TODO: Table is still being imported to variable upon error
-custom_dataset <- suppressWarnings(
-                    readr::read_delim(file.path(DataPath,
-                                                "Additional_Datasets",
-                                                "your_file_name.csv"),
-                    col_types = BeeBDC::ColTypeR())) %>%
-                  check_occ_table() # Custom script to check for required column names
+occDatasets$custom_dataset <- check_occ_table( suppressWarnings(
+                            readr::read_delim(file.path(DataPath,
+                                                        "Additional_Datasets",
+                                                        "your_data_file.csv"),
+                                              col_types = BeeBDC::ColTypeR())))
+
 
 ## The datasets provided by Dorey that are relevant to Texas include
 
 ### Ballare et al., 2019 (Bal)
-Bal_std <- readr::read_csv(file.path(DataPath,"Additional_Datasets",
-                                              "jbd_Bal_data.csv"),
-                           col_types = BeeBDC::ColTypeR()) %>%
-  mutate(city = word(locality, 1, sep = ","),
-         county = word(locality, 2, sep = ","),
-         state = word(locality, 3, sep = ","),
-         country = "USA", # Assuming all localities are in the USA
-         countryCode = "US", # Assuming country code for the USA is "US"
-         basisOfRecord = "HUMAN_OBSERVATION")
+occDatasets$Bal_std <- readr::read_csv(file.path(DataPath,
+                                                 "Additional_Datasets",
+                                                 "jbd_Bal_data.csv"),
+                                       col_types = BeeBDC::ColTypeR()) %>%
+                       mutate(city = word(locality, 1, sep = ","),
+                              county = word(locality, 2, sep = ","),
+                              state = word(locality, 3, sep = ","),
+                              country = "USA", # Assuming all localities are in the USA
+                              countryCode = "US", # Assuming country code for the USA is "US"
+                              basisOfRecord = "HUMAN_OBSERVATION")
 
 ### Bob Minckley data (BMin)
-BMin_std <- readr::read_csv(file.path(DataPath,
-                                      "Additional_Datasets",
-                                      "jbd_BMin_data.csv"),
-                            col_types = BeeBDC::ColTypeR())
+occDatasets$BMin_std <- readr::read_csv(file.path(DataPath,
+                                                  "Additional_Datasets",
+                                                  "jbd_BMin_data.csv"),
+                                        col_types = BeeBDC::ColTypeR())
 
 ### Ecdysis data (ECD)
-Ecd_std <- readr::read_csv(file.path(DataPath,
-                                     "Additional_Datasets",
-                                     "jbd_Ecd_data.csv"),
-                           col_types = BeeBDC::ColTypeR())
+occDatasets$Ecd_std <- readr::read_csv(file.path(DataPath,
+                                                 "Additional_Datasets",
+                                                 "jbd_Ecd_data.csv"),
+                                       col_types = BeeBDC::ColTypeR())
 
 ### Florida State Collection of Arthropods (FSCA)
-FSCA_std <- readr::read_csv(file.path(DataPath,
-                                      "Additional_Datasets",
-                                      "jbd_FSCA_data.csv"),
-                            col_types = BeeBDC::ColTypeR())
+occDatasets$FSCA_std <- readr::read_csv(file.path(DataPath,
+                                                  "Additional_Datasets",
+                                                  "jbd_FSCA_data.csv"),
+                                        col_types = BeeBDC::ColTypeR())
 
 ### US Geological Survey data (Geol)
-GeoL_std <- readr::read_csv(file.path(DataPath,
-                                      "Additional_Datasets",
-                                      "jbd_GeoL_data.csv"),
-                            col_types = BeeBDC::ColTypeR())
+occDatasets$GeoL_std <- readr::read_csv(file.path(DataPath,
+                                                  "Additional_Datasets",
+                                                  "jbd_GeoL_data.csv"),
+                                        col_types = BeeBDC::ColTypeR())
 
 ### Illinois Natural History Survey data (INHS)
-INHS_std <- readr::read_csv(file.path(DataPath,
-                                      "Additional_Datasets",
-                                      "jbd_INHS_data.csv"),
-                            col_types = BeeBDC::ColTypeR())
+occDatasets$INHS_std <- readr::read_csv(file.path(DataPath,
+                                                  "Additional_Datasets",
+                                                  "jbd_INHS_data.csv"),
+                                        col_types = BeeBDC::ColTypeR())
 
 ### K.A. Parys 2019 (KP)
-KP_std <- readr::read_csv(file.path(DataPath,
-                                    "Additional_Datasets",
-                                    "jbd_KP_data.csv"),
-                          col_types = BeeBDC::ColTypeR())
+occDatasets$KP_std <- readr::read_csv(file.path(DataPath,
+                                                "Additional_Datasets",
+                                                "jbd_KP_data.csv"),
+                                      col_types = BeeBDC::ColTypeR())
 
 ### Shannon Collins data set (SMC)
-SMC_std <- readr::read_csv(file.path(DataPath,
-                                     "Additional_Datasets",
-                                     "jbd_SMC_Data.csv"),
-                           col_types = BeeBDC::ColTypeR()) %>%
-  mutate(eventDate = as.character(eventDate))
+occDatasets$SMC_std <- readr::read_csv(file.path(DataPath,
+                                                 "Additional_Datasets",
+                                                 "jbd_SMC_Data.csv"),
+                                       col_types = BeeBDC::ColTypeR()) %>%
+                       mutate(eventDate = as.character(eventDate))
 
 ### Paige Chesshire's data (PaigeNAm)
-PaigeNAm <- readr::read_csv(file.path(DataPath,
+occDatasets$PaigeNAm <- readr::read_csv(file.path(DataPath,
                                       "Additional_Datasets",
                                       "Paige_data", 
                                       "NorAmer_highQual_only_ALLfamilies.csv"), 
@@ -439,20 +452,20 @@ PaigeNAm <- readr::read_csv(file.path(DataPath,
 
 ## Other datasets from Dorey 2023 can be loaded in here, if needed
 ### (MABC)
-# MABC_std <- readr::read_csv(file.path(DataPath, 
+# occDatasets$MABC_std <- readr::read_csv(file.path(DataPath, 
 #                                      "Additional_Datasets",
 #                                      "jbd_MABC_data.csv"),
 #                             col_types = BeeBDC::ColTypeR())
 
 ## EcoS
-# EcoS_std <- readr::read_csv(file.path(DataPath,
+# occDatasets$EcoS_std <- readr::read_csv(file.path(DataPath,
 #                                      "Additional_Datasets",
 #                                      "jbd_EcoS_data.csv"),
 #                             col_types = BeeBDC::ColTypeR())
 
 
 ## Lichtenberg data
-# Lic_std <- readr::read_csv(file.path(DataPath,
+# occDatasets$Lic_std <- readr::read_csv(file.path(DataPath,
 #                                     "Additional_Datasets",
 #                                     "jbd_Lic_Data.csv"))%>%
 #   mutate(eventDate = as.character(eventDate))
@@ -461,21 +474,12 @@ PaigeNAm <- readr::read_csv(file.path(DataPath,
 #****************
 ## Merge all occurrence data----
 
-# Take possible variable names from above
-# Add your own variables to the list if needed
-# TODO: Is this step too specific? Could this be solved partially by reading in
-# the entire BeeBDC dataset instead of these piecemeal options?
-existingDatasets <- c("Bal_std", "BMin_std", "Ecd_std", "FSCA_std", 
-                      "gbifOccs", "GeoL_std", "INHS_std", "KP_std", 
-                      "PaigeNAm", "SMC_std", "custom_dataset") %>%
-                    get_existing_variables() # Custom script to filter to used variables only
+# Merge datasets
+db_standardized <- bind_rows(occDatasets) %>%
+                   format_occ_table(.)
 
-# Merge datasets in filtered list of names
-db_standardized <- lapply(existingDatasets, function(name) get(name, envir = .GlobalEnv)) %>%
-                   bind_rows(.)
-
-## Remove spent databases
-rm(list = existingDatasets, existingDatasets)
+## Remove spent datasets
+rm(occDatasets)
 
 ### Save the dataset
 readr::write_excel_csv(db_standardized, file.path(OutPath_Intermediate, 
@@ -766,8 +770,9 @@ check_pf <- BeeBDC::flagLicense(data = check_pf,
 #****************
 ## Flag GBIF issues----
 
+### Skip this step if you're not using GBIF data
+
 ### Flag select issues that are flagged by GBIF
-### You can skip this if you're not using GBIF data
 check_pf <- BeeBDC::GBIFissues(data = check_pf, 
                                issueColumn = "issue", 
                                GBIFflags = c("COORDINATE_INVALID",

@@ -9,7 +9,7 @@ format_provider_data <- function(table = NULL, provider = NULL,
     stop(" - Please provide a BeeBDC-formatted table")
   }
   if (is.null(provider)) {
-    stop(" - Please indicate table source (gbif, itis, or dl)")
+    stop(" - Please indicate table source (gbif, itis, dl, or custom)")
   }
   
   # Reformat provider name to allow for case differences, check if accepted
