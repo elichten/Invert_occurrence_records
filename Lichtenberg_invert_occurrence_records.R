@@ -524,8 +524,9 @@ db_standardized <-
 # Flag Data ---------------------------------------------------------------
 
 
-# TODO: These flags are counter intuitive. .coordinates_empty == FALSE means
-# the row was positively flagged for empty coordinates and vice versa
+## NOTE: These flags can be counter intuitive. 
+# A value of FALSE in the ".coordinates_empty" columns indicates that the row 
+# was flagged for empty coordinates (and vice versa)
 
 # To re-start in the middle of the flagging and harmonization process, 
 # read in the most recent intermediate file you outputted, replacing "03_space_inter_database.csv" with that file's name.
