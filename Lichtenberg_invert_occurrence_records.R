@@ -331,6 +331,7 @@ occDatasets$gbifOccs <- get_typed_gbif_download("your_download_key") %>%
 ### Or load previously downloaded GBIF database
 # GBIF's downloads are tab-delimited — change the delim argument if needed
 # This step can also handle occurrence.txt files from a DWCA download
+# TODO: The way we're handling database_id wont work if someone is using multiple gbif datasets
 occDatasets$gbifOccs <- suppressWarnings(
                     read_delim(file.path(DataPath,
                                          "Additional_Datasets", 
@@ -347,7 +348,9 @@ occDatasets$gbifOccs <- suppressWarnings(
   ## These columns are more unique to BeeBDC
       # dataSource        (e.g., "GBIF", "BMin_Anthophila", "My_dataSource")
       # database_id       (e.g., "GBIF_22", "GBIF_23", "BMin_data_1093")
-      # TODO: What's the intended difference between "id" and "occurrenceID"?
+      # TODO: What's the intended difference between "id", "occurrenceID", and "recordId"?
+      # recordId
+      # id
 
   ## These columns follow DarwinCore format (https://dwc.tdwg.org/terms/)
       # scientificName
@@ -727,12 +730,11 @@ if (!exists("check_pf")) {
 ## We rebuilt a BDC function to flag occurrences where the coordinates are inconsistent with the provided country name.
 ## NOTE: A "no simple features geometry column present" can result from ALL 
 # observations being flagged for .coordinates_empty OR .coordinates_outOfRange
-# TODO: database_id warning caused by issues with code
 check_pf <- BeeBDC::jbd_coordCountryInconsistent(data = check_pf, 
                                                  lon = "decimalLongitude",
                                                  lat = "decimalLatitude", 
                                                  scale = 50, 
-                                                 pointBuffer = 0.01)
+                                                 pointBuffer = 0.01) # TODO: Non-breaking database_id warning caused by issues with code
 
 ### Save dataset
 readr::write_excel_csv(check_pf, file.path(OutPath_Intermediate, 
@@ -747,7 +749,7 @@ xyFromLocality <- bdc::bdc_coordinates_from_locality(data = check_pf,
                                                      locality = "locality",
                                                      lon = "decimalLongitude", 
                                                      lat = "decimalLatitude", 
-                                                     save_outputs = FALSE) # BeeBDC doesn't use its own file structure here
+                                                     save_outputs = FALSE) # Files will save at top-level directory
 
 ### Save resultant data
 readr::write_excel_csv(xyFromLocality, 
@@ -817,7 +819,7 @@ check_pf <- BeeBDC::summaryFun(
   filterClean = FALSE)
 
 #### Use bdc to generate reports
-# TODO: (minor) Errors if nothing has been flagged
+# NOTE: Function will error if no observations are flagged
 (report <- bdc::bdc_create_report(data = check_pf,
                                   database_id = "database_id",
                                   workflow_step = "prefilter"))
@@ -1096,8 +1098,8 @@ check_space <- BeeBDC::coordUncerFlagR(data = check_space,
 ### WARNING: This step is designed to be used with the BeeBDD beesChecklist
 ## If you intend to use a custom checklist, download and view the beesChecklist
 ## below for reference
-# TODO: Do we want to facilitate this further? Also, the default behavior for
-# using a mismatched checklist is for observations to get flagged.
+# TODO: Do we want to facilitate using a custom checklist further? Also, the default behavior for
+# using a mismatched checklist is for observations to get flagged, which feels odd to me.
 
 ### Download the country-level checklist.
 bee.checklist <- beesChecklist_fixed()
@@ -1333,7 +1335,6 @@ BeeBDC::flagRecorder(data = check_time,
 ## Duplicates are identified iteratively and will be tallied up, duplicate pairs clustered, and sorted at the end of the function. 
 ## The function is designed to work with Darwin Core data with a database_id column, but it is also modifiable to work with other columns. 
 ## I would encourage you to see ‘?dupeSummary()’ for more details as this function is quite modifiable to user needs.
-# TODO: As is, this function is using recordID, which is not being required or kept in the occurrence data
 check_time <- BeeBDC::dupeSummary(
   data = check_time,
   path = OutPath_Report,
