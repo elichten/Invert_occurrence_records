@@ -1574,47 +1574,59 @@ BeeBDC::dupePlotR(
 
 # using test file - will need to fix this when we have the real dataset
 
-test <- read_csv("test_file_path.csv") %>%
+test <- read_csv("//cas-research.unt.ad.unt.edu/RESEARCH/LichtenbergLab/TPWD_work/BeeBDC_explore/Data_acquisition_workflow/Output/Intermediate/01_prefilter_output.csv") %>%
   mutate(decimalLatitude = as.integer(decimalLatitude)) %>%
   mutate(decimalLongitude = as.integer(decimalLongitude))
 
-#### restrict records to state of interest (TX in this case) ####
-
-TX_only <- test %>%
-  filter(stateProvince == 'Texas') %>%
-  filter(!is.na(species))
+test_group <- test %>%
+  group_by(scientificName)
 
 #create object of area of interest boundary, which we will need when calculating aoc. Modify to your region of interest
 boundary <- states(cb = TRUE) %>%
   filter(NAME == 'Texas') %>%
   st_transform(boundary, crs = 4326)
 
-get_NatureServe_values <- function(x, boundary)
-{
-  #load necessary packages
+get_NatureServe_values <- function(x, boundary) {
+  # Load necessary packages
   require(tidyverse)
   require(tigris)
   require(sf)
   require(red)
   require(lwgeom)
   
-  results <- list()
+  x <- x %>%
+    filter(!is.na(decimalLatitude) & !is.na(decimalLongitude))
+  # Check if the dataframe is grouped
+  is_grouped <- dplyr::is.grouped_df(x)
   
-  for(i in unique(x$species)) {
-    
-    species_data <- x %>%
-      filter(species == i)
-    
-    # Calculate number of observations of species of interest
-    observations <- nrow(species_data)
-    
-    #create sf object to be used for area of occupancy and range extent calculations
+  # If grouped, split by group. Otherwise, treat the whole dataframe as one group
+  grouped_data <- if (is_grouped) {
+    dplyr::group_split(x)
+  } else {
+    list(x)
+  }
+  
+  # Retrieve group keys if available
+  group_keys_df <- if (is_grouped) {
+    dplyr::group_keys(x)
+  } else {
+    NULL
+  }
+  
+  # Process each group
+  results <- map2(grouped_data, seq_along(grouped_data), function(species_data, idx) {
+    # Create sf object
     species_sf <- species_data %>%
       st_as_sf(coords = c("decimalLongitude", "decimalLatitude"), crs = 4326)
     
-    # Calculate area of occupancy for species of interest
+    # Calculate number of observations
+    observations <- species_sf %>%
+      filter(st_within(geometry, boundary, sparse = FALSE) [,1]) %>%
+      nrow()
+    
+    # Calculate range extent (Convex Hull Intersected with Boundary)
     if (length(unique(species_data$decimalLatitude)) <= 2 & length(unique(species_data$decimalLongitude)) <= 2) {
-      range_extent <- NA # Too few observations to calculate area
+      range_extent <- NA
     } else {
       range_extent <- species_sf %>%
         st_union() %>%
@@ -1624,29 +1636,32 @@ get_NatureServe_values <- function(x, boundary)
         units::set_units(km^2)
     }
     
+    # Calculate area of occupancy (AOO)
     area_of_occupancy <- species_sf %>%
       st_coordinates() %>%
-      red::aoo() %>%  # Use red::aoo() to calculate the Area of Occupancy (AOO)
+      red::aoo() %>%
       units::set_units(km^2)
     
-    # Store the results for this species
-    results[[i]] <- tibble(
-      species = i, 
-      observations = observations, 
-      range_extent = as.numeric(range_extent), 
-      area_of_occupancy = as.numeric(area_of_occupancy))
+    # Create result tibble
+    result <- tibble(
+      observations = observations,
+      range_extent = as.numeric(range_extent),
+      area_of_occupancy = as.numeric(area_of_occupancy)
+    )
     
+    # If grouped, add group keys to result
+    if (!is.null(group_keys_df)) {
+      result <- bind_cols(group_keys_df[idx, ], result)
+    }
     
-  }
-  #combine all species results into df
-  results_df <- bind_rows(results)
+    return(result)
+  })
   
-  #return results
+  # Combine results
+  results_df <- bind_rows(results)
   return(results_df)
 }
 
-
-#run NatureServe calculations on your dataframe
-natureServe_numbers <- TX_only %>%
-  get_NatureServe_values(boundary = boundary)
+out <- get_NatureServe_values(test_group, boundary = boundary)
+out2 <- get_NatureServe_values(test, boundary = boundary)
 
