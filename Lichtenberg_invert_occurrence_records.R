@@ -1609,7 +1609,8 @@ get_NatureServe_values <- function(x, boundary) {
     
     # Calculate number of observations
     observations <- species_sf %>%
-      filter(st_within(geometry, boundary, sparse = FALSE) [,1]) %>%
+      st_join(boundary, join = st_within) %>%
+      filter(!is.na(NAME)) %>%
       nrow()
     
     # Calculate range extent (Convex Hull Intersected with Boundary)
