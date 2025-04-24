@@ -195,9 +195,9 @@ taxITISog <- taxadbToBeeBDC(name = "Hymenoptera",
                             ignore_case = FALSE,
                             provider = "itis")
 # This step uses ritis::taxon_authorship() to fill authorship column
-# Warning: this can take prohibitively long for large datasets—try filtering to sppList first if needed
-# TODO: note about getAuthorship
-taxITIS <- format_provider_data(taxITISog, "itis", getAuthorship=TRUE) # Format table for joining
+# Warning: Getting authorship can take prohibitively long for large datasets.
+# Set getAuthorship=FALSE if you want to skip this step.
+taxITIS <- format_provider_data(taxITISog, "itis", getAuthorship=FALSE) # Format table for joining
 
 #******
 ### Local taxonomic backbone
@@ -315,27 +315,26 @@ occ_download(
   format = "DWCA"  # DarwinCore (DWCA) format preserves helpful fields like "verbatimEventDate"
 )
 
-# Create an empty occDatasets list if needed
-if (!exists("occDatasets")) {
-  occDatasets <- list()
-}
-
 ### After executing the download, a message will be output in the console with
 ## various instructions for viewing your download, as well as a Download Key.
 ### Copy and paste your resulting Download Key into the function below
 
+# Create an empty occDatasets list to store datasets if needed
+if (!exists("occDatasets")) {
+  occDatasets <- list()
+}
+
 ## Load the downloaded dataset and save to Data_acquisition_workflow/Additional_Datasets
 occDatasets$gbifOccs <- get_typed_gbif_download("your_download_key") %>%
-            format_gbif_import(.) # Format table to fit BeeBDC template
+                        format_gbif_import(.) # Format table to fit BeeBDC template
 
 ### Or load previously downloaded GBIF database
 # GBIF's downloads are tab-delimited — change the delim argument if needed
 # This step can also handle occurrence.txt files from a DWCA download
-# TODO: The way we're handling database_id wont work if someone is using multiple gbif datasets
 occDatasets$gbifOccs <- suppressWarnings(
                     read_delim(file.path(DataPath,
                                          "Additional_Datasets", 
-                                         "your_file_name"), 
+                                         "your_file_name.csv"), 
                                delim = '\t',
                                col_types = (c(BeeBDC::ColTypeR()$cols)))) %>%
                     format_gbif_import(.) # Format table to fit BeeBDC template
@@ -343,12 +342,13 @@ occDatasets$gbifOccs <- suppressWarnings(
 #****************
 ## Import local geographically-relevant datasets (BeeBDC examples)----
 
+
 ### These key columns are required for occurrence data: 
 
   ## These columns are more unique to BeeBDC
       # dataSource        (e.g., "GBIF", "BMin_Anthophila", "My_dataSource")
-      # database_id       (e.g., "GBIF_22", "GBIF_23", "BMin_data_1093")
       # TODO: What's the intended difference between "id", "occurrenceID", and "recordId"?
+      # database_id       (e.g., "GBIF_22", "BMin_data_1093")
       # recordId
       # id
 
@@ -377,13 +377,14 @@ if (!exists("occDatasets")) {
 }
 
 #******
+# TODO: Do we want to automatically merge additional "custom_dataset" tables, or overwrite them?
+# TODO: Generate "<dataset_name>_<uuid>" as database_id value for each record
 ## Import a custom dataset
-occDatasets$custom_dataset <- check_occ_table( suppressWarnings(
-                            readr::read_delim(file.path(DataPath,
-                                                        "Additional_Datasets",
-                                                        "your_data_file.csv"),
-                                              col_types = BeeBDC::ColTypeR())))
-
+occDatasets$custom_dataset <- check_occ_table(suppressWarnings(
+                              readr::read_delim(file.path(DataPath,
+                                                          "Additional_Datasets",
+                                                          "your_data_file.csv"),
+                                                col_types = BeeBDC::ColTypeR())))
 
 #******
 ## Datasets provided by Dorey that are relevant to Texas include
@@ -491,21 +492,14 @@ rm(occDatasets)
 readr::write_excel_csv(db_standardized, file.path(OutPath_Intermediate, 
                                                   "00_prefilter_database.csv"))
 
+
+#****************
 # If db_standardized has been previously created and saved, read in here:
 if(!exists("db_standardized")){
   db_standardized <- readr::read_csv(file.path(OutPath_Intermediate, 
                                                "00_prefilter_database.csv"), 
                                      col_types = BeeBDC::ColTypeR())
 }
-
-#****************
-## (Optional)
-# TODO: Do we want to have the option to filter out SOME stuff at this point?
-# TODO: This would only be necessary with really large datasets
-# TODO: Is there anything we could safely cut before the flagging?
-# Filter your occurrence data 
-# TODO: For instance, couldn't we sort by species list here?
-
 
 #****************
 ## (Optional) 
@@ -522,6 +516,7 @@ db_standardized <-
                      dplyr::select(all_of(colnames(beesRaw)), countryCode))
 
 #****************
+# TODO: Do we want to get rid of this?
 # Import proprietary data - make sure it is in DarwinCore format
 
 #************************************
@@ -538,37 +533,92 @@ db_standardized <-
 # To re-start in the middle of the flagging and harmonization process, 
 # read in the most recent intermediate file you outputted, replacing "03_space_inter_database.csv" with that file's name.
 if (!exists("check_space")) {
-  check_space <- readr::read_csv(file.path(OutPath_Intermediate, 
-                                           "03_space_inter_database.csv"), 
-                                 col_types = ColTypeR())
+  check_pf <- readr::read_csv(file.path(OutPath_Intermediate, 
+                                        "03_space_inter_database.csv"), 
+                              col_types = ColTypeR())
 }
 
+#************************************
+
+## Taxonomy flags ----
+
+#****************  
+### Harmonize and flag taxonomy----
+
+## Prep data names
+## Make sure names_clean column doesn't exist before starting harmonization
+db_standardized <- dplyr::select(db_standardized, 
+                                 !tidyselect::any_of("names_clean"))
+
+### Clean the scientificName column
+parse_names <- db_standardized %>%
+               dplyr::select(., !tidyselect::any_of("names_clean")) %>%
+               {bdc::bdc_clean_names(sci_names = .$scientificName)}
+
+### Keep only the .uncer_terms and names_clean columns
+parse_names <- dplyr::select(parse_names,
+                             .uncer_terms,
+                             names_clean)
+
+### Merge names with complete dataset
+check_taxa <- dplyr::bind_cols(db_standardized,
+                               parse_names)
+
+rm(parse_names, db_standardized)
+
+### Harmonize occurrence data and flag those that do not match the taxonomyFile
+### You can also use multiple cores to achieve this. See ‘?harmoniseR()’ for details.
+check_taxa <- prepare_harmonise(taxonomyFile) %>% # Add empty "flags" and "canonical_withFlags" columns if missing
+              BeeBDC::harmoniseR(path = DataPath, #The path to a folder that the output can be saved
+                                 taxonomy = ., # The formatted taxonomy file
+                                 data = check_taxa,
+                                 mc.cores = 1)
+
+### Remove taxonomy file
+rm(taxonomyFile)
+
+### Save the harmonized file
+readr::write_excel_csv(check_taxa, file.path(DataPath, 
+                                             "Output",
+                                             "Intermediate",
+                                             "02_taxonomy_database.csv"))
+
+#****************  
+### Filter taxonomy----
+# Optional (But recommended)
+
+# Filter occurrence records to those which relate to your taxonomyFile
+# This can help to reduce the workload on some of the upcoming functions
+check_taxa <- subset(check_taxa, .invalidName == TRUE)
+  
+
+#************************************
+
+## Initial misc flags ----
+
 #****************
-## Flag occurrences without scientificName present----
+### Flag occurrences without scientificName present----
 
 ### Adds column ".scientificName_empty"
-check_pf <- bdc::bdc_scientificName_empty(data = db_standardized,
+check_pf <- bdc::bdc_scientificName_empty(data = check_taxa,
                                           sci_names = "scientificName")
 
-# Remove db_standardized dataset to reduce data storage space
-rm(db_standardized)
-
 #****************
-## Flag occurrences with missing decimalLatitude and decimalLongitude----
+### Flag occurrences with missing decimalLatitude and decimalLongitude----
 
 ### Adds column ".coordinates_empty"
 check_pf <- bdc::bdc_coordinates_empty(data = check_pf, lat = "decimalLatitude",
                                        lon = "decimalLongitude")
 
 #****************
-## Flag occurrences that are not on Earth----
+### Flag occurrences that are not on Earth----
 
 ### Adds column ".coordinates_outOfRange"
 check_pf <- bdc::bdc_coordinates_outOfRange(data = check_pf, lat = "decimalLatitude",
                                             lon = "decimalLongitude")
 
 #****************
-## Flag occurrences that don't match basisOfRecord types ----  
+### Flag occurrences that don't match basisOfRecord types ----  
 
 ### user decides what the acceptable forms of data are here - modify as necessary
 ### Adds column ".basisOfRecords_notStandard"
@@ -607,7 +657,7 @@ check_pf <- bdc::bdc_basisOfRecords_notStandard(
   ))
 
 #****************
-## Harmonize country names----
+### Harmonize country names----
 
 ### Create a separate dataset with harmonized country names and associated info
 check_pf_noNa <- BeeBDC::countryNameCleanR(
@@ -667,7 +717,7 @@ if (!exists("check_pf")) {
 }
 
 #****************
-## Standardize country names and add ISO2 codes, if needed----
+### Standardize country names and add ISO2 codes, if needed----
 
 ### Adds two columns: "country_suggested" and "countryCode", removes these columns prior to running in an instance when the dataset contains these columns from previous runs. 
 ### Standardise country names and add ISO2 codes if needed
@@ -680,7 +730,7 @@ check_pf <- bdc::bdc_country_standardized(
 ) 
 
 #****************
-## Correct transposed coordinates----
+### Correct transposed coordinates----
 
 ### Flag and correct records when decimalLatitude and decimalLongitude appear to be transposed. We created this chunked version of bdc::bdc_coordinates_transposed() because it is very RAM-heavy  using our large bee dataset. Like many of our other ‘jbd_…’ functions there are other improvement - e.g., parallel running.
 ### NOTE: Usually you would use scale = “large”, which requires rnaturalearthhires
@@ -689,7 +739,7 @@ check_pf <- bdc::bdc_country_standardized(
 check_pf <- BeeBDC::jbd_Ctrans_chunker(
   # bdc_coordinates_transposed inputs
   data = check_pf,
-  id = "database_id",
+  idcol = "database_id",
   lat = "decimalLatitude",
   lon = "decimalLongitude",
   country = "country",
@@ -724,12 +774,12 @@ if (!exists("check_pf")) {
 }
 
 #****************
-## Flag coordinates inconsistent with country names----
+### Flag coordinates inconsistent with country names----
 
 ### Collect all country names in the country_suggested column. 
 ## We rebuilt a BDC function to flag occurrences where the coordinates are inconsistent with the provided country name.
-## NOTE: A "no simple features geometry column present" can result from ALL 
-# observations being flagged for .coordinates_empty OR .coordinates_outOfRange
+## NOTE: A "no simple features geometry column present" error will show if ALL 
+# observations are flagged for .coordinates_empty OR .coordinates_outOfRange
 check_pf <- BeeBDC::jbd_coordCountryInconsistent(data = check_pf, 
                                                  lon = "decimalLongitude",
                                                  lat = "decimalLatitude", 
@@ -741,7 +791,7 @@ readr::write_excel_csv(check_pf, file.path(OutPath_Intermediate,
                                            "01_prefilter_database.csv"))
 
 #****************
-## Flag GeoRef Issues----
+### Flag GeoRef Issues----
 
 ### This function identifies records whose coordinates can potentially be 
 ### extracted from locality information, which must be manually checked later.
@@ -760,14 +810,14 @@ readr::write_excel_csv(xyFromLocality,
 rm(xyFromLocality)
 
 #****************
-## Flag records marked as "absent"----
+### Flag records marked as "absent"----
 
 ### Run function
 ### You can skip this step if the table is missing occurrenceStatus column
 check_pf <- BeeBDC::flagAbsent(data = check_pf,PresAbs = "occurrenceStatus")
 
 #****************
-## Flag License----
+### Flag License----
 
 ### Flag the records that may not be used according to their license information.
 check_pf <- BeeBDC::flagLicense(data = check_pf,
@@ -776,7 +826,7 @@ check_pf <- BeeBDC::flagLicense(data = check_pf,
                                 excludeDataSource = NULL)
 
 #****************
-## Flag GBIF issues----
+### Flag GBIF issues----
 
 ### Skip this step if you're not using GBIF data
 
@@ -788,7 +838,7 @@ check_pf <- BeeBDC::GBIFissues(data = check_pf,
                                )
 
 #****************
-## Flag reports----
+### Flag reports----
 
 #### Save the flags so far. This function will create a copy of everything that 
 #### has been flagged up until now. This will be updated throughout the script 
@@ -829,73 +879,13 @@ readr::write_csv(report$x$data, file.path(OutPath_Report,
                                           "01_Report_Prefilter.csv"))
 
 #****************
-## Save----
+### Save----
 
 ### Save the intermediate dataset
 readr::write_excel_csv(check_pf, file.path(OutPath_Intermediate,
                                            "01_prefilter_output.csv"))
-
-#************************************
-#************************************
-
-
-# Taxonomy ----------------------------------------------------------------
-
-
-## Read in the filtered dataset or rename the 3.x dataset for 4.0 (refers to vignette section)
-if (!exists("check_pf")) {
-  database <- readr::read_csv(file.path(OutPath_Intermediate, 
-                                        "01_prefilter_output.csv"), 
-                              col_types = BeeBDC::ColTypeR())
-} else {
-  # OR rename and remove
-  database <- check_pf
-  # Remove spent dataset
-  rm(check_pf)
-}
-
-## Remove *names_clean* if you've already run the following functions on this dataset
-database <- database %>%
-  dplyr::select(!tidyselect::any_of("names_clean"))
-
-#****************             
-## Prep data names----
-
-### Cleans the scientificName column
-parse_names <- bdc::bdc_clean_names(sci_names = database$scientificName)
-
-### Keep only the .uncer_terms and names_clean columns
-parse_names <- parse_names %>%
-  dplyr::select(.uncer_terms,
-                names_clean)
-
-### Merge names with complete dataset
-database <- dplyr::bind_cols(database,
-                             parse_names)
-
-rm(parse_names)
-
-#****************
-## Harmonize taxonomy----
-
-### Harmonize occurrence data and flag those that do not match the taxonomyFile
-### You can also use multiple cores to achieve this. See ‘?harmoniseR()’ for details.
-database <- prepare_harmonise(taxonomyFile) %>% # Add empty "flags" and "canonical_withFlags" columns if missing
-            BeeBDC::harmoniseR(path = DataPath, #The path to a folder that the output can be saved
-                               taxonomy = ., # The formatted taxonomy file
-                               data = database,
-                               mc.cores = 1)
-
-### Remove taxonomy file
-rm(taxonomyFile)
-
-### Save the harmonized file
-readr::write_excel_csv(database, file.path(DataPath, 
-                                           "Output",
-                                           "Intermediate",
-                                           "02_taxonomy_database.csv"))
  
-## Save flags----
+### Save flags----
 flagFile <- BeeBDC::flagRecorder(data = database, 
                                  outPath = OutPath_Report, 
                                  fileName = paste0("flagsRecorded_", 
@@ -908,13 +898,12 @@ flagFile <- BeeBDC::flagRecorder(data = database,
                                  append = TRUE, 
                                  printSummary = TRUE)
 
+
 #************************************
-#************************************
 
+## Space Flags ---------------------------------------------------------------
 
-# Space -------------------------------------------------------------------
-
-
+#****************
 ## Read in latest database if needed
 if (!exists("database")) {
   database <- readr::read_csv(file.path(OutPath_Intermediate,
@@ -923,7 +912,7 @@ if (!exists("database")) {
 }
 
 #****************
-## Coordinate precision----
+### Coordinate precision----
 
 ### Below function identifies records with a coordinate precision below a specified number of decimal places. The major difference between bdc and BeeBDC functions is that jbd_coordinates_precision() will only flag occurences if BOTH latitude and longitude are rounded, while BeeBDC::jbd_coordinates_precision flags if only one is rounded.
 check_space <- BeeBDC::jbd_coordinates_precision(data = database, 
@@ -939,7 +928,7 @@ readr::write_excel_csv(check_space, file.path(OutPath_Intermediate,
                                               "03_space_inter_database.csv"))
 
 #****************
-## Common spatial issues----
+### Common spatial issues----
 
 ### Only run for occurrences through clean_coordinates() that are spatially "valid"
 tempSpace <- check_space %>%
@@ -997,7 +986,7 @@ readr::write_excel_csv(check_space, file.path(OutPath_Intermediate,
                                               "03_space_inter_database.csv"))
 
 #****************
-## Diagonal and Grid Issues----
+### Diagonal and Grid Issues----
 
 ### Load most recent database, if necessary
 if (!exists("check_space")) {
@@ -1079,7 +1068,7 @@ readr::write_excel_csv(gridded_datasets, file.path(OutPath_Intermediate,
 rm(gridded_datasets)
 
 #****************
-## Uncertainty----
+### Uncertainty----
 
 ### Flag records that exceed a coordinateUncertaintyInMeters threshold
 check_space <- BeeBDC::coordUncerFlagR(data = check_space, 
@@ -1088,16 +1077,17 @@ check_space <- BeeBDC::coordUncerFlagR(data = check_space,
 
 
 #****************
-## Country Checklist----
+### Country Checklist----
 
 
 ### This step identifies mismatches between the Discover Life country checklist 
 ## (beesChecklist) and your occurrence dataset for bee species, identifying 
 ## potential misidentifications, outliers, etc.
 
-### WARNING: This step is designed to be used with the BeeBDD beesChecklist
+### WARNING: This step is designed to be used with the BeeBDC beesChecklist
 ## If you intend to use a custom checklist, download and view the beesChecklist
 ## below for reference
+
 # TODO: Do we want to facilitate using a custom checklist further? Also, the default behavior for
 # using a mismatched checklist is for observations to get flagged, which feels odd to me.
 
@@ -1138,7 +1128,7 @@ view(check_space %>%
      )
 
 #****************
-## Map Spatial Errors----
+### Map Spatial Errors----
 
 ### Assemble maps of potential spatial errors and outliers, either one flag at a time or using the .summary column. 
 ### First, you need to rebuild the .summary column.
@@ -1159,7 +1149,7 @@ check_space %>%
   )
 
 #****************
-## Space Report----
+### Space Report----
 
 ### Create the report using bdc
 (report <- bdc::bdc_create_report(data = dplyr::tibble(check_space %>%
@@ -1172,7 +1162,7 @@ readr::write_csv(report$x$data, file.path(OutPath_Report,
                                           "03_Report_space.csv"))
 
 #****************
-## Space Figures----
+### Space Figures----
 
 ### Create figures for the spatial data filtering results
 # TODO: I believe this fails ambiguously if no filtering occurs
@@ -1219,12 +1209,10 @@ readr::write_excel_csv(check_space, file.path(OutPath_Intermediate,
                                               "03_space_database.csv"))
 
 #************************************
-#************************************
 
+## Time Flags -------------------------------------------------------------
 
-# Time Issues -------------------------------------------------------------
-
-
+#****************
 ## Read in the last database, if needed
 if (!exists("check_space")) {
   check_time <- readr::read_csv(file.path(OutPath_Intermediate,
@@ -1262,7 +1250,7 @@ check_time$month <- ifelse(check_time$month > 12 | check_time$month < 1, NA, che
 check_time$day <- ifelse(check_time$day > 31 | check_time$day < 1, NA, check_time$day)
 
 #****************
-## Recover dates----
+### Recover dates----
 
 ### The dateFindR() function will search through some other columns in order to find and rescue dates that may not have made it into the correct columns. It will further update the eventDate, day, month, and year columns where these data were a) missing and b) located in one of the searched columns.
 # TODO: This fix needs testing with a table with many verbatimDate options.
@@ -1273,19 +1261,19 @@ check_time <- dateFindR_fixed(data = check_time,
                               minYear = 1700)
 
 #****************
-## No eventDate----
+### No eventDate----
 
 ### Flag records missing eventDate
 check_time <- bdc::bdc_eventDate_empty(data = check_time, eventDate = "eventDate")
 
 #****************
-## Old records----
+### Old records----
 
 ### This will flag records prior to the date selected. 1970 is frequently chosen for SDM work. You may not need to filter old records at all, so think critically about your use. We have chosen 1950 as a lower extreme.
 check_time <- bdc::bdc_year_outOfRange(data = check_time, eventDate = "year", year_threshold = 1950)
 
 #****************
-## Time report----
+### Time report----
 
 ### Create a time report that updates the .summary column
 check_time <- BeeBDC::summaryFun(
@@ -1298,7 +1286,7 @@ check_time <- BeeBDC::summaryFun(
   filterClean = FALSE)
 
 #****************
-## Time figures----
+### Time figures----
 
 ### Create time results figures
 # TODO: Error "object 'i' not found". I believe this is a bug in the create_figures code.
@@ -1311,7 +1299,7 @@ figures <- BeeBDC::jbd_create_figures(data = check_time,
 ### You can check figures. For example, run figures$year
 
 #****************
-## Save flags----
+### Save flags----
 
 ### Save all flags so far
 BeeBDC::flagRecorder(data = check_time,
