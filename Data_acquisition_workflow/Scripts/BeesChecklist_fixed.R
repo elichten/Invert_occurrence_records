@@ -17,6 +17,7 @@ beesChecklist_fixed <- function(URL = "https://figshare.com/ndownloader/files/47
   
   suppressWarnings(while (is.null(checklist) && attempt <= nAttempts) {
     if (attempt < nAttempts) {
+      # Fix: mode needs to be set to "wb" for Windows machines
       tryCatch(utils::download.file(URL, 
                                     destfile = output_path,
                                     mode = "wb"),

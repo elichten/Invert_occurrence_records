@@ -1,6 +1,10 @@
 format_gbif_import <- function(gbifTable) {
   gbifTable <- gbifTable %>%
-    mutate(database_id = paste0("GBIF_", replicate(n(), uuid::UUIDgenerate(use.time = TRUE, output = "string"))),
+    mutate(database_id = paste0("GBIF_", 
+                                replicate(n(), 
+                                          uuid::UUIDgenerate(use.time = TRUE, 
+                                                             output = "string"))
+                                ),
            datasetID = "GBIF",
            dataSource = "GBIF",
            country = "",

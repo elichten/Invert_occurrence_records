@@ -73,7 +73,7 @@ format_provider_data <- function(table = NULL, provider = NULL,
       # Add authorship to table using map_chr (inital get_itis_authorship call)
       table <- table %>%
         mutate(., authorship = map_chr(taxonID, get_itis_authorship, .progress = TRUE),
-               validName = paste0(validName, " ", authorship))
+               validName = paste0(validName, " ", ifelse(is.na(authorship), "", authorship)))
     }
 
   }

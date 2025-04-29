@@ -1,5 +1,4 @@
-# Script check table for required column names
-# TODO: This needs to error and not return anything if it breaks
+# Script to check a taxon or observation table for required column names
 check_col_names <- function(table, requiredColumns, desiredColumns = NULL) {
   
   # Filter to only required/desired names which are NOT present in table
@@ -71,14 +70,12 @@ check_occ_table <- function(table) {
 
 # Taxon table
 check_taxon_table <- function(table) {
-  
-  # TODO: Is the column "valid" required?
+  # TODO: Can we create the "valid" column if it is not found?
   requiredColumns <- c("id",
                        "canonical",
                        "authorship",
                        "accid",
                        "taxonomic_status",
-                       "validName",
                        "source",
                        "taxon_rank",
                        "kingdom",
@@ -88,6 +85,18 @@ check_taxon_table <- function(table) {
                        "family",
                        "genus")
   
+  notNullColumns <- c("accid")
+  
+  # Check for required columns (this will stop execution if some are missing)
   check_col_names(table, requiredColumns)
+  
+  # Create "validName" column if doesn't exist
+  if (!"validName" %in% names(table)) {
+    message("Creating validName column using canonical and authorship columns...")
+    table <- table %>%
+      mutate(., validName = paste0(canonical, " ", ifelse(is.na(authorship), "", authorship)))
+  }
+  
+  
   return(table)
 }
