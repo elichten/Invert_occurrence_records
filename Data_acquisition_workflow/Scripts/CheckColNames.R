@@ -100,3 +100,16 @@ check_taxon_table <- function(table) {
   
   return(table)
 }
+
+# Taxon table
+check_checklist <- function(table) {
+  # TODO: Can we create the "validName" column if we have the necessary columns?
+  requiredColumns <- c("validName",
+                       "iso_a3_eh",
+                       "continent")
+  
+  # Check for required columns (this will stop execution if some are missing)
+  check_col_names(table, requiredColumns)
+  
+  return(table)
+}

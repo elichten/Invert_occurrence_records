@@ -23,6 +23,7 @@ get_typed_gbif_download <- function(downloadKey) {
     {
       fp <- file.path(outPath, downloadKey)
 
+      message("Getting GBIF download...")
       zipFp <- occ_download_get(key=downloadKey, path=outPath, overwrite=TRUE)
       
       # Check if DWCA or simple_csv

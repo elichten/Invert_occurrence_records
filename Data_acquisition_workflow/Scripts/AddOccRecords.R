@@ -1,12 +1,19 @@
 ## A function for importing occurrence data tables into a list of tables.
 ## This is to be used with the BeeBDC workflow, and facilitates importing
-# one or more custom occurrence record tables.  
-add_occ_records <- function(filepath, datasetName = "custom_dataset", mainList = list(), dataSource = "other") {
+# one or more custom occurrence record tables.
+## This function will accept either a table or a filepath argument, but not both
+add_occ_records <- function(table = NULL, filepath = NULL, datasetName = "custom_dataset", mainList = list(), dataSource = "other", gbifKey = NULL) {
   
-  # Read in the table using the provided filepath
-  table <- suppressWarnings(
-              readr::read_delim(filepath, col_types = BeeBDC::ColTypeR())
-            )
+  # If user provided both filepath and table (or neither), prompt them for just one
+  if ((is.null(filepath) && is.null(table)) || (!is.null(filepath) && !is.null(table))) {
+    stop("Please provide either a filepath or a table (but not both!).")
+  # If only filepath detected, initiate custom file import process
+  } else if (!is.null(filepath)) {
+    # Read in the table using the provided filepath
+    table <- suppressWarnings(
+      readr::read_delim(filepath, col_types = BeeBDC::ColTypeR())
+    )
+  }
   
   # TODO: Can we generate these AFTER the check_occ_table() call?
   # Add database_id column with <datasetName>_<uuid> format

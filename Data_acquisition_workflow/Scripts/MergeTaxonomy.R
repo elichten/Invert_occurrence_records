@@ -13,7 +13,7 @@ merge_taxonomy <- function(table, table_names) {
     full_column_names <- paste0(column, "_", table_names)
     
     # Check if the columns exist in the table, if not, replace with NA
-    existing_columns <- purrr::map(full_column_names, ~ if (.x %in% colnames(table)) .x else NA)
+    existing_columns <- purrr::map(full_column_names, ~ ifelse(.x %in% colnames(table), .x, NA_character_))
     
     # Remove NAs using purrr::discard to get valid column names
     existing_columns_char <- purrr::discard(existing_columns, is.na)
@@ -21,7 +21,7 @@ merge_taxonomy <- function(table, table_names) {
     # Dynamically generate the merged column by coalescing (only valid columns will be kept)
     mergedTaxonomy <- mergedTaxonomy %>%
       mutate(
-        !!column := coalesce(!!!syms(existing_columns_char))  # Coalesce across the columns, handling missing columns as NA
+        !!sym(column) := coalesce(!!!syms(existing_columns_char))  # Coalesce across the columns, handling missing columns as NA
       )
   }
   
