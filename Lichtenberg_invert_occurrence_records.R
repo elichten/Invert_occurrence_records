@@ -185,7 +185,7 @@ taxDL <- beesTaxonomy_fixed() %>%
   
 #******
 #### GBIF----
-taxGBIF <- tsaxadbToBeeBDC(name = "Hymenoptera",
+taxGBIF <- taxadbToBeeBDC(name = "Hymenoptera",
                           rank = "Order",
                           ignore_case = FALSE, # ignore_case = FALSE needs to be specified when querying Order, otherwise there is SQL error
                           provider = "gbif") %>%
@@ -204,9 +204,9 @@ taxITIS <- taxadbToBeeBDC(name = "Hymenoptera",
 #******
 #### Local taxonomic backbone----
 # TODO: Test this more thoroughly
-taxCustom <- read_delim(file.path(DataPath,"test_backbone.csv")) %>%
-                   check_taxon_table() %>% # Verify that table has required columns
-                   format_provider_data(., "custom")
+taxCustom <- read_delim(file.path(DataPath,"your_file_name.csv")) %>%
+                        check_taxon_table() %>% # Verify that table has required columns
+                        format_provider_data(., "custom")
 
 #******
 ### Merge backbones with priority----
@@ -224,7 +224,6 @@ joinedTaxonomy <- possibleTables %>%
 # Coalesce each column in the three tables into a single column, using the first non-NA value encountered.
 # Table priority is determined by the order in which the table names are provided to the mergeTaxonomy() function.
 mergedTaxonomy <- merge_taxonomy(joinedTaxonomy, c('dl', 'gbif', 'itis', 'custom'))
-
 
 #### Correct orphaned accids
 
@@ -340,7 +339,7 @@ occDatasets <- read_delim(file.path(AddlDataPath, "your_file_name.csv"),
                format_gbif_import(.) %>% # Format table to fit BeeBDC template
                add_occ_records(table = .,
                                mainList = occDatasets,
-                               datasetName = "gbifOccs2")
+                               datasetName = "gbifOccs_local")
 
 
 #****************
@@ -384,6 +383,7 @@ occDatasets <- add_occ_records(filepath = file.path(AddlDataPath,
 #******
 
 ### Import Bee data provided by Dorey that are relevant to Texas (if desired)
+# NOTE: These will spit out a lot of unimportant warnings about column names
 
 # Create an empty occDatasets list to collect imported datasets (if needed)
 if (!exists("occDatasets")) {
@@ -552,7 +552,7 @@ if (!exists("check_taxa")) {
 }
 
 
-#### Harmonize occurrence data and flag those that do not match the taxonomyFile
+# Harmonize occurrence data and flag those that do not match the taxonomyFile
 # Occurrence records not found in the taxonomy file will be flagged with ".invalidName' column.
 # You can also use multiple cores to achieve this. See ‘?harmoniseR()’ for details.
 check_taxa <- prepare_harmonise(taxonomyFile) %>% # Add empty "flags" and "canonical_withFlags" columns if missing
@@ -593,14 +593,16 @@ check_pf <- bdc::bdc_scientificName_empty(data = check_taxa,
 ### Flag occurrences with missing decimalLatitude and decimalLongitude----
 
 # Adds column ".coordinates_empty"
-check_pf <- bdc::bdc_coordinates_empty(data = check_pf, lat = "decimalLatitude",
+check_pf <- bdc::bdc_coordinates_empty(data = check_pf, 
+                                       lat = "decimalLatitude",
                                        lon = "decimalLongitude")
 
 #****************
 ### Flag occurrences that are not on Earth----
 
 # Adds column ".coordinates_outOfRange"
-check_pf <- bdc::bdc_coordinates_outOfRange(data = check_pf, lat = "decimalLatitude",
+check_pf <- bdc::bdc_coordinates_outOfRange(data = check_pf, 
+                                            lat = "decimalLatitude",
                                             lon = "decimalLongitude")
 
 #****************
@@ -798,7 +800,6 @@ rm(xyFromLocality)
 #****************
 ### Flag records marked as "absent"----
 
-# Run function
 # You can skip this step if the table is missing occurrenceStatus column
 check_pf <- BeeBDC::flagAbsent(data = check_pf,PresAbs = "occurrenceStatus")
 
@@ -872,7 +873,7 @@ readr::write_excel_csv(check_pf, file.path(OutPath_Intermediate,
                                            "01_prefilter_output.csv"))
  
 ### Save flags----
-flagFile <- BeeBDC::flagRecorder(data = database, 
+flagFile <- BeeBDC::flagRecorder(data = check_pf, 
                                  outPath = OutPath_Report, 
                                  fileName = paste0("flagsRecorded_", 
                                                    Sys.Date(),
@@ -893,7 +894,7 @@ flagFile <- BeeBDC::flagRecorder(data = database,
 # Read in latest database if needed
 if (!exists("check_pf")) {
   check_pf <- readr::read_csv(file.path(OutPath_Intermediate,
-                                        "02_taxonomy_database.csv"), 
+                                        "01_prefilter_output.csv"), 
                               col_types = BeeBDC::ColTypeR())
 }
 
@@ -977,7 +978,7 @@ readr::write_excel_csv(check_space, file.path(OutPath_Intermediate,
 # Load most recent database, if necessary
 if (!exists("check_space")) {
   check_space <- readr::read_csv(file.path(OutPath_Intermediate,
-                                           "03_space_griddedDatasets.csv"), 
+                                           "03_space_inter_database.csv"), 
                                  col_types = BeeBDC::ColTypeR())
 }
 
@@ -994,18 +995,18 @@ check_space <- BeeBDC::diagonAlley(
 
 # Spatial gridding from rasterization: Select only records with more than X occurrences
 griddingDF <- check_space %>%
-  # Exclude NA lat and lon values
-  tidyr::drop_na(c("decimalLatitude",
-                   "decimalLongitude")) %>%
-  # Group by the dataset name
-  dplyr::group_by(datasetName) %>%
-  # Remove rows that aren't unique for lat and long
-  dplyr::distinct(decimalLongitude, 
-                  decimalLatitude,
-                  .keep_all = TRUE) %>%
-  # Find the groups with 4 or more occurrence records
-  dplyr::filter(dplyr::n() >= 4) %>%
-  dplyr::ungroup()
+                # Exclude NA lat and lon values
+                tidyr::drop_na(c("decimalLatitude",
+                                 "decimalLongitude")) %>%
+                # Group by the dataset name
+                dplyr::group_by(datasetName) %>%
+                # Remove rows that aren't unique for lat and long
+                dplyr::distinct(decimalLongitude, 
+                                decimalLatitude,
+                                .keep_all = TRUE) %>%
+                # Find the groups with 4 or more occurrence records
+                dplyr::filter(dplyr::n() >= 4) %>%
+                dplyr::ungroup()
 
 # Run the gridding analysis to find datasets that might be gridded.
 # TODO: This can take a very long time and has no update messaging
@@ -1017,10 +1018,12 @@ gridded_datasets <- CoordinateCleaner::cd_round(x = griddingDF,
                                                 min_unique_ds_size = 4,
                                                 test = "both",
                                                 value = "dataset",
-                                                graphs = FALSE,
+                                                graphs = TRUE,
                                                 verbose = TRUE,
                                                 reg_out_thresh = 2,
+                                                # Minimum gridding distance to be flagged (in degrees)
                                                 reg_dist_min = 0.1,
+                                                # Maximum gridding distance to be flagged (in degrees)
                                                 reg_dist_max = 2) %>%
                     dplyr::tibble()
 
@@ -1061,7 +1064,6 @@ check_space <- BeeBDC::coordUncerFlagR(data = check_space,
                                        uncerColumn = "coordinateUncertaintyInMeters",
                                        threshold = 1000)
 
-
 #****************
 ### Country Checklist----
 
@@ -1083,6 +1085,11 @@ checklist <- readr::read_delim(file.path(AddlDataPath, "test_checklist.csv")) %>
 
 # Or, if working with bee data, import the provided country-level bees checklist
 checklist <- beesChecklist_fixed()
+
+# Use this to check for species in observations that aren't present in checklist at all
+view(check_space %>%
+     filter(!(scientificName %in% checklist$validName)) %>%
+     count(scientificName, name = "count"))
 
 check_space <- BeeBDC::countryOutlieRs(checklist = checklist,
                                        data = check_space,
@@ -1108,6 +1115,7 @@ check_space <- BeeBDC::continentOutlieRs(checklist = checklist,
                                          mc.cores = 1)
 
 # A list of failed species-country combinations and their numbers can be output here
+# Use this to investigate any possible issues in your observation data or checklist
 view(check_space %>%
        dplyr::filter(.countryOutlier == FALSE) %>%
        dplyr::select(database_id, scientificName, country) %>%
@@ -1157,7 +1165,7 @@ readr::write_csv(report$x$data, file.path(OutPath_Report,
 # Create figures for the spatial data filtering results
 # TODO: I believe this fails ambiguously if no filtering occurs
 (figures <- BeeBDC::jbd_create_figures(data = dplyr::tibble(check_space %>%
-                                                              dplyr::select(!.uncer_terms)), 
+                                                            dplyr::select(!.uncer_terms)), 
                                        path = OutPath_Figures, 
                                        database_id = "database_id",
                                        workflow_step = "space", 
@@ -1338,12 +1346,9 @@ check_time <- BeeBDC::dupeSummary(
                                       "institutionCode",
                                       "scientificName")),
   # Other custom comparisons use the character and number thresholds
-  c("occurrenceID",
-    "scientificName"),
-  c("recordId",
-    "scientificName"),
-  c("id",
-    "scientificName"),
+  CustomComparisons = dplyr::lst(c("occurrenceID", "scientificName"),
+                                 c("recordId", "scientificName"),
+                                 c("id", "scientificName")),
   # The order in which you want to KEEP duplicated based on data source
   # TODO: Is this just an arbitrary order, then?
   sourceOrder = unique(check_time$dataSource),
@@ -1392,6 +1397,7 @@ BeeBDC::flagRecorder(data = check_time,
 # Data Filtering ----------------------------------------------------------
 
 
+# TODO: What's up with this
 # Read in the most-recent duplicates file (generated by dupeSummary()) in order to identify the duplicates of the expert outliers
 if (!exists("duplicates")) {
   duplicates <- BeeBDC::fileFinder(path = DataPath, fileName = "duplicateRun_")%>%
@@ -1480,7 +1486,7 @@ readr::write_excel_csv(cleanData, file.path(OutPath, "Cleaned",
 
 # Plots and Figures -------------------------------------------------------
 
-
+# TODO: Is the order of this stuff messed up? 
 # Read in most recent file of flagged duplicates, if necessary
 if (!exists("duplicates")) {
   duplicates <- BeeBDC::fileFinder(path = DataPath, fileName = "duplicateRun_") %>%
