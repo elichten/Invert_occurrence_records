@@ -205,7 +205,7 @@ taxITIS <- taxadbToBeeBDC(name = "Hymenoptera",
 #### Local taxonomic backbone----
 # TODO: Test this more thoroughly
 taxCustom <- read_delim(file.path(DataPath,"your_file_name.csv")) %>%
-                        check_taxon_table() %>% # Verify that table has required columns
+                        check_taxon_table(.) %>% # Verify that table has required columns
                         format_provider_data(., "custom")
 
 #******

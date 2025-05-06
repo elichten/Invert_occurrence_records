@@ -30,10 +30,13 @@ merge_taxonomy <- function(table, table_names) {
   mergedTaxonomy <- mergedTaxonomy %>%
     dplyr::select(all_of(columns), canonical_accepted, authorship_accepted)
   
-  # Check for duplicate canonical names
+  # Check for duplicate canonical names where at least one is lacking authorship while another has it
+  # In addition, filter only to duplicates coming from differing sources
   duplicateTable <- mergedTaxonomy %>%
     group_by(canonical) %>%
-    filter(n() > 1) %>%
+    filter(n() > 1, 
+           n_distinct(source) > 1,
+           any(!is.na(authorship)) & any(is.na(authorship))) %>%
     ungroup()
   
   duplicateCount <- duplicateTable %>%
@@ -42,29 +45,17 @@ merge_taxonomy <- function(table, table_names) {
   
   if (duplicateCount > 0) {
     repeat {
-      choice <- menu(c("Yes", "No", "See duplicates table", "Exit"), title=paste0(duplicateCount, " records found with identical canonical names. This can lead to ambiguities in the workflow later on. Would you like to merge these records with prefence to the record containing authorship information?"))
+      choice <- menu(c("Yes", "No", "See duplicates table", "Exit"), 
+                     title=paste0(duplicateCount, " potential taxonomic duplicates were found where one duplicate contains authorship information, while another does not. This could cause issues in the workflow later. Would you like to remove those duplicates that lack authorship?"))
       # If "Yes"
       if (choice == 1) {
-        # Merge to row containing authorship, with preference to table_names order
-        # Get id substring
-        mergedTaxonomy <- mergedTaxonomy %>%
-          mutate(tableName = sub("_.*", "", id))
-        
-        # Create a ranking based on table_names order
-        mergedTaxonomy$tableName <- factor(
-          mergedTaxonomy$tableName,
-          levels = table_names
-        )
-        
-        # Prioritize merge based on authorship, then by order in table_names
-        mergedTaxonomy <- mergedTaxonomy %>%
-          arrange(canonical, desc(!is.na(authorship)), tableName)
-        
-        # Remove duplicates based on canonical, keeping first row
-        mergedTaxonomy <- mergedTaxonomy %>%
-          group_by(canonical) %>%
-          slice(1) %>%
-          ungroup()
+        # Get duplicates found in duplicateTable that do not have authorship
+        toRemove <- duplicateTable %>%
+          filter(is.na(authorship))
+        # Remove them
+        mergedTaxonomy <- anti_join(mergedTaxonomy, 
+                                    toRemove, 
+                                    by = colnames(mergedTaxonomy))
         break
       }
       # If "No"
