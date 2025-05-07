@@ -661,7 +661,6 @@ check_pf_noNa <- BeeBDC::countryNameCleanR(
 
 # Get country name from coordinates using a wrapper around the jbd_country_from_coordinates() function. Because our dataset is much larger than those used to design bdc, we have made it so that you can analyse data in smaller pieces. Additionally, like some other functions in BeeBDC, we have implemented parallel operations (using mc.cores = #cores in stepSize = #rowsPerOperation); see ‘?jbd_CfC_chunker()’ for details. NOTE: In an actual run you should use scale = “large”
 # Creates another dataset containing just the databaseID and the country name based on coordinates
-# TODO: This took 23.5 minutes for 900,000 observations on 16GB of RAM
 suppressWarnings(
   countryOutput <- BeeBDC::jbd_CfC_chunker(data = check_pf_noNa,
                                            lat = "decimalLatitude",
@@ -772,7 +771,7 @@ check_pf <- BeeBDC::jbd_coordCountryInconsistent(data = check_pf,
                                                  lon = "decimalLongitude",
                                                  lat = "decimalLatitude", 
                                                  scale = 50, 
-                                                 pointBuffer = 0.01) # TODO: Non-breaking database_id warning caused by issues with code
+                                                 pointBuffer = 0.01) # Note: Non-breaking database_id warning caused by issues with code
 
 # Save dataset
 readr::write_excel_csv(check_pf, file.path(OutPath_Intermediate, 
@@ -1009,7 +1008,8 @@ griddingDF <- check_space %>%
                 dplyr::ungroup()
 
 # Run the gridding analysis to find datasets that might be gridded.
-# TODO: This can take a very long time and has no update messaging
+# TODO: This can take a very long time and has no update messaging. IT could be
+# wise to update this function to output additional updates
 gridded_datasets <- CoordinateCleaner::cd_round(x = griddingDF, 
                                                 lon = "decimalLongitude",
                                                 lat = "decimalLatitude",
@@ -1163,7 +1163,7 @@ readr::write_csv(report$x$data, file.path(OutPath_Report,
 ### Space Figures----
 
 # Create figures for the spatial data filtering results
-# TODO: I believe this fails ambiguously if no filtering occurs
+# NOTE: If there are no flagged observations to visualize, you will receive a 'dplyr::select()' error
 (figures <- BeeBDC::jbd_create_figures(data = dplyr::tibble(check_space %>%
                                                             dplyr::select(!.uncer_terms)), 
                                        path = OutPath_Figures, 
@@ -1224,16 +1224,12 @@ if (!exists("check_space")) {
 
 ### Plot histogram of dates
 
-# Parse dates with lubridate
-# TODO: Would be helpful to provide examples of acceptable datetime formats
-check_time$eventDate<-lubridate::ymd_hms(check_time$eventDate, truncated = 5)
-
 # Define range of dates to filter out those that were parsed incorrectly
 earliest_date <- as.POSIXct("1863-01-01")
 latest_date <- Sys.time()
 
 # Create histogram
-hist(check_time$eventDate, 
+hist(lubridate::ymd_hms(check_time$eventDate, truncated = 5), 
      breaks = 365*10, 
      main = "Histogram of eventDates",
      xlim = c(earliest_date,
