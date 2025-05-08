@@ -1247,12 +1247,14 @@ check_time$day <- ifelse(check_time$day > 31 | check_time$day < 1, NA, check_tim
 ### Recover dates----
 
 # The dateFindR() function will search through some other columns in order to find and rescue dates that may not have made it into the correct columns. It will further update the eventDate, day, month, and year columns where these data were a) missing and b) located in one of the searched columns.
-# TODO: This fix needs testing with a table with many verbatimDate options.
+# NOTE: This update to the original BeeBDC function is more conservative with date assignments
 check_time <- dateFindR_fixed(data = check_time,
                               # Years above this are removed (from the recovered dates only)
                               maxYear = lubridate::year(Sys.Date()),
                               # Years below this are removed (from the recovered dates only)
                               minYear = 1700)
+
+# Need to reimport and set eventDate to NA
 
 #****************
 ### No eventDate----
