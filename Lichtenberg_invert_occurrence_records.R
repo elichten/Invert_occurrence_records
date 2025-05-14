@@ -1072,12 +1072,14 @@ check_space <- BeeBDC::coordUncerFlagR(data = check_space,
 # and your occurrence dataset, identifying potential misidentifications, outliers, etc.
 
 ## Required Checklist Columns
+
     # validNAme = Same as taxonomyFile$validName: "Scientific name + authorship"  (e.g., "Bremus americanorum (Fabricius, 1775)")
     # iso_a3_eh = Three-letter country codes in the ISO 3166 alpha-3 standard (e.g., "LBN", "MEX", "USA")
     # continent = Continent name (e.g., "North America", "Asia", "Europe")
 
     # For more information on the above columns, download the provided bee checklist
     # using (checklist <- beesChecklist_fixed())
+
 
 # Import your own country-level checklist
 checklist <- readr::read_delim(file.path(AddlDataPath, "test_checklist.csv")) %>%
@@ -1254,8 +1256,6 @@ check_time <- dateFindR_fixed(data = check_time,
                               # Years below this are removed (from the recovered dates only)
                               minYear = 1700)
 
-# Need to reimport and set eventDate to NA
-
 #****************
 ### No eventDate----
 
@@ -1387,97 +1387,14 @@ BeeBDC::flagRecorder(data = check_time,
                      append = TRUE, 
                      printSummary = TRUE)
 
-#************************************
-#************************************
-
-
-# Data Filtering ----------------------------------------------------------
-
-
-## Identify the outliers and get a list of their database_ids. This would require the source outlier files provided with the BeeBDC paper. These files can further be modified to include more outliers.
-# check_time <- BeeBDC::manualOutlierFindeR(
-#   data = check_time,
-#   DataPath = DataPath,
-#   PaigeOutliersName = "removedBecauseDeterminedOutlier.csv",
-#   newOutliersName = "^All_outliers_ANB_14March.xlsx",
-#   ColombiaOutliers_all = "All_Colombian_OutlierIDs.csv",
-#   # A .csv with manual outlier records that are too close to otherwise TRUE records
-#   NearTRUE = "nearTRUE.csv",
-#   duplicates = duplicates)
-
-# Save uncleaned dataset
-check_time <- BeeBDC::summaryFun(data = check_time, 
-                                 dontFilterThese = c(".gridSummary",
-                                                     ".lonFlag",
-                                                     ".latFlag",
-                                                     ".uncer_terms",
-                                                     ".uncertaintyThreshold"),
-                                 removeFilterColumns = FALSE,
-                                 filterClean = FALSE)
-
-#****************
-## Filter
-
-# TODO: Note on adding custom flags to ignore
-cleanData <- BeeBDC::summaryFun(
-  data = check_time,
-  dontFilterThese = c(".gridSummary",
-                      ".coordinates_empty",
-                      ".lonFlag",
-                      ".latFlag",
-                      ".uncer_terms",
-                      ".uncertaintyThreshold"),
-  # Remove the filtering columns
-  removeFilterColumns = TRUE,
-  # Filter to ONLY cleaned data?
-  filterClean = TRUE)
-
-## TODO: We need to be able to filter by defined geographic range
-#create object of area of interest boundary, which we will need when calculating aoc. Modify to your region of interest. Pick ONE of these options to run based on what your geographic range of interest is
-  
-#filter by country  
-boundary <- nation() %>%
-  filter(NAME == 'United States') %>%
-  st_transform(boundary, crs = 4326)
-#filter by state
-boundary <- states(cb = TRUE) %>%
-  filter(NAME == 'Texas') %>%
-  st_transform(boundary, crs = 4326)
-#filter by county
-boundary <- counties(state = 'Texas') %>%
-  filter(NAME == 'Denton') %>%
-  st_transform(boundary, crs = 4326)
-#filter by your own unique geographic region
-  # EITHER: provides coordinates of your region
-  #provide the coordinates of the corners of your region (if a normal polygon)
-coords <- matrix(c(-107.24, 25.6,
-                   -107.24, 36.88,
-                   -92.52, 36.88,
-                   -92.52, 25.6,
-                   -107.24, 25.6), 
-                 ncol = 2, byrow = TRUE) 
-  # transform those coordinates into a spatial object (sf) and set the coordinate system (crs = 4326)
-polygon <- st_sfc(st_polygon(list(coords)))
-sf_polygon <- st_sf(geometry = polygon) 
-st_crs(sf_polygon) <- 4326
-
-  # OR: read in your own unique shape file
-fname <- system.file(paste0(DataPath, '/your file name.shp'), package="sf")
-boundary <- st_read(fname)
-
-
-# Save the cleaned dataset
-readr::write_excel_csv(cleanData, file.path(OutPath, "Cleaned",
-                                                     "05_cleaned_database.csv"))
 
 #************************************
 #************************************
 
 
-# Plots and Figures -------------------------------------------------------
+# Plot and Review Duplicates ----------------------------------------------
 
 
-#TODO: Seeing as this is duplicates-related, should this be moved up above the filtering step?
 # Read in most recent file of flagged duplicates, if necessary
 if (!exists("duplicates")) {
   duplicates <- BeeBDC::fileFinder(path = DataPath, fileName = "duplicateRun_") %>%
@@ -1545,6 +1462,93 @@ BeeBDC::dupePlotR(
 
 #************************************
 #************************************
+
+
+# Data Filtering ----------------------------------------------------------
+
+
+## Identify the outliers and get a list of their database_ids. This would require the source outlier files provided with the BeeBDC paper. These files can further be modified to include more outliers.
+# check_time <- BeeBDC::manualOutlierFindeR(
+#   data = check_time,
+#   DataPath = DataPath,
+#   PaigeOutliersName = "removedBecauseDeterminedOutlier.csv",
+#   newOutliersName = "^All_outliers_ANB_14March.xlsx",
+#   ColombiaOutliers_all = "All_Colombian_OutlierIDs.csv",
+#   # A .csv with manual outlier records that are too close to otherwise TRUE records
+#   NearTRUE = "nearTRUE.csv",
+#   duplicates = duplicates)
+
+# Save uncleaned dataset
+check_time <- BeeBDC::summaryFun(data = check_time, 
+                                 dontFilterThese = c(".gridSummary",
+                                                     ".lonFlag",
+                                                     ".latFlag",
+                                                     ".uncer_terms",
+                                                     ".uncertaintyThreshold"),
+                                 removeFilterColumns = FALSE,
+                                 filterClean = FALSE)
+
+#****************
+## Filter
+
+# Clean the check_time dataset by removing flagged occurrences
+cleanData <- BeeBDC::summaryFun(
+  data = check_time,
+  # Add flags to ignore here
+  dontFilterThese = c(".gridSummary",
+                      ".coordinates_empty",
+                      ".lonFlag",
+                      ".latFlag",
+                      ".uncer_terms",
+                      ".uncertaintyThreshold"),
+  # Remove the filtering columns
+  removeFilterColumns = TRUE,
+  # Filter to ONLY cleaned data?
+  filterClean = TRUE)
+
+
+#create object of area of interest boundary, which we will need when calculating aoc. Modify to your region of interest. Pick ONE of these options to run based on what your geographic range of interest is
+  
+#filter by country  
+boundary <- nation() %>%
+  filter(NAME == 'United States') %>%
+  st_transform(boundary, crs = 4326)
+#filter by state
+boundary <- states(cb = TRUE) %>%
+  filter(NAME == 'Texas') %>%
+  st_transform(boundary, crs = 4326)
+#filter by county
+boundary <- counties(state = 'Texas') %>%
+  filter(NAME == 'Denton') %>%
+  st_transform(boundary, crs = 4326)
+#filter by your own unique geographic region
+  # EITHER: provides coordinates of your region
+  #provide the coordinates of the corners of your region (if a normal polygon)
+coords <- matrix(c(-107.24, 25.6,
+                   -107.24, 36.88,
+                   -92.52, 36.88,
+                   -92.52, 25.6,
+                   -107.24, 25.6), 
+                 ncol = 2, byrow = TRUE) 
+  # transform those coordinates into a spatial object (sf) and set the coordinate system (crs = 4326)
+polygon <- st_sfc(st_polygon(list(coords)))
+sf_polygon <- st_sf(geometry = polygon) 
+st_crs(sf_polygon) <- 4326
+
+  # OR: read in your own unique shape file
+fname <- system.file(paste0(DataPath, '/your file name.shp'), package="sf")
+boundary <- st_read(fname)
+
+# TODO: Perform the boundary filter
+
+
+# Save the cleaned dataset
+readr::write_excel_csv(cleanData, file.path(OutPath, "Cleaned",
+                                                     "05_cleaned_database.csv"))
+
+#************************************
+#************************************
+
 
 #----Prepping data for NatureServe analysis----
 

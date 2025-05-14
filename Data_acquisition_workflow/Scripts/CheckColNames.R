@@ -70,7 +70,7 @@ check_occ_table <- function(table) {
 
 # Taxon table
 check_taxon_table <- function(table) {
-  # TODO: Can we create the "valid" column if it is not found?
+
   requiredColumns <- c("id",
                        "canonical",
                        "authorship",
@@ -85,8 +85,6 @@ check_taxon_table <- function(table) {
                        "family",
                        "genus")
   
-  notNullColumns <- c("accid")
-  
   # Check for required columns (this will stop execution if some are missing)
   check_col_names(table, requiredColumns)
   
@@ -97,13 +95,12 @@ check_taxon_table <- function(table) {
       mutate(., validName = paste0(canonical, " ", ifelse(is.na(authorship), "", authorship)))
   }
   
-  
   return(table)
 }
 
 # Taxon table
 check_checklist <- function(table) {
-  # TODO: Can we create the "validName" column if we have the necessary columns?
+
   requiredColumns <- c("validName",
                        "iso_a3_eh",
                        "continent")

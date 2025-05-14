@@ -40,7 +40,7 @@ merge_taxonomy <- function(table, table_names) {
     ungroup()
   
   duplicateCount <- duplicateTable %>%
-    count(canonical) %>%
+    dplyr::count(canonical) %>%
     nrow(.)
   
   if (duplicateCount > 0) {

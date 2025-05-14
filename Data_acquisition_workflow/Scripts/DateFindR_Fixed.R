@@ -10,7 +10,7 @@
 #' for the relevant information.
 #'
 
-dateFindR_fixed2 <- function(data = NULL,
+dateFindR_fixed <- function(data = NULL,
                       maxYear = lubridate::year(Sys.Date()),
                       minYear = 1700) {
   # locally bind variables to the function
