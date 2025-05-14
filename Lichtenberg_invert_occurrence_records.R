@@ -1597,7 +1597,7 @@ get_NatureServe_values <- function(x, boundary) {
     
     # Calculate number of observations
     observations <- species_sf %>%
-      st_join(boundary, join = st_within) %>%
+      st_join(boundary, join = st_intersects) %>%
       filter(!is.na(NAME)) %>%
       nrow()
     
@@ -1614,10 +1614,18 @@ get_NatureServe_values <- function(x, boundary) {
     }
     
     # Calculate area of occupancy (AOO)
-    area_of_occupancy <- species_sf %>%
+    coords <- species_sf %>%
+      st_join(boundary, join = st_intersects) %>%
+      filter(!is.na(NAME)) %>%
       st_coordinates() %>%
-      red::aoo() %>%
-      units::set_units(km^2)
+      as.data.frame()
+    
+    if (nrow(coords) == 0) {
+      area_of_occupancy <- NA
+    } else {
+      area_of_occupancy <- red::aoo(coords) %>%
+        units::set_units(km^2)
+    }
     
     # Create result tibble
     result <- tibble(
