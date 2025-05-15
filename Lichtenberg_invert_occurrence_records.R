@@ -1539,6 +1539,10 @@ st_crs(sf_polygon) <- 4326
 fname <- system.file(paste0(DataPath, '/your file name.shp'), package="sf")
 boundary <- st_read(fname)
 
+# filter using dplyr instead of spatial intersections
+cleanData <- cleanData %>%
+  filter(state == 'Texas')
+
 # TODO: Perform the boundary filter
 
 
@@ -1552,6 +1556,8 @@ readr::write_excel_csv(cleanData, file.path(OutPath, "Cleaned",
 
 #----Prepping data for NatureServe analysis----
 
+#TODO: ask Hannah if we want to build in the option to filter out records based on coordinate uncertainty 
+
 # using test file - will need to fix this when we have the real dataset
 
 test <- read_csv("//cas-research.unt.ad.unt.edu/RESEARCH/LichtenbergLab/TPWD_work/BeeBDC_explore/Data_acquisition_workflow/Output/Intermediate/01_prefilter_output.csv") %>%
@@ -1562,6 +1568,7 @@ test_group <- test %>%
   group_by(scientificName)
 
 #create object of area of interest boundary, which we will need when calculating aoc. Modify to your region of interest
+#TODO: update text here to say if no boundary is created, then go to line whatever to make one; require that coordinate system is set to 4326
 boundary <- states(cb = TRUE) %>%
   filter(NAME == 'Texas') %>%
   st_transform(boundary, crs = 4326)
@@ -1573,6 +1580,9 @@ get_NatureServe_values <- function(x, boundary) {
   require(sf)
   require(red)
   require(lwgeom)
+  
+  #add in some data checking
+  #do same geographic filtering as done above to build in redundancy
   
   x <- x %>%
     filter(!is.na(decimalLatitude) & !is.na(decimalLongitude))
@@ -1649,6 +1659,7 @@ get_NatureServe_values <- function(x, boundary) {
   # Combine results
   results_df <- bind_rows(results)
   return(results_df)
+  #TODO: add warning message for when there are NA values for range extent and aoo
 }
 
 out <- get_NatureServe_values(test_group, boundary = boundary)
