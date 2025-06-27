@@ -1544,7 +1544,13 @@ cleanData <- cleanData %>%
   filter(state == 'Texas')
 
 # TODO: Perform the boundary filter
+boundary <- states(cb = TRUE) %>%
+  filter(NAME == 'Texas') %>%
+  st_transform(boundary, crs = 4326)
 
+cleanData <- cleanData %>%
+  st_join(boundary, join = st_intersects) %>%
+  filter(!is.na(NAME))
 
 # Save the cleaned dataset
 readr::write_excel_csv(cleanData, file.path(OutPath, "Cleaned",
