@@ -100,9 +100,14 @@ R.utils::sourceDirectory(file.path(DataPath, "Scripts"))
 
 
 # Create Species List -----------------------------------------------------
+# if you do not have/do not want to use a species list, simply skip this section and proceed to the create taxonomyfile section. Forgoing a species list is useful when you want to generate a species list for a given area.
 
-# TODO: add option to read in text file with species list (make sure to specify this is optional). CLearly state that for other filtering options, you can just proceed to occ_download stuff
-# Create a list of accepted canonical (no authorship included) names of your species of interest. 
+## Option 1: read in text file with species list ------------------------
+# file should be a .csv and simply list out all the species names in one column (do not include column names)
+# make sure to adjust the line of code below to reflect the name of your species list file
+sppList <- read_csv('your_species_list.csv', show_col_types = FALSE)[[1]] 
+
+## Option 2: Create a list of accepted canonical (no authorship included) names of your species of interest. -------------------------
 # This list will be used to filter and reduce the size of backbones. 
 # It can also be used for querying occurrence records in later steps.
 sppList <- c("Apis mellifera",
