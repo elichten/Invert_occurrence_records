@@ -101,7 +101,7 @@ R.utils::sourceDirectory(file.path(DataPath, "Scripts"))
 
 # Create Species List -----------------------------------------------------
 
-
+# TODO: add option to read in text file with species list (make sure to specify this is optional). CLearly state that for other filtering options, you can just proceed to occ_download stuff
 # Create a list of accepted canonical (no authorship included) names of your species of interest. 
 # This list will be used to filter and reduce the size of backbones. 
 # It can also be used for querying occurrence records in later steps.
