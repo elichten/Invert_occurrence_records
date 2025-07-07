@@ -180,7 +180,7 @@ taxonomyFile <- taxadbToBeeBDC(name = "Hymenoptera",
 ## Taxonomic backbone from multiple sources----
 
 ### Read in source backbones----
-# This process is different from above since the backbones need to be joined together, requiring a new join column and distinct column names among data frames
+# This process is different from above since the backbones need to be joined together, requiring a new join column and distinct column names among data frames. You do not need to use all four backbone options provided here (Discover Life, GBIF, ITIS, personal backbone), simply run the sections below with the backbones you are planning to use. 
 
 #******
 #### Discover Life----
@@ -218,7 +218,7 @@ taxCustom <- read_delim(file.path(DataPath,"your_file_name.csv")) %>%
 
 #### Join taxonomic backbones
 
-# Take possible tables from above
+# Take possible tables from above. Modify the possibleTables list based on the backbones you are using. 
 possibleTables <- c("taxDL", "taxGBIF", "taxITIS", "taxCustom")
 # Join tables that are currently being used in the session
 joinedTaxonomy <- possibleTables %>%
@@ -228,6 +228,7 @@ joinedTaxonomy <- possibleTables %>%
 
 # Coalesce each column in the three tables into a single column, using the first non-NA value encountered.
 # Table priority is determined by the order in which the table names are provided to the mergeTaxonomy() function.
+# Again, if you are not using all four backbone options, please modify the argument in the merge_taxonomy() function below. 
 mergedTaxonomy <- merge_taxonomy(joinedTaxonomy, c('dl', 'gbif', 'itis', 'custom'))
 
 #### Correct orphaned accids
@@ -286,7 +287,7 @@ taxonomyFile <- filter_by_taxon(table = taxonomyFile,
 # See https://docs.ropensci.org/rgbif/articles/downloading_a_long_species_list.html for another example and further explanation.#
 
 # Compile list of all species names from taxonomyFile 
-# (filter to sppList in previous step if desired)
+# (filter to sppList in previous step if desired. Having a pared down list will help speed up run times as you proceed in the code.)
 fullSppList <- taxonomyFile$canonical %>%
                unique()
 
@@ -298,8 +299,8 @@ gbifTaxonKeys <- fullSppList %>%
   pull(usageKey) %>%
   unique() # Filter out duplicates caused by spelling differences
 
-# Set up your environment with your GBIF credentials
-check_gbif_creds() # Securely input GBIF creds into local environment
+# Set up your environment with your GBIF credentials. If you do not have a GBIF account, please create one before running this section!
+check_gbif_creds() # Securely input your GBIF credentials into local environment
 
 # Intialize download of occurrence data, providing search parameters as needed
 # This search uses the gbifTaxonKey values generated in the previous step
@@ -379,7 +380,7 @@ occDatasets <- read_delim(file.path(AddlDataPath, "your_file_name.csv"),
 #******
 # TODO: Test more thoroughly
 ### Import a custom dataset
-# Provide a filename and a name for your dataset
+# Provide a filename and a name for your dataset and make sure your dataset includes all the necessary columns (listed above)
 occDatasets <- add_occ_records(filepath = file.path(AddlDataPath,
                                                     "your_file_name.csv"),
                                datasetName = "my_dataset",
@@ -387,7 +388,7 @@ occDatasets <- add_occ_records(filepath = file.path(AddlDataPath,
 
 #******
 
-### Import Bee data provided by Dorey that are relevant to Texas (if desired)
+### Import Bee data provided in BeeBDC package that are relevant to Texas (if desired)
 # NOTE: These will spit out a lot of unimportant warnings about column names
 
 # Create an empty occDatasets list to collect imported datasets (if needed)
