@@ -548,9 +548,7 @@ check_taxa <- dplyr::bind_cols(db_standardized, parse_names)
 rm(parse_names, db_standardized)
 
 
-# To re-start in the middle of the flagging and harmonization process, 
-# read in the most recent intermediate file you outputted, replacing "03_space_inter_database.csv" with that file's name.
-#TODO: this file does not appear to have been created yet, move?
+# To re-start in the middle of the flagging and harmonization process, read in the most recent intermediate file you outputted, replacing "03_space_inter_database.csv" with that file's name.
 if (!exists("check_taxa")) {
   check_taxa <- readr::write_excel_csv(check_taxa, file.path(DataPath, 
                                                              "Output",
@@ -1015,8 +1013,7 @@ griddingDF <- check_space %>%
                 dplyr::ungroup()
 
 # Run the gridding analysis to find datasets that might be gridded.
-# TODO: This can take a very long time and has no update messaging. IT could be
-# wise to update this function to output additional updates
+# TODO: This can take a very long time and has no update messaging. IT could be wise to update this function to output additional updates
 gridded_datasets <- CoordinateCleaner::cd_round(x = griddingDF, 
                                                 lon = "decimalLongitude",
                                                 lat = "decimalLatitude",
@@ -1196,7 +1193,6 @@ readr::write_excel_csv(check_space, file.path(OutPath_Intermediate,
                                               "03_space_inter_database.csv"))
 
 # Save the flags so far
-#TODO: was this meant to be an object?
 BeeBDC::flagRecorder(data = check_space, 
                      outPath = OutPath_Report,
                      fileName = paste0("flagsRecorded_", Sys.Date(), ".csv"), 
@@ -1468,6 +1464,14 @@ BeeBDC::dupePlotR(
 #************************************
 
 
+# Georereference records ----------------------------------------------
+# add option to georeference based on county centroid (be sure to add in coordUncertainty and caveat on precision)
+# thinking only based on county for now?? But we'll see
+
+#************************************
+#************************************
+
+
 # Data Filtering ----------------------------------------------------------
 
 
@@ -1483,15 +1487,17 @@ BeeBDC::dupePlotR(
 #   duplicates = duplicates)
 
 # Save uncleaned dataset
-#TODO: is this in the right spot? I think that 'check_time' object has been removed by this point. Renaming as 'beeData' because that appears to be what it is renamed in line ~1440
-check_time <- BeeBDC::summaryFun(data = beeData, 
+beeData <- BeeBDC::summaryFun(data = beeData, 
                                  dontFilterThese = c(".gridSummary",
                                                      ".lonFlag",
                                                      ".latFlag",
                                                      ".uncer_terms",
                                                      ".uncertaintyThreshold"),
                                  removeFilterColumns = FALSE,
-                                 filterClean = FALSE)
+                                 filterClean = FALSE) %>%
+  readr::write_excel_csv(file.path(OutPath_Intermediate,
+                                             "05_unCleaned_database.csv"))
+  
 
 #****************
 ## Filter
@@ -1500,7 +1506,7 @@ check_time <- BeeBDC::summaryFun(data = beeData,
 
 ## Option 1: Clean the check_time dataset by removing flagged occurrences (recommended - gets rid of now-unnecessary flagging columns) ----
 cleanData <- BeeBDC::summaryFun(
-  data = check_time,
+  data = beeData,
   # Add flags to ignore here
   dontFilterThese = c(".gridSummary",
                       ".coordinates_empty",
@@ -1517,7 +1523,7 @@ cleanData <- BeeBDC::summaryFun(
 # Since iNaturalist is a community platform, anyone from amateurs to experts may be identifying specimens. Since this can therefore lead to identification uncertainty, you can optionally filter out iNaturalist records or manually select the iNaturalist records you trust.
 
 ## iNat option 1: remove all iNaturalist records (more conservative option)
-iNatFilter <- cleanData %>%
+cleanData <- cleanData %>%
   filter(institutionCode != 'iNaturalist')
 
 ## iNat option 2: Subset iNaturalist records and manually select the records you'd like to keep
@@ -1577,20 +1583,26 @@ fname <- system.file(paste0(DataPath, '/your file name.shp'), package="sf")
 boundary <- st_read(fname)
 
 # Filter to only include observations within your specified boundary. If you have not yet created the 'boundary' object, please go back up to 'create object area of interest boundary' earlier in this section. 
+#TODO: test to see if the same extraneous spatial columns come up when doing different boundary filters
 spFilter <- cleanData %>%
   st_as_sf(coords = c("decimalLongitude", "decimalLatitude"), crs = 4326) %>%
   st_join(boundary, join = st_intersects) %>%
-  filter(!is.na(NAME))
+  filter(!is.na(NAME)) %>%
+  mutate(
+    decimalLongitude = st_coordinates(.)[, 1],
+    decimalLatitude = st_coordinates(.)[, 2]
+  ) %>%
+  st_drop_geometry() %>%
+  dplyr::select(-c(STATEFP, STATENS, GEOIDFQ, GEOID, STUSPS, NAME, LSAD, ALAND, AWATER))
 
 ## Option 4: filter using dplyr instead of spatial intersections ----
-dplyrFilter <- cleanData %>%
+dplyrFilter <- iNatFilter %>%
   #filter(country == '')
   filter(stateProvince == 'Texas')
   #filter(county == '')
 
-
-# Save the cleaned dataset
-readr::write_excel_csv(cleanData, file.path(OutPath, "Cleaned",
+## Save and export the cleaned dataset ----
+readr::write_excel_csv(spFilter, file.path(OutPath, "Cleaned",
                                                      "05_cleaned_database.csv"))
 
 #************************************
@@ -1610,8 +1622,7 @@ test <- read_csv("//cas-research.unt.ad.unt.edu/RESEARCH/LichtenbergLab/TPWD_wor
 test_group <- test %>%
   group_by(scientificName)
 
-#create object of area of interest boundary, which we will need when calculating aoc. Modify to your region of interest
-#TODO: update text here to say if no boundary is created, then go to line whatever to make one; require that coordinate system is set to 4326
+#If you have not yet created the 'boundary' object, you need to do so before running this function. Please go back up to 'create object area of interest boundary' earlier in the 'Data Filtering' section. 
 boundary <- states(cb = TRUE) %>%
   filter(NAME == 'Texas') %>%
   st_transform(boundary, crs = 4326)
