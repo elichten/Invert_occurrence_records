@@ -268,7 +268,7 @@ rm(list = existingVariables, existingVariables) # Remove existing variables
 #****************
 ## Filter taxonomyFile to species of interest and their synonyms----
 
-# This function accepts a list of scientific names from a single taxanomic level
+# This function accepts a list of scientific names from a single taxonomic level
 taxonomyFile <- filter_by_taxon(table = taxonomyFile, 
                                 rank = "species", 
                                 names = sppList)
@@ -550,6 +550,7 @@ rm(parse_names, db_standardized)
 
 # To re-start in the middle of the flagging and harmonization process, 
 # read in the most recent intermediate file you outputted, replacing "03_space_inter_database.csv" with that file's name.
+#TODO: this file does not appear to have been created yet, move?
 if (!exists("check_taxa")) {
   check_taxa <- readr::write_excel_csv(check_taxa, file.path(DataPath, 
                                                              "Output",
@@ -1108,11 +1109,7 @@ check_space <- BeeBDC::countryOutlieRs(checklist = checklist,
                                        scale = 50,
                                        mc.cores = 1)
 
-# Since version 1.1.2 a new function, BeeBDC::continentOutlieRs(), 
-# has been released which is conceptually the same as BeeBDC::countryOutlieRs() 
-# except it works on the level of continents. Users might appreciate that 
-# generating a continent-level checklist is much easier than a country-level 
-# one and so might actually be of more wide-spread use (beyond bees).
+# Since version 1.1.2 a new function, BeeBDC::continentOutlieRs(), has been released which is conceptually the same as BeeBDC::countryOutlieRs() except it works on the level of continents. Users might appreciate that generating a continent-level checklist is much easier than a country-level one and so might actually be of more wide-spread use (beyond bees).
 check_space <- BeeBDC::continentOutlieRs(checklist = checklist,
                                          data = check_space,
                                          keepAdjacentContinent = FALSE,
@@ -1199,6 +1196,7 @@ readr::write_excel_csv(check_space, file.path(OutPath_Intermediate,
                                               "03_space_inter_database.csv"))
 
 # Save the flags so far
+#TODO: was this meant to be an object?
 BeeBDC::flagRecorder(data = check_space, 
                      outPath = OutPath_Report,
                      fileName = paste0("flagsRecorded_", Sys.Date(), ".csv"), 
@@ -1291,7 +1289,7 @@ check_time <- BeeBDC::summaryFun(
 ### Time figures----
 
 # Create time results figures
-# TODO: Error "object 'i' not found". This is most likely a bug in the create_figures code.
+# TODO: Error "object 'i' not found". This is most likely a bug in the create_figures code. (AEP note: this ran without error for me...)
 figures <- BeeBDC::jbd_create_figures(data = check_time,
                                       path = DataPath,
                                       database_id = "database_id",
@@ -1485,7 +1483,8 @@ BeeBDC::dupePlotR(
 #   duplicates = duplicates)
 
 # Save uncleaned dataset
-check_time <- BeeBDC::summaryFun(data = check_time, 
+#TODO: is this in the right spot? I think that 'check_time' object has been removed by this point. Renaming as 'beeData' because that appears to be what it is renamed in line ~1440
+check_time <- BeeBDC::summaryFun(data = beeData, 
                                  dontFilterThese = c(".gridSummary",
                                                      ".lonFlag",
                                                      ".latFlag",
@@ -1497,7 +1496,9 @@ check_time <- BeeBDC::summaryFun(data = check_time,
 #****************
 ## Filter
 
-# Clean the check_time dataset by removing flagged occurrences
+# There are several options for filtering here. You do not need to use all of them - select the ones that are most applicable for you!
+
+## Option 1: Clean the check_time dataset by removing flagged occurrences (recommended - gets rid of now-unnecessary flagging columns) ----
 cleanData <- BeeBDC::summaryFun(
   data = check_time,
   # Add flags to ignore here
@@ -1512,21 +1513,51 @@ cleanData <- BeeBDC::summaryFun(
   # Filter to ONLY cleaned data?
   filterClean = TRUE)
 
+## Option 2: Filter out iNaturalist records ----
+# Since iNaturalist is a community platform, anyone from amateurs to experts may be identifying specimens. Since this can therefore lead to identification uncertainty, you can optionally filter out iNaturalist records or manually select the iNaturalist records you trust.
 
-#create object of area of interest boundary, which we will need when calculating aoc. Modify to your region of interest. Pick ONE of these options to run based on what your geographic range of interest is
+## iNat option 1: remove all iNaturalist records (more conservative option)
+iNatFilter <- cleanData %>%
+  filter(institutionCode != 'iNaturalist')
+
+## iNat option 2: Subset iNaturalist records and manually select the records you'd like to keep
+# create object only including the iNaturalist records
+iNatOnly <- cleanData %>%
+  filter(institutionCode == 'iNaturalist')
+
+# create a csv file for this object
+readr::write_excel_csv(iNatOnly, file.path(OutPath_Check,
+                                           "iNaturalist_review_records.csv"))
+
+# Open this file in excel. Manually filter down records to delete uncertain records/only retain the records you trust. A few options for filtering could include only retaining records identified by an iNaturalist user(s) that you trust, or only retaining species that are easily identifiable (and are thus less likely to be mis-identified). Once you have deleted all the uncertain records, save the updated file!
+
+# Read back in the updated iNaturalist records file
+cleaned_iNatOnly <- readr::read_csv(file.path(OutPath_Check,
+                                              "iNaturalist_review_records.csv"))
+
+# Merge trusted iNaturalist records with the rest of the cleaned dataset
+cleanData <- cleanData %>%
+  rbind(cleaned_iNatOnly)
+
+## Option 3: Filter by area of interest ----
+
+##create object of area of interest boundary. Modify to your region of interest. Pick ONE of these options to run based on what your geographic range of interest is
   
 #filter by country  
 boundary <- nation() %>%
   filter(NAME == 'United States') %>%
   st_transform(boundary, crs = 4326)
+
 #filter by state
 boundary <- states(cb = TRUE) %>%
   filter(NAME == 'Texas') %>%
   st_transform(boundary, crs = 4326)
+
 #filter by county
 boundary <- counties(state = 'Texas') %>%
   filter(NAME == 'Denton') %>%
   st_transform(boundary, crs = 4326)
+
 #filter by your own unique geographic region
   # EITHER: provides coordinates of your region
   #provide the coordinates of the corners of your region (if a normal polygon)
@@ -1545,18 +1576,18 @@ st_crs(sf_polygon) <- 4326
 fname <- system.file(paste0(DataPath, '/your file name.shp'), package="sf")
 boundary <- st_read(fname)
 
-# filter using dplyr instead of spatial intersections
-cleanData <- cleanData %>%
-  filter(state == 'Texas')
-
-# TODO: Perform the boundary filter
-boundary <- states(cb = TRUE) %>%
-  filter(NAME == 'Texas') %>%
-  st_transform(boundary, crs = 4326)
-
-cleanData <- cleanData %>%
+# Filter to only include observations within your specified boundary. If you have not yet created the 'boundary' object, please go back up to 'create object area of interest boundary' earlier in this section. 
+spFilter <- cleanData %>%
+  st_as_sf(coords = c("decimalLongitude", "decimalLatitude"), crs = 4326) %>%
   st_join(boundary, join = st_intersects) %>%
   filter(!is.na(NAME))
+
+## Option 4: filter using dplyr instead of spatial intersections ----
+dplyrFilter <- cleanData %>%
+  #filter(country == '')
+  filter(stateProvince == 'Texas')
+  #filter(county == '')
+
 
 # Save the cleaned dataset
 readr::write_excel_csv(cleanData, file.path(OutPath, "Cleaned",
