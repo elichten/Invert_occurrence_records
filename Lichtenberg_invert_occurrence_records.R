@@ -1504,7 +1504,7 @@ beeData <- BeeBDC::summaryFun(data = beeData,
 
 # There are several options for filtering here. You do not need to use all of them - select the ones that are most applicable for you!
 
-## Option 1: Clean the check_time dataset by removing flagged occurrences (recommended - gets rid of now-unnecessary flagging columns) ----
+## Optional filter 1: Clean the check_time dataset by removing flagged occurrences (recommended - gets rid of now-unnecessary flagging columns) ----
 cleanData <- BeeBDC::summaryFun(
   data = beeData,
   # Add flags to ignore here
@@ -1519,14 +1519,14 @@ cleanData <- BeeBDC::summaryFun(
   # Filter to ONLY cleaned data?
   filterClean = TRUE)
 
-## Option 2: Filter out iNaturalist records ----
+## Optional filter 2: Filter out iNaturalist records ----
 # Since iNaturalist is a community platform, anyone from amateurs to experts may be identifying specimens. Since this can therefore lead to identification uncertainty, you can optionally filter out iNaturalist records or manually select the iNaturalist records you trust.
 
-## iNat option 1: remove all iNaturalist records (more conservative option)
+## iNaturalist option 1: remove all iNaturalist records (more conservative option)
 cleanData <- cleanData %>%
   filter(institutionCode != 'iNaturalist')
 
-## iNat option 2: Subset iNaturalist records and manually select the records you'd like to keep
+## iNaturalist option 2: Subset iNaturalist records and manually select the records you'd like to keep
 # create object only including the iNaturalist records
 iNatOnly <- cleanData %>%
   filter(institutionCode == 'iNaturalist')
@@ -1545,7 +1545,7 @@ cleaned_iNatOnly <- readr::read_csv(file.path(OutPath_Check,
 cleanData <- cleanData %>%
   rbind(cleaned_iNatOnly)
 
-## Option 3: Filter by area of interest ----
+## Optional filter 3: Filter by area of interest ----
 
 ##create object of area of interest boundary. Modify to your region of interest. Pick ONE of these options to run based on what your geographic range of interest is
   
@@ -1595,7 +1595,7 @@ spFilter <- cleanData %>%
   st_drop_geometry() %>%
   dplyr::select(-c(STATEFP, STATENS, GEOIDFQ, GEOID, STUSPS, NAME, LSAD, ALAND, AWATER))
 
-## Option 4: filter using dplyr instead of spatial intersections ----
+## Optional filter 4: filter using dplyr instead of spatial intersections ----
 dplyrFilter <- iNatFilter %>%
   #filter(country == '')
   filter(stateProvince == 'Texas')
@@ -1619,13 +1619,13 @@ test <- read_csv("//cas-research.unt.ad.unt.edu/RESEARCH/LichtenbergLab/TPWD_wor
   mutate(decimalLatitude = as.integer(decimalLatitude)) %>%
   mutate(decimalLongitude = as.integer(decimalLongitude))
 
+test <- readr::read_csv(file.path(OutPath,
+                                              "./Cleaned/05_cleaned_database.csv"))
+
 test_group <- test %>%
   group_by(scientificName)
 
-#If you have not yet created the 'boundary' object, you need to do so before running this function. Please go back up to 'create object area of interest boundary' earlier in the 'Data Filtering' section. 
-boundary <- states(cb = TRUE) %>%
-  filter(NAME == 'Texas') %>%
-  st_transform(boundary, crs = 4326)
+#NOTE: If you have not yet created the 'boundary' object, you need to do so before running this function. Please go back up to 'create object area of interest boundary' earlier in the 'Data Filtering' section. 
 
 get_NatureServe_values <- function(x, boundary) {
   # Load necessary packages
