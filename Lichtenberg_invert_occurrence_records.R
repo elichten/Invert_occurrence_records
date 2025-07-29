@@ -797,6 +797,24 @@ xyFromLocality <- bdc::bdc_coordinates_from_locality(data = check_pf,
 readr::write_excel_csv(xyFromLocality, 
                        file.path(OutPath_Check, 
                                  "01_coordinates_from_locality.csv"))
+#************************************
+
+# Optional: correct Georeferencing issues ----
+
+# Using the exported xyFromLocality file (01_coordinates_from_locality.csv) created above, georeference these records using your choice of tools. There are many options to do georeferencing with, here are a few examples:
+  # 1. ArcGIS. Learn more about their georeferencing tools here: https://pro.arcgis.com/en/pro-app/latest/help/data/imagery/georeferencing-tools.htm 
+  # 2. Google Earth
+# take the xyFromLocality file, do georeferencing with that
+  # add instructions for the columns that you need to fill in as you georef
+  # add resources for doing georeferencing
+  # read back in file with georeferenced records
+  # join with check_pf db (that has the xyFromLocality records removed) and save as new 02_taxonomy_database file
+  # instruct users to restart at top of flagging section
+# add option to georeference based on county centroid (be sure to add in coordUncertainty and caveat on precision)
+# thinking only based on county for now?? But we'll see
+
+
+#************************************
 
 # Remove spent data
 rm(xyFromLocality)
@@ -1013,7 +1031,7 @@ griddingDF <- check_space %>%
                 dplyr::ungroup()
 
 # Run the gridding analysis to find datasets that might be gridded.
-# TODO: This can take a very long time and has no update messaging. IT could be wise to update this function to output additional updates
+#***NOTE: for longer datasets, this can take a while to run (>20 min.)
 gridded_datasets <- CoordinateCleaner::cd_round(x = griddingDF, 
                                                 lon = "decimalLongitude",
                                                 lat = "decimalLatitude",
@@ -1063,7 +1081,7 @@ rm(gridded_datasets)
 #****************
 ### Uncertainty----
 
-# Flag records that exceed a coordinateUncertaintyInMeters threshold
+# Flag records that exceed a coordinateUncertaintyInMeters threshold (currently set to 1000m)
 check_space <- BeeBDC::coordUncerFlagR(data = check_space, 
                                        uncerColumn = "coordinateUncertaintyInMeters",
                                        threshold = 1000)
@@ -1464,9 +1482,10 @@ BeeBDC::dupePlotR(
 #************************************
 
 
-# Georereference records ----------------------------------------------
+# Georeference records ----------------------------------------------
 # add option to georeference based on county centroid (be sure to add in coordUncertainty and caveat on precision)
 # thinking only based on county for now?? But we'll see
+
 
 #************************************
 #************************************
@@ -1504,6 +1523,15 @@ beeData <- BeeBDC::summaryFun(data = beeData,
 
 # There are several options for filtering here. You do not need to use all of them - select the ones that are most applicable for you!
 
+# read in unCleaned database (if necessary)
+if (!exists("beeData")) {
+  beeData <- readr::read_csv(file.path(OutPath_Intermediate, 
+                                       "05_unCleaned_database.csv"), 
+                             col_types = BeeBDC::ColTypeR())
+} else {
+  beeData <- beeData
+}
+
 ## Optional filter 1: Clean the check_time dataset by removing flagged occurrences (recommended - gets rid of now-unnecessary flagging columns) ----
 cleanData <- BeeBDC::summaryFun(
   data = beeData,
@@ -1522,11 +1550,11 @@ cleanData <- BeeBDC::summaryFun(
 ## Optional filter 2: Filter out iNaturalist records ----
 # Since iNaturalist is a community platform, anyone from amateurs to experts may be identifying specimens. Since this can therefore lead to identification uncertainty, you can optionally filter out iNaturalist records or manually select the iNaturalist records you trust.
 
-## iNaturalist option 1: remove all iNaturalist records (more conservative option)
+### iNaturalist option 1: remove all iNaturalist records (more conservative option) ----
 cleanData <- cleanData %>%
   filter(institutionCode != 'iNaturalist')
 
-## iNaturalist option 2: Subset iNaturalist records and manually select the records you'd like to keep
+### iNaturalist option 2: Subset iNaturalist records and manually select the records you'd like to keep ----
 # create object only including the iNaturalist records
 iNatOnly <- cleanData %>%
   filter(institutionCode == 'iNaturalist')
@@ -1535,11 +1563,15 @@ iNatOnly <- cleanData %>%
 readr::write_excel_csv(iNatOnly, file.path(OutPath_Check,
                                            "iNaturalist_review_records.csv"))
 
-# Open this file in excel. Manually filter down records to delete uncertain records/only retain the records you trust. A few options for filtering could include only retaining records identified by an iNaturalist user(s) that you trust, or only retaining species that are easily identifiable (and are thus less likely to be mis-identified). Once you have deleted all the uncertain records, save the updated file!
+# Open this file in excel. Manually filter down records by deleting uncertain records/only retaining the records you trust. A few options for filtering could include only retaining records identified by an iNaturalist user(s) that you trust, or only retaining species that are easily identifiable (and are thus less likely to be mis-identified). Once you have deleted all the uncertain records, save the updated file!
 
 # Read back in the updated iNaturalist records file
 cleaned_iNatOnly <- readr::read_csv(file.path(OutPath_Check,
                                               "iNaturalist_review_records.csv"))
+
+# created filtered version of cleanData so records aren't duplicated in the merge
+cleanData <- cleanData %>%
+  filter(institutionCode != 'iNaturalist')
 
 # Merge trusted iNaturalist records with the rest of the cleaned dataset
 cleanData <- cleanData %>%
@@ -1547,24 +1579,30 @@ cleanData <- cleanData %>%
 
 ## Optional filter 3: Filter by area of interest ----
 
-##create object of area of interest boundary. Modify to your region of interest. Pick ONE of these options to run based on what your geographic range of interest is
+##create object of area of interest boundary. Modify to your region of interest. Pick *ONE* of these options to run based on what your geographic range of interest is
   
-#filter by country  
+#filter by COUNTRY
+  # adjust code below to your country of interest
 boundary <- nation() %>%
   filter(NAME == 'United States') %>%
-  st_transform(boundary, crs = 4326)
+  st_transform(boundary, crs = 4326) %>%
+  dplyr::select(geometry)
 
-#filter by state
+#filter by STATE 
+  # adjust code below to your state of interest
 boundary <- states(cb = TRUE) %>%
   filter(NAME == 'Texas') %>%
-  st_transform(boundary, crs = 4326)
+  st_transform(boundary, crs = 4326) %>%
+  dplyr::select(geometry)
 
-#filter by county
+#filter by COUNTY
+  # adjust code below to your state/county of interest
 boundary <- counties(state = 'Texas') %>%
   filter(NAME == 'Denton') %>%
-  st_transform(boundary, crs = 4326)
+  st_transform(boundary, crs = 4326) %>%
+  dplyr::select(geometry)
 
-#filter by your own unique geographic region
+#filter by YOUR OWN UNIQUE GEOGRAPHIC REGION
   # EITHER: provides coordinates of your region
   #provide the coordinates of the corners of your region (if a normal polygon)
 coords <- matrix(c(-107.24, 25.6,
@@ -1575,31 +1613,35 @@ coords <- matrix(c(-107.24, 25.6,
                  ncol = 2, byrow = TRUE) 
   # transform those coordinates into a spatial object (sf) and set the coordinate system (crs = 4326)
 polygon <- st_sfc(st_polygon(list(coords)))
-sf_polygon <- st_sf(geometry = polygon) 
-st_crs(sf_polygon) <- 4326
+boundary <- st_sf(geometry = polygon) 
+st_crs(boundary) <- 4326
 
   # OR: read in your own unique shape file
 fname <- system.file(paste0(DataPath, '/your file name.shp'), package="sf")
 boundary <- st_read(fname)
 
-# Filter to only include observations within your specified boundary. If you have not yet created the 'boundary' object, please go back up to 'create object area of interest boundary' earlier in this section. 
-#TODO: test to see if the same extraneous spatial columns come up when doing different boundary filters
+# Perform the spatial filter! Filters to only include observations within your specified boundary. Make sure you have created a boundary object using *ONE* of the above options. This will return all records that fall within or on your specified spatial boundary.
 spFilter <- cleanData %>%
   st_as_sf(coords = c("decimalLongitude", "decimalLatitude"), crs = 4326) %>%
-  st_join(boundary, join = st_intersects) %>%
-  filter(!is.na(NAME)) %>%
+  st_join(boundary, 
+          left = FALSE,
+          join = st_intersects) %>%
   mutate(
     decimalLongitude = st_coordinates(.)[, 1],
     decimalLatitude = st_coordinates(.)[, 2]
   ) %>%
-  st_drop_geometry() %>%
-  dplyr::select(-c(STATEFP, STATENS, GEOIDFQ, GEOID, STUSPS, NAME, LSAD, ALAND, AWATER))
+  st_drop_geometry() 
 
 ## Optional filter 4: filter using dplyr instead of spatial intersections ----
-dplyrFilter <- iNatFilter %>%
+cleanData <- iNatFilter %>%
   #filter(country == '')
   filter(stateProvince == 'Texas')
   #filter(county == '')
+
+## Optional filter 5: Filter records based on coordinateUncertainty ----
+ # currently set to filter out records with greater than 5km coordUncertainty - adjust as needed
+cleanData <- cleanData %>%
+  filter(coordinateUncertaintyInMeters <= 5000)
 
 ## Save and export the cleaned dataset ----
 readr::write_excel_csv(spFilter, file.path(OutPath, "Cleaned",
@@ -1615,17 +1657,14 @@ readr::write_excel_csv(spFilter, file.path(OutPath, "Cleaned",
 
 # using test file - will need to fix this when we have the real dataset
 
-test <- read_csv("//cas-research.unt.ad.unt.edu/RESEARCH/LichtenbergLab/TPWD_work/BeeBDC_explore/Data_acquisition_workflow/Output/Intermediate/01_prefilter_output.csv") %>%
-  mutate(decimalLatitude = as.integer(decimalLatitude)) %>%
-  mutate(decimalLongitude = as.integer(decimalLongitude))
-
-test <- readr::read_csv(file.path(OutPath,
-                                              "./Cleaned/05_cleaned_database.csv"))
+test <- readr::read_csv(file.path(OutPath, "./Cleaned/05_cleaned_database.csv"))
 
 test_group <- test %>%
   group_by(scientificName)
 
-#NOTE: If you have not yet created the 'boundary' object, you need to do so before running this function. Please go back up to 'create object area of interest boundary' earlier in the 'Data Filtering' section. 
+#***NOTE: If you have not yet created the 'boundary' object, you need to do so before running this function. Please go back up to 'create object area of interest boundary' earlier in the 'Data Filtering' section. 
+
+# CAVEAT: this function calculates range extent, but does not remove extreme disjuncts and vagrancies(as recommended by NatureServe standards). If you suspect there are some spatial outliers, please remove before running these calculations for a NatureServe analysis. 
 
 get_NatureServe_values <- function(x, boundary) {
   # Load necessary packages
@@ -1634,9 +1673,6 @@ get_NatureServe_values <- function(x, boundary) {
   require(sf)
   require(red)
   require(lwgeom)
-  
-  #add in some data checking
-  #do same geographic filtering as done above to build in redundancy
   
   x <- x %>%
     filter(!is.na(decimalLatitude) & !is.na(decimalLongitude))
@@ -1663,15 +1699,23 @@ get_NatureServe_values <- function(x, boundary) {
     species_sf <- species_data %>%
       st_as_sf(coords = c("decimalLongitude", "decimalLatitude"), crs = 4326)
     
-    # Calculate number of observations
+    # Calculate number of observations (# of unique specimen records)
     observations <- species_sf %>%
       st_join(boundary, join = st_intersects) %>%
       filter(!is.na(NAME)) %>%
       nrow()
     
-    # Calculate range extent (Convex Hull Intersected with Boundary)
-    if (length(unique(species_data$decimalLatitude)) <= 2 & length(unique(species_data$decimalLongitude)) <= 2) {
+    # Calculate number of occurrences (# of unique specimen records with distinct locations)
+    occurrences <- species_sf %>%
+      st_join(boundary, join = st_intersects) %>%
+      filter(!is.na(NAME)) %>%
+      distinct(geometry) %>% 
+      nrow()
+    
+    # Calculate range extent (Convex Hull Intersected with Boundary) in km^2
+    if (occurrences <= 2) {
       range_extent <- NA
+
     } else {
       range_extent <- species_sf %>%
         st_union() %>%
@@ -1681,7 +1725,7 @@ get_NatureServe_values <- function(x, boundary) {
         units::set_units(km^2)
     }
     
-    # Calculate area of occupancy (AOO)
+    # Calculate area of occupancy (AOO) in km^2
     coords <- species_sf %>%
       st_join(boundary, join = st_intersects) %>%
       filter(!is.na(NAME)) %>%
@@ -1698,6 +1742,7 @@ get_NatureServe_values <- function(x, boundary) {
     # Create result tibble
     result <- tibble(
       observations = observations,
+      occurrences = occurrences,
       range_extent = as.numeric(range_extent),
       area_of_occupancy = as.numeric(area_of_occupancy)
     )
@@ -1712,8 +1757,15 @@ get_NatureServe_values <- function(x, boundary) {
   
   # Combine results
   results_df <- bind_rows(results)
+  
+  # provide warning about NatureServe calculations if there are any NA values for range extent
+  if(any(is.na(results_df$range_extent)))
+  {
+     warning('NA range extent values present for some taxa - not enough information to complete NatureServe analyses for these taxa')
+  }
+    
   return(results_df)
-  #TODO: add warning message for when there are NA values for range extent and aoo
+  
 }
 
 out <- get_NatureServe_values(test_group, boundary = boundary)
