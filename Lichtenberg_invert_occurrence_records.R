@@ -108,15 +108,13 @@ R.utils::sourceDirectory(file.path(DataPath, "Scripts"))
 sppList <- read_csv('your_species_list.csv', show_col_types = FALSE)[[1]] 
 
 ## Option 2: Create a list of accepted canonical (no authorship included) names of your species of interest. -------------------------
-# This list will be used to filter and reduce the size of backbones. 
-# It can also be used for querying occurrence records in later steps.
+# This list will be used to filter and reduce the size of backbones. It can also be used for querying occurrence records in later steps.
 sppList <- c("Apis mellifera",
              "Bombus pensylvanicus",
              "Halictus ligatus",
              "Xylocopa virginica")
 
-# If the user is unsure of the taxonomic status of listed names, they can be 
-# harmonized with the backbones available through APIs.
+# If the user is unsure of the taxonomic status of listed names, they can be harmonized with the backbones available through APIs.
 sppList <- c("Apis mellifica",  # Using outdated synonym of Apis mellifera
              "Bombus pensylvanicus",
              "Halictus ligatus",
@@ -168,9 +166,7 @@ taxonomyFile <- beesTaxonomy_fixed()
 
 #******
 ### Option 3: download taxonomic backbone from API----
-# It's best to download backbones at higher taxonomic level encompassing all species of interest to capture as many synonyms as possible. The backbone can then be filtered using sppList. 
-# taxadbToBeeBDC() can download backbones from several sources in BeeBDC format. 
-# Check the details of ?taxadb::td_create() for a list of provider options
+# It's best to download backbones at higher taxonomic level encompassing all species of interest to capture as many synonyms as possible. The backbone can then be filtered using sppList. taxadbToBeeBDC() can download backbones from several sources in BeeBDC format. Check the details of ?taxadb::td_create() for a list of provider options
 taxonomyFile <- taxadbToBeeBDC(name = "Hymenoptera",
                                rank = "Order",
                                ignore_case = FALSE, # ignore_case = FALSE needs to be specified when querying Order, otherwise there is SQL error
@@ -226,16 +222,12 @@ joinedTaxonomy <- possibleTables %>%
         purrr::compact() %>%
         reduce(~ full_join(.y, .x, by="joinCol"))
 
-# Coalesce each column in the three tables into a single column, using the first non-NA value encountered.
-# Table priority is determined by the order in which the table names are provided to the mergeTaxonomy() function.
-# Again, if you are not using all four backbone options, please modify the argument in the merge_taxonomy() function below. 
+# Coalesce each column in the three tables into a single column, using the first non-NA value encountered. Table priority is determined by the order in which the table names are provided to the mergeTaxonomy() function. Again, if you are not using all four backbone options, please modify the argument in the merge_taxonomy() function below. 
 mergedTaxonomy <- merge_taxonomy(joinedTaxonomy, c('dl', 'gbif', 'itis', 'custom'))
 
 #### Correct orphaned accids
 
-# Create a reference table for instances of orphaned accids. 
-# This happens when a unique synonym occurs in a lower-priority taxonomic 
-# backbone but refers to an accepted name shared by a higher priority backbone.
+# Create a reference table for instances of orphaned accids. This happens when a unique synonym occurs in a lower-priority taxonomic backbone but refers to an accepted name shared by a higher priority backbone.
 acceptedIDs <- mergedTaxonomy %>%
   filter(taxonomic_status == "accepted") %>%
   dplyr::select(id, canonical) %>%
@@ -283,16 +275,13 @@ taxonomyFile <- filter_by_taxon(table = taxonomyFile,
 #****************
 ## Query occurrence records from GBIF----
 
-# Users have the option of using rgbif::occ_search or rgbif::occ_download. occ_search() is only meant for smaller requests and generally not recommended for research. For larger requests, use rgbif::occ_download.
-# See https://docs.ropensci.org/rgbif/articles/downloading_a_long_species_list.html for another example and further explanation.#
+# Users have the option of using rgbif::occ_search or rgbif::occ_download. occ_search() is only meant for smaller requests and generally not recommended for research. For larger requests, use rgbif::occ_download. See https://docs.ropensci.org/rgbif/articles/downloading_a_long_species_list.html for another example and further explanation.
 
-# Compile list of all species names from taxonomyFile 
-# (filter to sppList in previous step if desired. Having a pared down list will help speed up run times as you proceed in the code.)
+# Compile list of all species names from taxonomyFile (filter to sppList in previous step if desired. Having a pared down list will help speed up run times as you proceed in the code.)
 fullSppList <- taxonomyFile$canonical %>%
                unique()
 
-# Get the taxon keys for each species in fullSppList 
-# This can take a long time for long lists
+# Get the taxon keys for each species in fullSppList. *This can take a long time for long lists*
 gbifTaxonKeys <- fullSppList %>% 
   name_backbone_checklist(strict = T, kingdom = "Animalia") %>% # Change kingdom to your use-case
   filter(matchType == "EXACT") %>% # get matched names
@@ -302,9 +291,7 @@ gbifTaxonKeys <- fullSppList %>%
 # Set up your environment with your GBIF credentials. If you do not have a GBIF account, please create one before running this section!
 check_gbif_creds() # Securely input your GBIF credentials into local environment
 
-# Intialize download of occurrence data, providing search parameters as needed
-# This search uses the gbifTaxonKey values generated in the previous step
-# Read more about adding custom predicates here: https://www.rdocumentation.org/packages/rgbif/versions/3.8.0/topics/download_predicate_dsl
+# Intialize download of occurrence data, providing search parameters as needed. This search uses the gbifTaxonKey values generated in the previous step. Read more about adding custom predicates here: https://www.rdocumentation.org/packages/rgbif/versions/3.8.0/topics/download_predicate_dsl
 occ_download(
   pred_in("taxonKey", gbifTaxonKeys),  # Search for all taxonKeys in the list
   pred("occurrenceStatus", "PRESENT"),
@@ -326,9 +313,7 @@ occ_download(
   format = "DWCA"  # DarwinCore (DWCA) format preserves helpful fields like "verbatimEventDate"
 )
 
-# After executing the download, a message will be output in the console with
-# various instructions for viewing your download, as well as a Download Key.
-# Copy and paste your resulting Download Key into the function below.
+# After executing the download, a message will be output in the console with various instructions for viewing your download, as well as a Download Key. Copy and paste your resulting Download Key into the function below.
 
 # Load the downloaded dataset and save to Data_acquisition_workflow/Additional_Datasets
 occDatasets <- get_typed_gbif_download("download_key") %>%
@@ -337,8 +322,7 @@ occDatasets <- get_typed_gbif_download("download_key") %>%
                                mainList = occDatasets,
                                datasetName = "gbifOccs")
 
-# Or load a previously downloaded GBIF database
-# This step can also handle occurrence.txt files from a DWCA download
+# Or load a previously downloaded GBIF database. This step can also handle occurrence.txt files from a DWCA download
 occDatasets <- read_delim(file.path(AddlDataPath, "your_file_name.csv"), 
                           delim = '\t', # GBIF's downloads are tab-delimited — change the delim argument if needed
                           col_types = (c(BeeBDC::ColTypeR()$cols))) %>%
@@ -498,9 +482,7 @@ if(!exists("db_standardized")){
 
 #****************
 ## (Optional) 
-# Load sample datasets provided by BeeBDC package for working through the code. 
-# Only do this if you want to quickly run through the workflow with a dataset 
-# small enough to run quickly even in RAM-heavy operations
+# Load sample datasets provided by BeeBDC package for working through the code. Only do this if you want to quickly run through the workflow with a dataset small enough to run quickly even in RAM-heavy operations
 
 data("bees3sp", package = "BeeBDC")
 data("beesRaw", package = "BeeBDC")
@@ -518,8 +500,7 @@ db_standardized <-
 
 
 # NOTE: These flags can be counter intuitive. 
-#   A value of FALSE in the ".coordinates_empty" columns indicates that the row 
-#   was flagged for empty coordinates (and vice versa)
+#   A value of FALSE in the ".coordinates_empty" columns indicates that the row was flagged for empty coordinates (and vice versa)
 
 
 #************************************
@@ -558,8 +539,7 @@ if (!exists("check_taxa")) {
 
 
 # Harmonize occurrence data and flag those that do not match the taxonomyFile
-# Occurrence records not found in the taxonomy file will be flagged with ".invalidName' column.
-# You can also use multiple cores to achieve this. See ‘?harmoniseR()’ for details.
+# Occurrence records not found in the taxonomy file will be flagged with ".invalidName' column. You can also use multiple cores to achieve this. See ‘?harmoniseR()’ for details.
 check_taxa <- prepare_harmonise(taxonomyFile) %>% # Add empty "flags" and "canonical_withFlags" columns if missing
               BeeBDC::harmoniseR(path = DataPath, #The path to a folder that the output can be saved
                                  taxonomy = ., # The formatted taxonomy file
@@ -579,8 +559,7 @@ readr::write_excel_csv(check_taxa, file.path(DataPath,
 ### Filter taxonomy----
 
 # Optional (But recommended)
-# Filter occurrence records to those which relate to your taxonomyFile
-# This can help to reduce the workload on some of the upcoming functions
+# Filter occurrence records to those which relate to your taxonomyFile. This can help to reduce the workload on some of the upcoming functions
 check_taxa <- subset(check_taxa, .invalidName == TRUE)
 
 #************************************
@@ -727,7 +706,7 @@ check_pf <- bdc::bdc_country_standardized(
 # Flag and correct records when decimalLatitude and decimalLongitude appear to be transposed. We created this chunked version of bdc::bdc_coordinates_transposed() because it is very RAM-heavy  using our large bee dataset. Like many of our other ‘jbd_…’ functions there are other improvement - e.g., parallel running.
 # NOTE: Usually you would use scale = “large”, which requires rnaturalearthhires
 # Adds column "coordinates_transposed" if transpositions are made
-# USE SAMPLE DATASET IF TESTING THIS FUNCTION (TAKES LONG AND USES A LOT RAM)
+# *USE SAMPLE DATASET IF TESTING THIS FUNCTION (TAKES LONG AND USES A LOT RAM)*
 check_pf <- BeeBDC::jbd_Ctrans_chunker(
   # bdc_coordinates_transposed inputs
   data = check_pf,
@@ -750,8 +729,7 @@ check_pf <- BeeBDC::jbd_Ctrans_chunker(
   mc.cores = 1
 ) 
 
-# If transpositions were made, use this to view how many were corrected
-# Will output a warning if there are no transposed occurrences
+# If transpositions were made, use this to view how many were corrected. Will output a warning if there are no transposed occurrences
 table(check_pf$coordinates_transposed, useNA = "always") # NOTE: F = transposed/corrected records, T = already correct records 
 
 # Save the dataset
@@ -770,8 +748,7 @@ if (!exists("check_pf")) {
 
 # Collect all country names in the country_suggested column. 
 # We rebuilt a BDC function to flag occurrences where the coordinates are inconsistent with the provided country name.
-# NOTE: A "no simple features geometry column present" error will show if ALL 
-#   observations are flagged for .coordinates_empty OR .coordinates_outOfRange
+# NOTE: A "no simple features geometry column present" error will show if ALL observations are flagged for .coordinates_empty OR .coordinates_outOfRange
 check_pf <- BeeBDC::jbd_coordCountryInconsistent(data = check_pf, 
                                                  lon = "decimalLongitude",
                                                  lat = "decimalLatitude", 
@@ -785,8 +762,7 @@ readr::write_excel_csv(check_pf, file.path(OutPath_Intermediate,
 #****************
 ### Flag GeoRef Issues----
 
-# This function identifies records whose coordinates can potentially be 
-# extracted from locality information, which must be manually checked later.
+# This function identifies records whose coordinates can potentially be extracted from locality information, which must be manually checked later.
 xyFromLocality <- bdc::bdc_coordinates_from_locality(data = check_pf, 
                                                      locality = "locality",
                                                      lon = "decimalLongitude", 
@@ -799,19 +775,36 @@ readr::write_excel_csv(xyFromLocality,
                                  "01_coordinates_from_locality.csv"))
 #************************************
 
-# Optional: correct Georeferencing issues ----
+### *Optional*: correct Georeferencing issues ----
 
-# Using the exported xyFromLocality file (01_coordinates_from_locality.csv) created above, georeference these records using your choice of tools. There are many options to do georeferencing with, here are a few examples:
-  # 1. ArcGIS. Learn more about their georeferencing tools here: https://pro.arcgis.com/en/pro-app/latest/help/data/imagery/georeferencing-tools.htm 
-  # 2. Google Earth
-# take the xyFromLocality file, do georeferencing with that
-  # add instructions for the columns that you need to fill in as you georef
-  # add resources for doing georeferencing
-  # read back in file with georeferenced records
-  # join with check_pf db (that has the xyFromLocality records removed) and save as new 02_taxonomy_database file
-  # instruct users to restart at top of flagging section
-# add option to georeference based on county centroid (be sure to add in coordUncertainty and caveat on precision)
-# thinking only based on county for now?? But we'll see
+# Using the exported xyFromLocality file (01_coordinates_from_locality.csv) created above, georeference these records. GBIF provides a comprehensive overview of what georeferencing is and how to approach it in different situations here: https://docs.gbif.org/georeferencing-quick-reference-guide/1.0/en/
+
+  # Here are just a few examples of useful tools for georeferencing: 
+    # 1. ArcGIS: https://pro.arcgis.com/en/pro-app/latest/help/data/imagery/overview-of-georeferencing.htm
+    # 2. Google Earth
+    # 3. Georeferencing calculator: https://georeferencing.org/georefcalculator/gc.html
+
+# Using your choice of methods, georeference as many records as possible from the xyFromLocality file.You need to add information for 3 columns:
+  # 1. decimalLatitude
+  # 2. decimalLongitude
+  # 3. coordinateUncertaintyInMeters
+
+# read back in file with georeferenced records
+added_xyFromLocality <- readr::read_csv(file.path(OutPath_Check,
+                                        "01_coordinates_from_locality.csv"),
+                              col_types = BeeBDC::ColTypeR())
+
+# join with check_pf db and add in the new georeferenced values
+# TODO: test to make sure this is working correctly
+check_pf <- rows_patch(check_pf,
+                       added_xyFromLocality,
+                       by = 'database_id')
+
+# save the updated file as the new 02_taxonomy_database file. If you need to stop and complete the rest of the flagging later, this file will ensure you will not have to redo the manual georeferencing.
+readr::write_excel_csv(check_pf, file.path(DataPath, 
+                                             "Output",
+                                             "Intermediate",
+                                             "02_taxonomy_database.csv"))
 
 
 #************************************
@@ -849,11 +842,7 @@ check_pf <- BeeBDC::GBIFissues(data = check_pf,
 #****************
 ### Flag reports----
 
-# Save the flags so far. This function will create a copy of everything that 
-# has been flagged up until now. This will be updated throughout the script 
-# and can accessed at the end, so be wary of moving files around manually. 
-# However, these data  will also still be maintained in the main running file, 
-# so this is an optional fail-safe.
+# Save the flags so far. This function will create a copy of everything that has been flagged up until now. This will be updated throughout the script and can accessed at the end, so be wary of moving files around manually. However, these data  will also still be maintained in the main running file, so this is an optional fail-safe.
 flagFile <- BeeBDC::flagRecorder(
   data = check_pf,
   outPath = OutPath_Report,
@@ -944,8 +933,7 @@ tempSpace <- check_space %>%
   dplyr::filter(!.coordinates_empty == FALSE) %>%
   dplyr::filter(!.coordinates_outOfRange == FALSE)
 
-# Flag common spatial issues using functions from the package 
-# "CoordinateCleaner", which addresses common issues in biodiversity datasets
+# Flag common spatial issues using functions from the package "CoordinateCleaner", which addresses common issues in biodiversity datasets
 tempSpace <-
   CoordinateCleaner::clean_coordinates(
     x =  tempSpace,
@@ -1090,17 +1078,15 @@ check_space <- BeeBDC::coordUncerFlagR(data = check_space,
 ### Country Checklist----
 
 
-# This step identifies mismatches between the Discover Life country checklist 
-# and your occurrence dataset, identifying potential misidentifications, outliers, etc.
+# This step identifies mismatches between the Discover Life country checklist and your occurrence dataset, identifying potential misidentifications, outliers, etc.
 
 ## Required Checklist Columns
 
-    # validNAme = Same as taxonomyFile$validName: "Scientific name + authorship"  (e.g., "Bremus americanorum (Fabricius, 1775)")
-    # iso_a3_eh = Three-letter country codes in the ISO 3166 alpha-3 standard (e.g., "LBN", "MEX", "USA")
-    # continent = Continent name (e.g., "North America", "Asia", "Europe")
+    # 1. validNAme = Same as taxonomyFile$validName: "Scientific name + authorship"  (e.g., "Bremus americanorum (Fabricius, 1775)")
+    # 2. iso_a3_eh = Three-letter country codes in the ISO 3166 alpha-3 standard (e.g., "LBN", "MEX", "USA")
+    # 3. continent = Continent name (e.g., "North America", "Asia", "Europe")
 
-    # For more information on the above columns, download the provided bee checklist
-    # using (checklist <- beesChecklist_fixed())
+    # For more information on the above columns, download the provided bee checklist using (checklist <- beesChecklist_fixed())
 
 
 # Import your own country-level checklist
@@ -1332,11 +1318,7 @@ BeeBDC::flagRecorder(data = check_time,
 # De-duplication ----------------------------------------------------------
 
 
-# We will FLAG duplicates here. These input columns can be hacked to de-duplicate as you wish. 
-# This function uses user-specified inputs and columns to identify duplicate occurrence records.
-# Duplicates are identified iteratively and will be tallied up, duplicate pairs clustered, and sorted at the end of the function. 
-# The function is designed to work with Darwin Core data with a database_id column, but it is also modifiable to work with other columns. 
-# I would encourage you to see ‘?dupeSummary()’ for more details as this function is quite modifiable to user needs.
+# We will FLAG duplicates here. These input columns can be hacked to de-duplicate as you wish. This function uses user-specified inputs and columns to identify duplicate occurrence records. Duplicates are identified iteratively and will be tallied up, duplicate pairs clustered, and sorted at the end of the function. The function is designed to work with Darwin Core data with a database_id column, but it is also modifiable to work with other columns. I would encourage you to see ‘?dupeSummary()’ for more details as this function is quite modifiable to user needs.
 check_time <- BeeBDC::dupeSummary(
   data = check_time,
   path = OutPath_Report,
@@ -1479,15 +1461,7 @@ BeeBDC::dupePlotR(
 )
 
 #************************************
-#************************************
 
-
-# Georeference records ----------------------------------------------
-# add option to georeference based on county centroid (be sure to add in coordUncertainty and caveat on precision)
-# thinking only based on county for now?? But we'll see
-
-
-#************************************
 #************************************
 
 
@@ -1550,6 +1524,8 @@ cleanData <- BeeBDC::summaryFun(
 ## Optional filter 2: Filter out iNaturalist records ----
 # Since iNaturalist is a community platform, anyone from amateurs to experts may be identifying specimens. Since this can therefore lead to identification uncertainty, you can optionally filter out iNaturalist records or manually select the iNaturalist records you trust.
 
+#TODO: update this to include the rows_check() or whatever function
+
 ### iNaturalist option 1: remove all iNaturalist records (more conservative option) ----
 cleanData <- cleanData %>%
   filter(institutionCode != 'iNaturalist')
@@ -1603,8 +1579,7 @@ boundary <- counties(state = 'Texas') %>%
   dplyr::select(geometry)
 
 #filter by YOUR OWN UNIQUE GEOGRAPHIC REGION
-  # EITHER: provides coordinates of your region
-  #provide the coordinates of the corners of your region (if a normal polygon)
+  # EITHER: provides coordinates of the corners of your region (if a normal polygon)
 coords <- matrix(c(-107.24, 25.6,
                    -107.24, 36.88,
                    -92.52, 36.88,
@@ -1639,9 +1614,9 @@ cleanData <- iNatFilter %>%
   #filter(county == '')
 
 ## Optional filter 5: Filter records based on coordinateUncertainty ----
- # currently set to filter out records with greater than 5km coordUncertainty - adjust as needed
+ # currently set to filter out records with greater than 2km coordUncertainty (which is what was originally set in the GBIF query) - adjust as needed
 cleanData <- cleanData %>%
-  filter(coordinateUncertaintyInMeters <= 5000)
+  filter(coordinateUncertaintyInMeters <= 2000)
 
 ## Save and export the cleaned dataset ----
 readr::write_excel_csv(spFilter, file.path(OutPath, "Cleaned",
@@ -1652,8 +1627,6 @@ readr::write_excel_csv(spFilter, file.path(OutPath, "Cleaned",
 
 
 #----Prepping data for NatureServe analysis----
-
-#TODO: ask Hannah if we want to build in the option to filter out records based on coordinate uncertainty 
 
 # using test file - will need to fix this when we have the real dataset
 
