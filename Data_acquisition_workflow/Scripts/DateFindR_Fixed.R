@@ -381,7 +381,7 @@ dateFindR_fixed <- function(data = NULL,
   
   
   # CHANGE: Being a lot more conservative here
-  # CHANGE: General changes to have the regex is written.
+  # CHANGE: General changes to how the regex is written.
   ##### 2.4 my ####
   my_strings <- c(
     # MM/YYYY format (No day after or before)
@@ -581,7 +581,10 @@ dateFindR_fixed <- function(data = NULL,
     dplyr::right_join(saveTheDates, 
                       by = "database_id")
   # Fill the eventDate column
-  datesOut_full$eventDate <- lubridate::ymd(datesOut_full$date)
+  datesOut_full$eventDate <- lubridate::parse_date_time(
+    x = datesOut_full$date,
+    orders = c("ymd", "ymd HMS", "dmy", "dmy HMS", "mdy", "mdy HMS")
+  )
   # Fill the year, month, and day columns 
   datesOut_full$year <- lubridate::year(datesOut_full$date)
   datesOut_full$month <- lubridate::month(datesOut_full$date)

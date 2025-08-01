@@ -103,9 +103,9 @@ R.utils::sourceDirectory(file.path(DataPath, "Scripts"))
 # if you do not have/do not want to use a species list, simply skip this section and proceed to the create taxonomyfile section. Forgoing a species list is useful when you want to generate a species list for a given area.
 
 ## Option 1: read in text file with species list ------------------------
-# file should be a .csv and simply list out all the species names in one column (do not include column names)
-# make sure to adjust the line of code below to reflect the name of your species list file
-sppList <- read_csv('your_species_list.csv', show_col_types = FALSE)[[1]] 
+# File should be a .csv and list species names in the first column.
+# Do not include a column header. If your file has a header, remove or skip the first row manually.
+sppList <- readr::read_csv("your_species_list.csv", col_names = FALSE, show_col_types = FALSE)[[1]]
 
 ## Option 2: Create a list of accepted canonical (no authorship included) names of your species of interest. -------------------------
 # This list will be used to filter and reduce the size of backbones. It can also be used for querying occurrence records in later steps.
@@ -247,7 +247,7 @@ taxonomyFile <- mergedTaxonomy %>%
   dplyr::select(-canonical_accepted,-authorship_accepted,-accid_replacement)
 
 
-#### Remove spent databases
+#### Remove spent databases for memory
 
 # Determine which variables are being used in environment
 existingVariables <- c("acceptedIDs","joinedTaxonomy","mergedTaxonomy","taxDL",
@@ -289,7 +289,7 @@ gbifTaxonKeys <- fullSppList %>%
   unique() # Filter out duplicates caused by spelling differences
 
 # Set up your environment with your GBIF credentials. If you do not have a GBIF account, please create one before running this section!
-check_gbif_creds() # Securely input your GBIF credentials into local environment
+check_gbif_creds()
 
 # Intialize download of occurrence data, providing search parameters as needed. This search uses the gbifTaxonKey values generated in the previous step. Read more about adding custom predicates here: https://www.rdocumentation.org/packages/rgbif/versions/3.8.0/topics/download_predicate_dsl
 occ_download(
@@ -739,7 +739,7 @@ readr::write_excel_csv(check_pf, file.path(OutPath_Intermediate,
 # Read in the data again if needed
 if (!exists("check_pf")) {
   check_pf <- readr::read_csv(file.path(OutPath_Intermediate, 
-                                    "01_prefilter_database.csv"), 
+                                        "01_prefilter_database.csv"), 
                               col_types = BeeBDC::ColTypeR())
 }
 
@@ -1434,18 +1434,18 @@ BeeBDC::chordDiagramR(
 
 # Read in uncleaned data if necessary
 if (!exists("check_time")) {
-  beeData <- readr::read_csv(file.path(OutPath_Intermediate, 
+  unclean_data <- readr::read_csv(file.path(OutPath_Intermediate, 
                                        "05_unCleaned_database.csv"), 
                              col_types = BeeBDC::ColTypeR())
 } else {
-  beeData <- check_time
+  unclean_data <- check_time
   rm(check_time)
 }
 
 # Create a plot with two bar graphs
 # One bar shows the absolute number of duplicate records for each source, while the other shows the proportion of records that are duplicated within each data source.
 BeeBDC::dupePlotR(
-  data = beeData,
+  data = unclean_data,
   # The outPath to save the plot as
   outPath = OutPath_Figures,
   fileName = "duplicatePlot.pdf",
@@ -1480,14 +1480,14 @@ BeeBDC::dupePlotR(
 #   duplicates = duplicates)
 
 # Save uncleaned dataset
-beeData <- BeeBDC::summaryFun(data = beeData, 
-                                 dontFilterThese = c(".gridSummary",
-                                                     ".lonFlag",
-                                                     ".latFlag",
-                                                     ".uncer_terms",
-                                                     ".uncertaintyThreshold"),
-                                 removeFilterColumns = FALSE,
-                                 filterClean = FALSE) %>%
+unclean_data <- BeeBDC::summaryFun(data = unclean_data, 
+                              dontFilterThese = c(".gridSummary",
+                                                  ".lonFlag",
+                                                  ".latFlag",
+                                                  ".uncer_terms",
+                                                  ".uncertaintyThreshold"),
+                              removeFilterColumns = FALSE,
+                              filterClean = FALSE) %>%
   readr::write_excel_csv(file.path(OutPath_Intermediate,
                                              "05_unCleaned_database.csv"))
   
@@ -1498,17 +1498,17 @@ beeData <- BeeBDC::summaryFun(data = beeData,
 # There are several options for filtering here. You do not need to use all of them - select the ones that are most applicable for you!
 
 # read in unCleaned database (if necessary)
-if (!exists("beeData")) {
-  beeData <- readr::read_csv(file.path(OutPath_Intermediate, 
+if (!exists("unclean_data")) {
+  unclean_data <- readr::read_csv(file.path(OutPath_Intermediate, 
                                        "05_unCleaned_database.csv"), 
                              col_types = BeeBDC::ColTypeR())
 } else {
-  beeData <- beeData
+  unclean_data <- unclean_data
 }
 
 ## Optional filter 1: Clean the check_time dataset by removing flagged occurrences (recommended - gets rid of now-unnecessary flagging columns) ----
 cleanData <- BeeBDC::summaryFun(
-  data = beeData,
+  data = unclean_data,
   # Add flags to ignore here
   dontFilterThese = c(".gridSummary",
                       ".coordinates_empty",
@@ -1520,6 +1520,7 @@ cleanData <- BeeBDC::summaryFun(
   removeFilterColumns = TRUE,
   # Filter to ONLY cleaned data?
   filterClean = TRUE)
+
 
 ## Optional filter 2: Filter out iNaturalist records ----
 # Since iNaturalist is a community platform, anyone from amateurs to experts may be identifying specimens. Since this can therefore lead to identification uncertainty, you can optionally filter out iNaturalist records or manually select the iNaturalist records you trust.
@@ -1552,6 +1553,7 @@ cleanData <- cleanData %>%
 # Merge trusted iNaturalist records with the rest of the cleaned dataset
 cleanData <- cleanData %>%
   rbind(cleaned_iNatOnly)
+
 
 ## Optional filter 3: Filter by area of interest ----
 

@@ -29,13 +29,11 @@ add_occ_records <- function(table = NULL, filepath = NULL, datasetName = "custom
   # TODO: Are there any more we could add?
   columnNames <- names(table)
   
-  # TODO: Could this default to NA?
   if (!"id" %in% columnNames) {
     message("Creating id column...")
     tableWithIds <- tableWithIds %>%
       mutate(id = database_id)
   }
-  # TODO: Could this default to NA?
   if (!"recordId" %in% columnNames) {
     message("Creating recordId column...")
     tableWithIds <- tableWithIds %>%
