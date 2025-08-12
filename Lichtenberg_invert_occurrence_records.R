@@ -1525,8 +1525,6 @@ cleanData <- BeeBDC::summaryFun(
 ## Optional filter 2: Filter out iNaturalist records ----
 # Since iNaturalist is a community platform, anyone from amateurs to experts may be identifying specimens. Since this can therefore lead to identification uncertainty, you can optionally filter out iNaturalist records or manually select the iNaturalist records you trust.
 
-#TODO: update this to include the rows_check() or whatever function
-
 ### iNaturalist option 1: remove all iNaturalist records (more conservative option) ----
 cleanData <- cleanData %>%
   filter(institutionCode != 'iNaturalist')
