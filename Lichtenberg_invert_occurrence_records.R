@@ -1558,6 +1558,8 @@ cleanData <- cleanData %>%
 ## Optional filter 3: Filter by area of interest ----
 
 ##create object of area of interest boundary. Modify to your region of interest. Pick *ONE* of these options to run based on what your geographic range of interest is
+
+##**You need to create the 'boundary' object if you want to run the 'getNatureServe_values' function later in this script**
   
 #filter by COUNTRY
   # adjust code below to your country of interest
@@ -1598,7 +1600,7 @@ fname <- system.file(paste0(DataPath, '/your file name.shp'), package="sf")
 boundary <- st_read(fname)
 
 # Perform the spatial filter! Filters to only include observations within your specified boundary. Make sure you have created a boundary object using *ONE* of the above options. This will return all records that fall within or on your specified spatial boundary.
-spFilter <- cleanData %>%
+cleanData <- cleanData %>%
   st_as_sf(coords = c("decimalLongitude", "decimalLatitude"), crs = 4326) %>%
   st_join(boundary, 
           left = FALSE,
@@ -1630,6 +1632,16 @@ readr::write_excel_csv(spFilter, file.path(OutPath, "Cleaned",
 
 #----Prepping data for NatureServe analysis----
 
+# The below function calculates four values for your data: 
+  # 1. observations: the number of records
+  # 2. occurrences: the number of distinct locations 
+  # 3. range extent: minimum area encompassing the occurrences (in km^2)
+  # 4. area of occupancy: area within the range extent where occurrences actually are (in km^2)
+# For more info on these metrics see https://www.natureserve.org/sites/default/files/publications/files/natureserveconservationstatusmethodology_jun12.pdf 
+
+# The values will be calculated on your cleanData file as is. If you want it to calculate values for each taxon in the file, make sure to group it by the scientificName column before running get_NatureServe_values() on it.
+
+#TODO: get rid of the temp files
 # using test file - will need to fix this when we have the real dataset
 
 test <- readr::read_csv(file.path(OutPath, "./Cleaned/05_cleaned_database.csv"))
@@ -1637,7 +1649,7 @@ test <- readr::read_csv(file.path(OutPath, "./Cleaned/05_cleaned_database.csv"))
 test_group <- test %>%
   group_by(scientificName)
 
-#***NOTE: If you have not yet created the 'boundary' object, you need to do so before running this function. Please go back up to 'create object area of interest boundary' earlier in the 'Data Filtering' section. 
+#**NOTE: If you have not yet created the 'boundary' object, you need to do so before running this function. Please go back up to 'create object area of interest boundary' earlier in the 'Data Filtering' section.* 
 
 # CAVEAT: this function calculates range extent, but does not remove extreme disjuncts and vagrancies(as recommended by NatureServe standards). If you suspect there are some spatial outliers, please remove before running these calculations for a NatureServe analysis. 
 
@@ -1676,15 +1688,13 @@ get_NatureServe_values <- function(x, boundary) {
     
     # Calculate number of observations (# of unique specimen records)
     observations <- species_sf %>%
-      st_join(boundary, join = st_intersects) %>%
-      filter(!is.na(NAME)) %>%
+      filter(lengths(st_intersects(., boundary)) > 0) %>%
       nrow()
     
     # Calculate number of occurrences (# of unique specimen records with distinct locations)
     occurrences <- species_sf %>%
-      st_join(boundary, join = st_intersects) %>%
-      filter(!is.na(NAME)) %>%
-      distinct(geometry) %>% 
+      filter(lengths(st_intersects(., boundary)) > 0) %>%
+      distinct(geometry) %>%
       nrow()
     
     # Calculate range extent (Convex Hull Intersected with Boundary) in km^2
@@ -1702,8 +1712,7 @@ get_NatureServe_values <- function(x, boundary) {
     
     # Calculate area of occupancy (AOO) in km^2
     coords <- species_sf %>%
-      st_join(boundary, join = st_intersects) %>%
-      filter(!is.na(NAME)) %>%
+      filter(lengths(st_intersects(., boundary)) > 0) %>%
       st_coordinates() %>%
       as.data.frame()
     
@@ -1714,11 +1723,18 @@ get_NatureServe_values <- function(x, boundary) {
         units::set_units(km^2)
     }
     
+    #make sure range extent values are greater than or equal to area of occupancy values, per IUCN standards
+    if (!is.na(range_extent) && as.numeric(range_extent) < as.numeric(area_of_occupancy)) {
+      range_extent <- as.numeric(area_of_occupancy)
+    } else {
+      range_extent <- as.numeric(range_extent)
+    }
+    
     # Create result tibble
     result <- tibble(
       observations = observations,
       occurrences = occurrences,
-      range_extent = as.numeric(range_extent),
+      range_extent = range_extent,
       area_of_occupancy = as.numeric(area_of_occupancy)
     )
     
@@ -1743,6 +1759,8 @@ get_NatureServe_values <- function(x, boundary) {
   
 }
 
+# run the function on your data!
+# TODO: get rid of these temp names
 out <- get_NatureServe_values(test_group, boundary = boundary)
 out2 <- get_NatureServe_values(test, boundary = boundary)
 
