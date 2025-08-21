@@ -706,7 +706,7 @@ check_pf <- bdc::bdc_country_standardized(
 # Flag and correct records when decimalLatitude and decimalLongitude appear to be transposed. We created this chunked version of bdc::bdc_coordinates_transposed() because it is very RAM-heavy  using our large bee dataset. Like many of our other ‘jbd_…’ functions there are other improvement - e.g., parallel running.
 # NOTE: Usually you would use scale = “large”, which requires rnaturalearthhires
 # Adds column "coordinates_transposed" if transpositions are made
-# *USE SAMPLE DATASET IF TESTING THIS FUNCTION (TAKES LONG AND USES A LOT RAM)*
+# *USE SAMPLE DATASET IF TESTING THIS FUNCTION (TAKES LONG AND USES A LOT OF RAM)*
 check_pf <- BeeBDC::jbd_Ctrans_chunker(
   # bdc_coordinates_transposed inputs
   data = check_pf,
@@ -1318,7 +1318,7 @@ BeeBDC::flagRecorder(data = check_time,
 # De-duplication ----------------------------------------------------------
 
 
-# We will FLAG duplicates here. These input columns can be hacked to de-duplicate as you wish. This function uses user-specified inputs and columns to identify duplicate occurrence records. Duplicates are identified iteratively and will be tallied up, duplicate pairs clustered, and sorted at the end of the function. The function is designed to work with Darwin Core data with a database_id column, but it is also modifiable to work with other columns. I would encourage you to see ‘?dupeSummary()’ for more details as this function is quite modifiable to user needs.
+# We will FLAG duplicates here. These input columns can be adjusted as needed to de-duplicate to your preference. This function uses user-specified inputs and columns to identify duplicate occurrence records. Duplicates are identified iteratively and will be tallied up, duplicate pairs clustered, and sorted at the end of the function. The function is designed to work with Darwin Core data with a database_id column, but it is also modifiable to work with other columns. I would encourage you to see ‘?dupeSummary()’ for more details as this function is quite modifiable to user needs.
 check_time <- BeeBDC::dupeSummary(
   data = check_time,
   path = OutPath_Report,
