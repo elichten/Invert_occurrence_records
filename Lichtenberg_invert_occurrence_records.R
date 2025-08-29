@@ -1594,8 +1594,8 @@ boundary <- st_sf(geometry = polygon)
 st_crs(boundary) <- 4326
 
 # OR: read in your own unique shape file
-custom_boundary <- read_sf(file.path(DataPath,"your_file_name.shp")) %>%
-  # provide the column name and value (from your .shp) by which you want to filter
+boundary <- read_sf(file.path(DataPath,"your_file_name.shp")) %>%
+  # provide thecolumn name and value (from your .shp) by which you want to filter
   filter(your_column_name == 'your_desired_value') %>%
   st_transform(boundary, crs = 4326) %>%
   dplyr::select(geometry)
