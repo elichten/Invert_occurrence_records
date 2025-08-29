@@ -1558,24 +1558,24 @@ cleanData <- cleanData %>%
 ##create object of area of interest boundary. Modify to your region of interest. Pick *ONE* of these options to run based on what your geographic range of interest is
 
 ##**You need to create the 'boundary' object if you want to run the 'getNatureServe_values' function later in this script**
-  
+
 #filter by COUNTRY
+boundary <- rnaturalearth::ne_countries() %>%
   # adjust code below to your country of interest
-boundary <- nation() %>%
-  filter(NAME == 'United States') %>%
+  filter(name == 'United States') %>%
   st_transform(boundary, crs = 4326) %>%
   dplyr::select(geometry)
 
 #filter by STATE 
+boundary <- rnaturalearth::ne_states() %>%
   # adjust code below to your state of interest
-boundary <- states(cb = TRUE) %>%
-  filter(NAME == 'Texas') %>%
+  filter(name == 'Texas') %>%
   st_transform(boundary, crs = 4326) %>%
   dplyr::select(geometry)
 
-#filter by COUNTY
+#filter by COUNTY (United States)
   # adjust code below to your state/county of interest
-boundary <- counties(state = 'Texas') %>%
+boundary <- tigris::counties(state = 'Texas') %>%
   filter(NAME == 'Denton') %>%
   st_transform(boundary, crs = 4326) %>%
   dplyr::select(geometry)
@@ -1593,9 +1593,12 @@ polygon <- st_sfc(st_polygon(list(coords)))
 boundary <- st_sf(geometry = polygon) 
 st_crs(boundary) <- 4326
 
-  # OR: read in your own unique shape file
-fname <- system.file(paste0(DataPath, '/your file name.shp'), package="sf")
-boundary <- st_read(fname)
+# OR: read in your own unique shape file
+custom_boundary <- read_sf(file.path(DataPath,"your_file_name.shp")) %>%
+  # provide the column name and value (from your .shp) by which you want to filter
+  filter(your_column_name == 'your_desired_value') %>%
+  st_transform(boundary, crs = 4326) %>%
+  dplyr::select(geometry)
 
 # Perform the spatial filter! Filters to only include observations within your specified boundary. Make sure you have created a boundary object using *ONE* of the above options. This will return all records that fall within or on your specified spatial boundary.
 cleanData <- cleanData %>%
