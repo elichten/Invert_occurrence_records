@@ -1696,6 +1696,11 @@ get_NatureServe_values <- function(x, boundary) {
     occurrences <- species_sf %>%
       filter(lengths(st_intersects(., boundary)) > 0) %>%
       distinct(geometry) %>%
+      st_make_grid(cellsize = sqrt(1e6),
+                   what = 'polygons')
+      # do the st_make_grid() to make a 2km^2 square around each point
+      # IF there is any overlap between points, retain only the first record (or the one with finer resolution?)
+      # then count the number of unique points
       nrow()
     
     # Calculate range extent (Convex Hull Intersected with Boundary) in km^2
