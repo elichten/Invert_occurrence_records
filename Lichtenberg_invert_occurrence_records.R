@@ -1693,12 +1693,22 @@ get_NatureServe_values <- function(x, boundary) {
       nrow()
     
     # Calculate number of occurrences (# of unique specimen records with distinct locations)
-    occurrences <- species_sf %>%
+    occurrence_grid <- species_sf %>%
       filter(lengths(st_intersects(., boundary)) > 0) %>%
       distinct(geometry) %>%
-      st_make_grid(cellsize = sqrt(1e6),
-                   what = 'polygons')
-      # do the st_make_grid() to make a 2km^2 square around each point
+      st_make_grid(cellsize = sqrt(2e6),
+                   what = 'polygons') %>%
+      st_sf(grid_id = 1:length(.)) %>%
+      st_make_valid()
+    
+    points_with_overlap <- st_join(species_sf, occurrence_grid, 
+                                join = st_within) %>%
+      group_by(grid_id) %>%
+      summarise(n_points = n(), .groups = "drop") %>%
+      filter(n_points > 1) %>%
+      filter(grid_id %in% points_per_cell$grid_id)
+    
+    
       # IF there is any overlap between points, retain only the first record (or the one with finer resolution?)
       # then count the number of unique points
       nrow()
