@@ -35,7 +35,7 @@ flag_spatial_intersects <- function(data_table, fp, column_names) {
     dplyr::summarize(
       across(
         all_of(new_colnames),
-        ~ paste(sort(unique(.x)), collapse = ", ")  # comma-separated
+        ~ list(sort(unique(.x)))
       ),
       .groups = "drop"
     )

@@ -1644,12 +1644,12 @@ readr::write_excel_csv(spFilter, file.path(OutPath, "Cleaned",
 cleanData <- cleanData %>%
   flag_spatial_intersects('your_shp_file', 'target_column(S)')
 
-species_summary <- something %>%
+species_summary <- cleanData %>%
   group_by(species) %>%
   summarize(
     across(
       starts_with("INTERSECTS_"), # Target INTERSECTS_ columns
-      ~ paste(sort(unique(unlist(strsplit(.x, ", ")))), collapse = ", "), # Get unique intersect names, and sort final list
+      ~ list(sort(unique(unlist(.x)))), # Get unique intersect names, and sort final list
       .names = "{.col}"  # keeps the original column names
     ),
     .groups = "drop"
