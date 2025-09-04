@@ -1574,9 +1574,16 @@ boundary <- rnaturalearth::ne_states() %>%
   dplyr::select(geometry)
 
 #filter by COUNTY (United States)
-  # adjust code below to your state/county of interest
 boundary <- tigris::counties(state = 'Texas') %>%
+  # adjust code below to your state/county of interest
   filter(NAME == 'Denton') %>%
+  st_transform(boundary, crs = 4326) %>%
+  dplyr::select(geometry)
+
+# OR: read in your own local shape file
+boundary <- read_sf(file.path(DataPath, "your_file_name.shp")) %>%
+  # provide the column name and value (from your .shp) by which you want to filter
+  filter(your_column_name == 'your_desired_value') %>%
   st_transform(boundary, crs = 4326) %>%
   dplyr::select(geometry)
 
@@ -1587,18 +1594,12 @@ coords <- matrix(c(-107.24, 25.6,
                    -92.52, 36.88,
                    -92.52, 25.6,
                    -107.24, 25.6), 
-                 ncol = 2, byrow = TRUE) 
-  # transform those coordinates into a spatial object (sf) and set the coordinate system (crs = 4326)
+                 ncol = 2, byrow = TRUE)
+
+# transform those coordinates into a spatial object (sf) and set the coordinate system (crs = 4326)
 polygon <- st_sfc(st_polygon(list(coords)))
 boundary <- st_sf(geometry = polygon) 
 st_crs(boundary) <- 4326
-
-# OR: read in your own unique shape file
-boundary <- read_sf(file.path(DataPath,"your_file_name.shp")) %>%
-  # provide thecolumn name and value (from your .shp) by which you want to filter
-  filter(your_column_name == 'your_desired_value') %>%
-  st_transform(boundary, crs = 4326) %>%
-  dplyr::select(geometry)
 
 # Perform the spatial filter! Filters to only include observations within your specified boundary. Make sure you have created a boundary object using *ONE* of the above options. This will return all records that fall within or on your specified spatial boundary.
 cleanData <- cleanData %>%
@@ -1632,6 +1633,27 @@ readr::write_excel_csv(spFilter, file.path(OutPath, "Cleaned",
 
 
 #----Prepping data for NatureServe analysis----
+
+
+# Defining Custom Spatial Intersects --------------------------------------
+# In this step you can choose to include a .shp file and column(s) for flagging
+# each observation with its intersecting regions. This will be used in the
+# final step to provide a list of intersecting regions for each target species
+
+# You may run multiple times to add multiple columns
+cleanData <- cleanData %>%
+  flag_spatial_intersects('your_shp_file', 'target_column(S)')
+
+species_summary <- something %>%
+  group_by(species) %>%
+  summarize(
+    across(
+      starts_with("INTERSECTS_"), # Target INTERSECTS_ columns
+      ~ paste(sort(unique(unlist(strsplit(.x, ", ")))), collapse = ", "), # Get unique intersect names, and sort final list
+      .names = "{.col}"  # keeps the original column names
+    ),
+    .groups = "drop"
+  )
 
 # The below function calculates four values for your data: 
   # 1. observations: the number of records
