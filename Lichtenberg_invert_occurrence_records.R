@@ -1642,7 +1642,10 @@ readr::write_excel_csv(spFilter, file.path(OutPath, "Cleaned",
 
 # You may run multiple times to add multiple columns
 cleanData <- cleanData %>%
-  flag_spatial_intersects('your_shp_file', 'target_column(S)')
+  flag_spatial_intersects(
+    file.path(DataPath, 'your_file.shp'), 
+    'target_column_name'
+  )
 
 species_summary <- cleanData %>%
   group_by(species) %>%

@@ -1,4 +1,4 @@
-flag_spatial_intersects <- function(data_table, fp, column_names) {
+flag_spatial_intersects <- function(data_table, shp, column_names) {
   
   # Get list of new columns and delete in original table if they already exist
   new_colnames <- paste0("INTERSECTS_", column_names)
@@ -7,8 +7,14 @@ flag_spatial_intersects <- function(data_table, fp, column_names) {
   # Use GEOS to automatically handle duplicate vertex issues  
   sf::sf_use_s2(FALSE)
   
-  # Read in .shp file
-  shapefile <- read_sf(fp)
+  # If user passed a path, read shapefile; if sf object, use object
+  if (is.character(shp)) {
+    shapefile <- read_sf(shp)
+  } else if (inherits(shp, "sf")) {
+    shapefile <- shp
+  } else {
+    stop("`shp` must be either a file path or an sf object")
+  }
   
   # Convert observations table to sf object
   obs_sf <- st_as_sf(
