@@ -37,8 +37,7 @@ install.packages("BeeBDC",
 
 # Install gnparser and rgnparser
   # gnparser needs to be installed and up to date before you can install/run rgnparser. Make sure you have latest R, R studio, and packages. Then, follow this link for instructions on how to install gnparser on your device (windows/linux/mac): https://github.com/gnames/gnparser#installation
-  # When you get to the step where you need to move the file to a specific location on your computer, we recommend putting it in the same location as your R packages. 
-  # After you've successfully installed gnparser, then go ahead and install rgnparser, like you would a normal R package (e.g., 'install.packages('rgnparser')')
+  # When you get to the step where you need to move the file to a specific location on your computer, we recommend putting it in the same location as your R packages.
   
 #****************
 ### Load libraries----
