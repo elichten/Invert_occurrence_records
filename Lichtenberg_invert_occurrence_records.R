@@ -1537,7 +1537,7 @@ iNatOnly <- cleanData %>%
 readr::write_excel_csv(iNatOnly, file.path(OutPath_Check,
                                            "iNaturalist_review_records.csv"))
 
-# Open this file in excel. Manually filter down records by deleting uncertain records/only retaining the records you trust. A few options for filtering could include only retaining records identified by an iNaturalist user(s) that you trust, or only retaining species that are easily identifiable (and are thus less likely to be mis-identified). Once you have deleted all the uncertain records, save the updated file!
+# Open this file in Excel. Manually filter down records by deleting uncertain records/only retaining the records you trust. A few options for filtering could include only retaining records identified by an iNaturalist user(s) that you trust, or only retaining species that are easily identifiable (and are thus less likely to be mis-identified). Once you have deleted all the uncertain records, save the updated file!
 
 # Read back in the updated iNaturalist records file
 cleaned_iNatOnly <- readr::read_csv(file.path(OutPath_Check,
