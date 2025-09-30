@@ -99,7 +99,7 @@ R.utils::sourceDirectory(file.path(DataPath, "Scripts"))
 
 
 # Create Species List -----------------------------------------------------
-# if you do not have/do not want to use a species list, simply skip this section and proceed to the create taxonomyfile section. Forgoing a species list is useful when you want to generate a species list for a given area.
+# If you do not have/do not want to use a species list, simply skip this section and proceed to the create taxonomyfile section. Forgoing a species list is useful when you want to generate a species list for a given area.
 
 ## Option 1: read in text file with species list ------------------------
 # File should be a .csv and list species names in the first column.
@@ -591,7 +591,7 @@ check_pf <- bdc::bdc_coordinates_outOfRange(data = check_pf,
 #****************
 ### Flag occurrences that don't match basisOfRecord types ----  
 
-# user decides what the acceptable forms of data are here - modify as necessary
+# The user decides what the acceptable forms of data are here - modify as necessary
 # Adds column ".basisOfRecords_notStandard"
 check_pf <- bdc::bdc_basisOfRecords_notStandard(
   data = check_pf,
@@ -788,18 +788,18 @@ readr::write_excel_csv(xyFromLocality,
   # 2. decimalLongitude
   # 3. coordinateUncertaintyInMeters
 
-# read back in file with georeferenced records
+# Read back in file with georeferenced records
 added_xyFromLocality <- readr::read_csv(file.path(OutPath_Check,
                                         "01_coordinates_from_locality.csv"),
                               col_types = BeeBDC::ColTypeR())
 
-# join with check_pf db and add in the new georeferenced values
+# Join with check_pf db and add in the new georeferenced values
 # TODO: test to make sure this is working correctly
 check_pf <- rows_patch(check_pf,
                        added_xyFromLocality,
                        by = 'database_id')
 
-# save the updated file as the new 02_taxonomy_database file. If you need to stop and complete the rest of the flagging later, this file will ensure you will not have to redo the manual georeferencing.
+# Save the updated file as the new 02_taxonomy_database file. If you need to stop and complete the rest of the flagging later, this file will ensure you will not have to redo the manual georeferencing.
 readr::write_excel_csv(check_pf, file.path(DataPath, 
                                              "Output",
                                              "Intermediate",
@@ -901,7 +901,7 @@ flagFile <- BeeBDC::flagRecorder(data = check_pf,
 ## Space Flags ---------------------------------------------------------------
 
 #****************
-# Read in latest database if needed
+# Read in latest database, if needed
 if (!exists("check_pf")) {
   check_pf <- readr::read_csv(file.path(OutPath_Intermediate,
                                         "01_prefilter_output.csv"), 
@@ -1036,7 +1036,7 @@ gridded_datasets <- CoordinateCleaner::cd_round(x = griddingDF,
                                                 reg_dist_max = 2) %>%
                     dplyr::tibble()
 
-# The griddingDF is no longer needed. remove it.
+# The griddingDF is no longer needed. Remove it.
 rm(griddingDF)
 
 # Integrate results with main dataset
@@ -1119,8 +1119,7 @@ check_space <- BeeBDC::continentOutlieRs(checklist = checklist,
                                          scale = 50,
                                          mc.cores = 1)
 
-# A list of failed species-country combinations and their numbers can be output here
-# Use this to investigate any possible issues in your observation data or checklist
+# A list of failed species-country combinations and their numbers can be output here. Use this to investigate any possible issues in your observation data or checklist
 view(check_space %>%
        dplyr::filter(.countryOutlier == FALSE) %>%
        dplyr::select(database_id, scientificName, country) %>%
@@ -1522,7 +1521,7 @@ cleanData <- BeeBDC::summaryFun(
 
 
 ## Optional filter 2: Filter out iNaturalist records ----
-# Since iNaturalist is a community platform, anyone from amateurs to experts may be identifying specimens. Since this can therefore lead to identification uncertainty, you can optionally filter out iNaturalist records or manually select the iNaturalist records you trust.
+# Since iNaturalist is a community platform, anyone from amateurs to experts may be identifying specimens. Since this can lead to identification uncertainty, you can optionally filter out iNaturalist records or manually select the iNaturalist records you trust.
 
 ### iNaturalist option 1: remove all iNaturalist records (more conservative option) ----
 cleanData <- cleanData %>%
@@ -1554,25 +1553,25 @@ cleanData <- cleanData %>%
 
 ## Optional filter 3: Filter by area of interest ----
 
-##create object of area of interest boundary. Modify to your region of interest. Pick *ONE* of these options to run based on what your geographic range of interest is
+## Create object of area of interest boundary. Modify to your region of interest. Pick *ONE* of these options to run based on what your geographic range of interest is
 
 ##**You need to create the 'boundary' object if you want to run the 'getNatureServe_values' function later in this script**
 
-#filter by COUNTRY
+# Filter by COUNTRY
 boundary <- rnaturalearth::ne_countries() %>%
   # adjust code below to your country of interest
   filter(name == 'United States') %>%
   st_transform(boundary, crs = 4326) %>%
   dplyr::select(geometry)
 
-#filter by STATE 
+# Filter by STATE 
 boundary <- rnaturalearth::ne_states() %>%
   # adjust code below to your state of interest
   filter(name == 'Texas') %>%
   st_transform(boundary, crs = 4326) %>%
   dplyr::select(geometry)
 
-#filter by COUNTY (United States)
+# Filter by COUNTY (United States)
 boundary <- tigris::counties(state = 'Texas') %>%
   # adjust code below to your state/county of interest
   filter(NAME == 'Denton') %>%
@@ -1586,7 +1585,7 @@ boundary <- read_sf(file.path(DataPath, "your_file_name.shp")) %>%
   st_transform(boundary, crs = 4326) %>%
   dplyr::select(geometry)
 
-#filter by YOUR OWN UNIQUE GEOGRAPHIC REGION
+# Filter by YOUR OWN UNIQUE GEOGRAPHIC REGION
   # EITHER: provides coordinates of the corners of your region (if a normal polygon)
 coords <- matrix(c(-107.24, 25.6,
                    -107.24, 36.88,
@@ -1595,7 +1594,7 @@ coords <- matrix(c(-107.24, 25.6,
                    -107.24, 25.6), 
                  ncol = 2, byrow = TRUE)
 
-# transform those coordinates into a spatial object (sf) and set the coordinate system (crs = 4326)
+# Transform those coordinates into a spatial object (sf) and set the coordinate system (crs = 4326)
 polygon <- st_sfc(st_polygon(list(coords)))
 boundary <- st_sf(geometry = polygon) 
 st_crs(boundary) <- 4326
@@ -1635,9 +1634,7 @@ readr::write_excel_csv(spFilter, file.path(OutPath, "Cleaned",
 
 
 # Defining Custom Spatial Intersects --------------------------------------
-# In this step you can choose to include a .shp file and column(s) for flagging
-# each observation with its intersecting regions. This will be used in the
-# final step to provide a list of intersecting regions for each target species
+# In this step you can choose to include a .shp file and column(s) for flagging each observation with its intersecting regions. This will be used in the final step to provide a list of intersecting regions for each target species
 
 # You may run multiple times to add multiple columns
 cleanData <- cleanData %>%
@@ -1678,6 +1675,7 @@ test_group <- test %>%
 
 # CAVEAT: this function calculates range extent, but does not remove extreme disjuncts and vagrancies(as recommended by NatureServe standards). If you suspect there are some spatial outliers, please remove before running these calculations for a NatureServe analysis. 
 
+#TODO: make sure year and county are automatically set to F
 get_NatureServe_values <- function(x, boundary) {
   # Load necessary packages
   require(tidyverse)
@@ -1716,25 +1714,31 @@ get_NatureServe_values <- function(x, boundary) {
       filter(lengths(st_intersects(., boundary)) > 0) %>%
       nrow()
     
-    # Calculate number of occurrences (# of unique specimen records with distinct locations)
-    occurrence_grid <- species_sf %>%
-      filter(lengths(st_intersects(., boundary)) > 0) %>%
-      distinct(geometry) %>%
-      st_make_grid(cellsize = sqrt(2e6),
-                   what = 'polygons') %>%
-      st_sf(grid_id = 1:length(.)) %>%
-      st_make_valid()
+    # AEP TEMP: Calculate number of occurrences (# of unique specimen records with distinct locations)
+    # occurrence_grid <- species_sf %>%
+    #   filter(lengths(st_intersects(., boundary)) > 0) %>%
+    #   distinct(geometry) %>%
+    #   st_make_grid(cellsize = sqrt(2e6),
+    #                what = 'polygons') %>%
+    #   st_sf(grid_id = 1:length(.)) %>%
+    #   st_make_valid()
+    # 
+    # points_with_overlap <- st_join(species_sf, occurrence_grid, 
+    #                             join = st_within) %>%
+    #   group_by(grid_id) %>%
+    #   summarise(n_points = n(), .groups = "drop") %>%
+    #   filter(n_points > 1) %>%
+    #   filter(grid_id %in% points_per_cell$grid_id)
+    # 
     
-    points_with_overlap <- st_join(species_sf, occurrence_grid, 
-                                join = st_within) %>%
-      group_by(grid_id) %>%
-      summarise(n_points = n(), .groups = "drop") %>%
-      filter(n_points > 1) %>%
-      filter(grid_id %in% points_per_cell$grid_id)
-    
-    
-      # IF there is any overlap between points, retain only the first record (or the one with finer resolution?)
+      # AEP TEMP: IF there is any overlap between points, retain only the first record (or the one with finer resolution?)
       # then count the number of unique points
+      # nrow()
+    
+    # TEMP OCCURRENCE CALCS - UPDATE
+    occurrences <- species_sf %>%
+      st_join(boundary, join = st_intersects) %>%
+      distinct(geometry) %>% 
       nrow()
     
     # Calculate range extent (Convex Hull Intersected with Boundary) in km^2
@@ -1763,6 +1767,20 @@ get_NatureServe_values <- function(x, boundary) {
         units::set_units(km^2)
     }
     
+    # Determine year range of observations
+    # TODO: pull out all unique year values, then print range
+    year_range <- species_data %>%
+      summarise(range_str = ifelse(
+        min(year) == max(year),
+        as.character(min(year)),
+        paste0(min(year), '-', max(year)))
+      )
+      
+    # Determine county list of observations
+    occupied_county <- species_sf %>%
+      dplyr::filter(!is.na(county)) %>%
+      summarise(county_list = paste(unique(county), collapse = ", "))
+    
     #make sure range extent values are greater than or equal to area of occupancy values, per IUCN standards
     if (!is.na(range_extent) && as.numeric(range_extent) < as.numeric(area_of_occupancy)) {
       range_extent <- as.numeric(area_of_occupancy)
@@ -1775,7 +1793,9 @@ get_NatureServe_values <- function(x, boundary) {
       observations = observations,
       occurrences = occurrences,
       range_extent = range_extent,
-      area_of_occupancy = as.numeric(area_of_occupancy)
+      area_of_occupancy = as.numeric(area_of_occupancy),
+      year_range = year_range$range_str,
+      occupied_county = occupied_county$county_list
     )
     
     # If grouped, add group keys to result
