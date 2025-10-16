@@ -1676,7 +1676,7 @@ test_group <- test %>%
 # CAVEAT: this function calculates range extent, but does not remove extreme disjuncts and vagrancies(as recommended by NatureServe standards). If you suspect there are some spatial outliers, please remove before running these calculations for a NatureServe analysis. 
 
 #TODO: make sure year and county are automatically set to F
-get_NatureServe_values <- function(x, boundary) {
+get_NatureServe_values <- function(x, boundary, year_range = F, occupied_county = F) {
   # Load necessary packages
   require(tidyverse)
   require(tigris)
@@ -1769,18 +1769,21 @@ get_NatureServe_values <- function(x, boundary) {
     
     # Determine year range of observations
     # TODO: pull out all unique year values, then print range
-    year_range <- species_data %>%
+   if (year_range) {
+     year_range_val <- species_data %>%
       summarise(range_str = ifelse(
         min(year) == max(year),
         as.character(min(year)),
         paste0(min(year), '-', max(year)))
       )
-      
+     
+   }
     # Determine county list of observations
-    occupied_county <- species_sf %>%
+   if (occupied_county) {
+     occupied_county_val <- species_sf %>%
       dplyr::filter(!is.na(county)) %>%
       summarise(county_list = paste(unique(county), collapse = ", "))
-    
+   }
     #make sure range extent values are greater than or equal to area of occupancy values, per IUCN standards
     if (!is.na(range_extent) && as.numeric(range_extent) < as.numeric(area_of_occupancy)) {
       range_extent <- as.numeric(area_of_occupancy)
@@ -1788,15 +1791,15 @@ get_NatureServe_values <- function(x, boundary) {
       range_extent <- as.numeric(range_extent)
     }
     
-    # Create result tibble
-    result <- tibble(
-      observations = observations,
-      occurrences = occurrences,
-      range_extent = range_extent,
-      area_of_occupancy = as.numeric(area_of_occupancy),
-      year_range = year_range$range_str,
-      occupied_county = occupied_county$county_list
-    )
+ # Create result tibble
+  result <- tibble(
+  observations = observations,
+  occurrences = occurrences,
+  range_extent = range_extent,
+  area_of_occupancy = as.numeric(area_of_occupancy),
+  year_range = if (year_range) year_range_val$range_str else NULL,
+  occupied_county = if (occupied_county) occupied_county_val$county_list else NULL
+)
     
     # If grouped, add group keys to result
     if (!is.null(group_keys_df)) {
@@ -1810,6 +1813,7 @@ get_NatureServe_values <- function(x, boundary) {
   results_df <- bind_rows(results)
   
   # provide warning about NatureServe calculations if there are any NA values for range extent
+  # THIS PART DOESN"T NEED TO BE IN EACH IF STATEMENT!!
   if(any(is.na(results_df$range_extent)))
   {
      warning('NA range extent values present for some taxa - not enough information to complete NatureServe analyses for these taxa')
