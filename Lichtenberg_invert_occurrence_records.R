@@ -688,6 +688,102 @@ if (!exists("check_pf")) {
 }
 
 #****************
+#TODO: finish this section
+### Impute stateProvince from coordinates ----
+# Get stateProvince name from coordinates using a wrapper around the jbd_country_from_coordinates() function. Because our dataset is much larger than those used to design bdc, we have made it so that you can analyse data in smaller pieces. Additionally, like some other functions in BeeBDC, we have implemented parallel operations (using mc.cores = #cores in stepSize = #rowsPerOperation); see ‘?jbd_CfC_chunker()’ for details. NOTE: In an actual run you should use scale = “large”
+# Creates another dataset containing just the databaseID and the country name based on coordinates
+suppressWarnings(
+  stateProvinceOutput <- BeeBDC::jbd_CfC_chunker(data = check_pf_noNa,
+                                           lat = "decimalLatitude",
+                                           lon = "decimalLongitude",
+                                           stateProvince = "stateProvince",
+                                           # How many rows to process at a time
+                                           stepSize = 10000, # Decrease if you're running out of RAM, increase for speed
+                                           # Start row
+                                           chunkStart = 1,
+                                           path = OutPath_Intermediate,
+                                           # Normally, please use scale = "large"
+                                           scale = "large",
+                                           mc.cores = 1),
+  classes = "warning")
+
+# Re-join these datasets
+check_pf <- dplyr::left_join(check_pf, 
+                             stateProvinceOutput, 
+                             by = "database_id", 
+                             suffix = c("", "CO")) %>%
+  # Take the new stateProvince name if the original is NA
+  dplyr::mutate(stateProvince = dplyr::if_else(is.na(stateProvince), 
+                                         stateProvinceCO,
+                                         stateProvince)) %>%
+  # Remove duplicates if they arose from left_join!
+  dplyr::distinct()
+
+# Save the dataset
+readr::write_excel_csv(check_pf, file.path(OutPath_Intermediate, 
+                                           "01_prefilter_database.csv"))
+
+# Remove these interim datasets
+rm(check_pf_noNa, stateProvinceOutput)
+
+# Read in previously saved dataset if necessary
+if (!exists("check_pf")) {
+  check_pf <- readr::read_csv(file.path(DataPath, 
+                                        "Output", 
+                                        "Intermediate", 
+                                        "01_prefilter_database.csv"), 
+                              col_types = BeeBDC::ColTypeR())
+}
+
+#****************
+#TODO: finish this section
+### Impute county from coordinates ----
+# Get county name from coordinates using a wrapper around the jbd_country_from_coordinates() function. Because our dataset is much larger than those used to design bdc, we have made it so that you can analyse data in smaller pieces. Additionally, like some other functions in BeeBDC, we have implemented parallel operations (using mc.cores = #cores in stepSize = #rowsPerOperation); see ‘?jbd_CfC_chunker()’ for details. NOTE: In an actual run you should use scale = “large”
+# Creates another dataset containing just the databaseID and the county name based on coordinates
+suppressWarnings(
+  countyOutput <- BeeBDC::jbd_CfC_chunker(data = check_pf_noNa,
+                                                 lat = "decimalLatitude",
+                                                 lon = "decimalLongitude",
+                                                 county = "county",
+                                                 # How many rows to process at a time
+                                                 stepSize = 10000, # Decrease if you're running out of RAM, increase for speed
+                                                 # Start row
+                                                 chunkStart = 1,
+                                                 path = OutPath_Intermediate,
+                                                 # Normally, please use scale = "large"
+                                                 scale = "large",
+                                                 mc.cores = 1),
+  classes = "warning")
+
+# Re-join these datasets
+check_pf <- dplyr::left_join(check_pf, 
+                              countyOutput, 
+                              by = "database_id", 
+                              suffix = c("", "CO")) %>%
+  # Take the new stateProvince name if the original is NA
+  dplyr::mutate(county = dplyr::if_else(is.na(county), 
+                                               countyCO,
+                                               county)) %>%
+  # Remove duplicates if they arose from left_join!
+  dplyr::distinct()
+
+# Save the dataset
+readr::write_excel_csv(check_pf, file.path(OutPath_Intermediate, 
+                                           "01_prefilter_database.csv"))
+
+# Remove these interim datasets
+rm(check_pf_noNa, countyOutput)
+
+# Read in previously saved dataset if necessary
+if (!exists("check_pf")) {
+  check_pf <- readr::read_csv(file.path(DataPath, 
+                                        "Output", 
+                                        "Intermediate", 
+                                        "01_prefilter_database.csv"), 
+                              col_types = BeeBDC::ColTypeR())
+}
+
+#****************
 ### Standardize country names and add ISO2 codes, if needed----
 
 # Adds two columns: "country_suggested" and "countryCode", removes these columns prior to running in an instance when the dataset contains these columns from previous runs. 
