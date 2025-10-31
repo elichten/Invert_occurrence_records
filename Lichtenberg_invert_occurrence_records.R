@@ -504,17 +504,22 @@ db_standardized <-
 
 #************************************
 
-## Taxonomy flags ----
+## Taxonomy ----
 
-#****************  
+#*****************
+# To re-start in the middle of the flagging and harmonization process, read in the most recent intermediate file you outputted, replacing "03_space_inter_database.csv" with that file's name.
+if (!exists("check_taxa")) {
+  check_taxa <- readr::write_excel_csv(check_taxa, file.path(DataPath, 
+                                                             "Output",
+                                                             "Intermediate",
+                                                             "02_taxonomy_database.csv"))
+}
+#*****************
+
 ### Harmonize and flag taxonomy----
 
 #### Prep data names
-# Make sure names_clean column doesn't exist before starting harmonization
-db_standardized <- dplyr::select(db_standardized, 
-                                 !tidyselect::any_of("names_clean"))
-
-# Clean the scientificName column
+# Remove names_clean column (if exists), and clean the scientificName column
 parse_names <- db_standardized %>%
                dplyr::select(., !tidyselect::any_of("names_clean")) %>%
                {bdc::bdc_clean_names(sci_names = .$scientificName)}
@@ -526,15 +531,6 @@ parse_names <- dplyr::select(parse_names, .uncer_terms, names_clean)
 check_taxa <- dplyr::bind_cols(db_standardized, parse_names)
 
 rm(parse_names, db_standardized)
-
-
-# To re-start in the middle of the flagging and harmonization process, read in the most recent intermediate file you outputted, replacing "03_space_inter_database.csv" with that file's name.
-if (!exists("check_taxa")) {
-  check_taxa <- readr::write_excel_csv(check_taxa, file.path(DataPath, 
-                                                             "Output",
-                                                             "Intermediate",
-                                                             "02_taxonomy_database.csv"))
-}
 
 
 # Harmonize occurrence data and flag those that do not match the taxonomyFile
@@ -563,7 +559,7 @@ check_taxa <- subset(check_taxa, .invalidName == TRUE)
 
 #************************************
 
-## Initial misc flags ----
+## Misc Flags ----
 
 #****************
 ### Flag occurrences without scientificName present----
@@ -626,286 +622,6 @@ check_pf <- bdc::bdc_basisOfRecords_notStandard(
     "LITERATURE", 
     "None", "Pinned Specimen", "Voucher reared", "Emerged specimen"
   ))
-
-#****************
-### Harmonize country names----
-
-# Create a separate dataset with harmonized country names and associated info
-check_pf_noNa <- BeeBDC::countryNameCleanR(
-  data = check_pf,
-  # Create a Tibble of common issues in country names and their replacements
-  commonProblems = dplyr::tibble(problem = c('U.S.A.','US','USA','usa',
-                                             'UNITED STATES','United States',
-                                             'U.S.A',"México"),
-                                 fix = c('United States of America','United States of America',
-                                         'United States of America','United States of America',
-                                         'United States of America','United States of America',
-                                         'United States of America',"Mexico")))
-
-# Get country name from coordinates using a wrapper around the jbd_country_from_coordinates() function. Because our dataset is much larger than those used to design bdc, we have made it so that you can analyse data in smaller pieces. Additionally, like some other functions in BeeBDC, we have implemented parallel operations (using mc.cores = #cores in stepSize = #rowsPerOperation); see ‘?jbd_CfC_chunker()’ for details. NOTE: In an actual run you should use scale = “large”
-# Creates another dataset containing just the databaseID and the country name based on coordinates
-suppressWarnings(
-  countryOutput <- BeeBDC::jbd_CfC_chunker(data = check_pf_noNa,
-                                           lat = "decimalLatitude",
-                                           lon = "decimalLongitude",
-                                           country = "country",
-                                           # How many rows to process at a time
-                                           stepSize = 10000, # Decrease if you're running out of RAM, increase for speed
-                                           # Start row
-                                           chunkStart = 1,
-                                           path = OutPath_Intermediate,
-                                           # Normally, please use scale = "large"
-                                           scale = "large",
-                                           mc.cores = 1),
-                   classes = "warning")
-
-# Re-join these datasets
-check_pf <- dplyr::left_join(check_pf, 
-                             countryOutput, 
-                             by = "database_id", 
-                             suffix = c("", "CO")) %>%
-            # Take the new country name if the original is NA
-            dplyr::mutate(country = dplyr::if_else(is.na(country), 
-                                                   countryCO,
-                                                   country)) %>%
-            # Remove duplicates if they arose from left_join!
-            dplyr::distinct()
-
-# Save the dataset
-readr::write_excel_csv(check_pf, file.path(OutPath_Intermediate, 
-                                           "01_prefilter_database.csv"))
-
-# Remove these interim datasets
-rm(check_pf_noNa, countryOutput)
-
-# Read in previously saved dataset if necessary
-if (!exists("check_pf")) {
-  check_pf <- readr::read_csv(file.path(DataPath, 
-                                        "Output", 
-                                        "Intermediate", 
-                                        "01_prefilter_database.csv"), 
-                              col_types = BeeBDC::ColTypeR())
-}
-
-#****************
-#TODO: finish this section
-### Impute stateProvince from coordinates ----
-# Get stateProvince name from coordinates using a wrapper around the jbd_country_from_coordinates() function. Because our dataset is much larger than those used to design bdc, we have made it so that you can analyse data in smaller pieces. Additionally, like some other functions in BeeBDC, we have implemented parallel operations (using mc.cores = #cores in stepSize = #rowsPerOperation); see ‘?jbd_CfC_chunker()’ for details. NOTE: In an actual run you should use scale = “large”
-# Creates another dataset containing just the databaseID and the country name based on coordinates
-suppressWarnings(
-  stateProvinceOutput <- BeeBDC::jbd_CfC_chunker(data = check_pf_noNa,
-                                           lat = "decimalLatitude",
-                                           lon = "decimalLongitude",
-                                           stateProvince = "stateProvince",
-                                           # How many rows to process at a time
-                                           stepSize = 10000, # Decrease if you're running out of RAM, increase for speed
-                                           # Start row
-                                           chunkStart = 1,
-                                           path = OutPath_Intermediate,
-                                           # Normally, please use scale = "large"
-                                           scale = "large",
-                                           mc.cores = 1),
-  classes = "warning")
-
-# Re-join these datasets
-check_pf <- dplyr::left_join(check_pf, 
-                             stateProvinceOutput, 
-                             by = "database_id", 
-                             suffix = c("", "CO")) %>%
-  # Take the new stateProvince name if the original is NA
-  dplyr::mutate(stateProvince = dplyr::if_else(is.na(stateProvince), 
-                                         stateProvinceCO,
-                                         stateProvince)) %>%
-  # Remove duplicates if they arose from left_join!
-  dplyr::distinct()
-
-# Save the dataset
-readr::write_excel_csv(check_pf, file.path(OutPath_Intermediate, 
-                                           "01_prefilter_database.csv"))
-
-# Remove these interim datasets
-rm(check_pf_noNa, stateProvinceOutput)
-
-# Read in previously saved dataset if necessary
-if (!exists("check_pf")) {
-  check_pf <- readr::read_csv(file.path(DataPath, 
-                                        "Output", 
-                                        "Intermediate", 
-                                        "01_prefilter_database.csv"), 
-                              col_types = BeeBDC::ColTypeR())
-}
-
-#****************
-#TODO: finish this section
-### Impute county from coordinates ----
-# Get county name from coordinates using a wrapper around the jbd_country_from_coordinates() function. Because our dataset is much larger than those used to design bdc, we have made it so that you can analyse data in smaller pieces. Additionally, like some other functions in BeeBDC, we have implemented parallel operations (using mc.cores = #cores in stepSize = #rowsPerOperation); see ‘?jbd_CfC_chunker()’ for details. NOTE: In an actual run you should use scale = “large”
-# Creates another dataset containing just the databaseID and the county name based on coordinates
-suppressWarnings(
-  countyOutput <- BeeBDC::jbd_CfC_chunker(data = check_pf_noNa,
-                                                 lat = "decimalLatitude",
-                                                 lon = "decimalLongitude",
-                                                 county = "county",
-                                                 # How many rows to process at a time
-                                                 stepSize = 10000, # Decrease if you're running out of RAM, increase for speed
-                                                 # Start row
-                                                 chunkStart = 1,
-                                                 path = OutPath_Intermediate,
-                                                 # Normally, please use scale = "large"
-                                                 scale = "large",
-                                                 mc.cores = 1),
-  classes = "warning")
-
-# Re-join these datasets
-check_pf <- dplyr::left_join(check_pf, 
-                              countyOutput, 
-                              by = "database_id", 
-                              suffix = c("", "CO")) %>%
-  # Take the new stateProvince name if the original is NA
-  dplyr::mutate(county = dplyr::if_else(is.na(county), 
-                                               countyCO,
-                                               county)) %>%
-  # Remove duplicates if they arose from left_join!
-  dplyr::distinct()
-
-# Save the dataset
-readr::write_excel_csv(check_pf, file.path(OutPath_Intermediate, 
-                                           "01_prefilter_database.csv"))
-
-# Remove these interim datasets
-rm(check_pf_noNa, countyOutput)
-
-# Read in previously saved dataset if necessary
-if (!exists("check_pf")) {
-  check_pf <- readr::read_csv(file.path(DataPath, 
-                                        "Output", 
-                                        "Intermediate", 
-                                        "01_prefilter_database.csv"), 
-                              col_types = BeeBDC::ColTypeR())
-}
-
-#****************
-### Standardize country names and add ISO2 codes, if needed----
-
-# Adds two columns: "country_suggested" and "countryCode", removes these columns prior to running in an instance when the dataset contains these columns from previous runs. 
-# Standardise country names and add ISO2 codes if needed
-check_pf <- bdc::bdc_country_standardized(
-  # Remove the countryCode and country_suggested columns if they were already
-  # created in a previous run
-  data = check_pf %>% dplyr::select(!tidyselect::any_of(c("countryCode", "country_suggested"))),
-  country = "country"
-) 
-
-#****************
-### Correct transposed coordinates----
-
-# Flag and correct records when decimalLatitude and decimalLongitude appear to be transposed. We created this chunked version of bdc::bdc_coordinates_transposed() because it is very RAM-heavy  using our large bee dataset. Like many of our other ‘jbd_…’ functions there are other improvement - e.g., parallel running.
-# NOTE: Usually you would use scale = “large”, which requires rnaturalearthhires
-# Adds column "coordinates_transposed" if transpositions are made
-# *USE SAMPLE DATASET IF TESTING THIS FUNCTION (TAKES LONG AND USES A LOT OF RAM)*
-check_pf <- BeeBDC::jbd_Ctrans_chunker(
-  # bdc_coordinates_transposed inputs
-  data = check_pf,
-  idcol = "database_id",
-  lat = "decimalLatitude",
-  lon = "decimalLongitude",
-  country = "country",
-  countryCode = "countryCode",
-  border_buffer = 0.2, # in decimal degrees (~22 km at the equator)
-  save_outputs = TRUE,
-  sci_names = "scientificName",
-  # chunker inputs
-  stepSize = 1000000,  # How many rows to process at a time
-  chunkStart = 1,  # Start row
-  append = FALSE,  # If FALSE it may overwrite existing dataset
-  progressiveSave = FALSE,
-  # In a normal run, please use scale = "large"
-  scale = "large",
-  path = OutPath_Check,
-  mc.cores = 1
-) 
-
-# If transpositions were made, use this to view how many were corrected. Will output a warning if there are no transposed occurrences
-table(check_pf$coordinates_transposed, useNA = "always") # NOTE: F = transposed/corrected records, T = already correct records 
-
-# Save the dataset
-readr::write_excel_csv(check_pf, file.path(OutPath_Intermediate, 
-                                           "01_prefilter_database.csv"))
-
-# Read in the data again if needed
-if (!exists("check_pf")) {
-  check_pf <- readr::read_csv(file.path(OutPath_Intermediate, 
-                                        "01_prefilter_database.csv"), 
-                              col_types = BeeBDC::ColTypeR())
-}
-
-#****************
-### Flag coordinates inconsistent with country names----
-
-# Collect all country names in the country_suggested column. 
-# We rebuilt a BDC function to flag occurrences where the coordinates are inconsistent with the provided country name.
-# NOTE: A "no simple features geometry column present" error will show if ALL observations are flagged for .coordinates_empty OR .coordinates_outOfRange
-check_pf <- BeeBDC::jbd_coordCountryInconsistent(data = check_pf, 
-                                                 lon = "decimalLongitude",
-                                                 lat = "decimalLatitude", 
-                                                 scale = 50, 
-                                                 pointBuffer = 0.01) # Note: Non-breaking database_id warning caused by issues with code
-
-# Save dataset
-readr::write_excel_csv(check_pf, file.path(OutPath_Intermediate, 
-                                           "01_prefilter_database.csv"))
-
-#****************
-### Flag GeoRef Issues----
-
-# This function identifies records whose coordinates can potentially be extracted from locality information, which must be manually checked later.
-xyFromLocality <- bdc::bdc_coordinates_from_locality(data = check_pf, 
-                                                     locality = "locality",
-                                                     lon = "decimalLongitude", 
-                                                     lat = "decimalLatitude", 
-                                                     save_outputs = FALSE) # Files will save at top-level directory
-
-# Save resultant data
-readr::write_excel_csv(xyFromLocality, 
-                       file.path(OutPath_Check, 
-                                 "01_coordinates_from_locality.csv"))
-#************************************
-
-### *Optional*: correct Georeferencing issues ----
-
-# Using the exported xyFromLocality file (01_coordinates_from_locality.csv) created above, georeference these records. GBIF provides a comprehensive overview of what georeferencing is and how to approach it in different situations here: https://docs.gbif.org/georeferencing-quick-reference-guide/1.0/en/
-
-  # Here are just a few examples of useful tools for georeferencing: 
-    # 1. ArcGIS: https://pro.arcgis.com/en/pro-app/latest/help/data/imagery/overview-of-georeferencing.htm
-    # 2. Google Earth
-    # 3. Georeferencing calculator: https://georeferencing.org/georefcalculator/gc.html
-
-# Using your choice of methods, georeference as many records as possible from the xyFromLocality file.You need to add information for 3 columns:
-  # 1. decimalLatitude
-  # 2. decimalLongitude
-  # 3. coordinateUncertaintyInMeters
-
-# Read back in file with georeferenced records
-added_xyFromLocality <- readr::read_csv(file.path(OutPath_Check,
-                                        "01_coordinates_from_locality.csv"),
-                              col_types = BeeBDC::ColTypeR())
-
-# Join with check_pf db and add in the new georeferenced values
-# TODO: test to make sure this is working correctly
-check_pf <- rows_patch(check_pf,
-                       added_xyFromLocality,
-                       by = 'database_id')
-
-# Save the updated file as the new 02_taxonomy_database file. If you need to stop and complete the rest of the flagging later, this file will ensure you will not have to redo the manual georeferencing.
-readr::write_excel_csv(check_pf, file.path(DataPath, 
-                                             "Output",
-                                             "Intermediate",
-                                             "02_taxonomy_database.csv"))
-
-
-#************************************
-
-# Remove spent data
-rm(xyFromLocality)
 
 #****************
 ### Flag records marked as "absent"----
@@ -994,7 +710,7 @@ flagFile <- BeeBDC::flagRecorder(data = check_pf,
 
 #************************************
 
-## Space Flags ---------------------------------------------------------------
+## Spatial Flags ----------------------------------------
 
 #****************
 # Read in latest database, if needed
@@ -1003,6 +719,286 @@ if (!exists("check_pf")) {
                                         "01_prefilter_output.csv"), 
                               col_types = BeeBDC::ColTypeR())
 }
+
+#****************
+### Harmonize country names----
+
+# Create a separate dataset with harmonized country names and associated info
+check_pf_noNa <- BeeBDC::countryNameCleanR(
+  data = check_pf,
+  # Create a Tibble of common issues in country names and their replacements
+  commonProblems = dplyr::tibble(problem = c('U.S.A.','US','USA','usa',
+                                             'UNITED STATES','United States',
+                                             'U.S.A',"México"),
+                                 fix = c('United States of America','United States of America',
+                                         'United States of America','United States of America',
+                                         'United States of America','United States of America',
+                                         'United States of America',"Mexico")))
+
+# Get country name from coordinates using a wrapper around the jbd_country_from_coordinates() function. Because our dataset is much larger than those used to design bdc, we have made it so that you can analyse data in smaller pieces. Additionally, like some other functions in BeeBDC, we have implemented parallel operations (using mc.cores = #cores in stepSize = #rowsPerOperation); see ‘?jbd_CfC_chunker()’ for details. NOTE: In an actual run you should use scale = “large”
+# Creates another dataset containing just the databaseID and the country name based on coordinates
+suppressWarnings(
+  countryOutput <- BeeBDC::jbd_CfC_chunker(data = check_pf_noNa,
+                                           lat = "decimalLatitude",
+                                           lon = "decimalLongitude",
+                                           country = "country",
+                                           # How many rows to process at a time
+                                           stepSize = 10000, # Decrease if you're running out of RAM, increase for speed
+                                           # Start row
+                                           chunkStart = 1,
+                                           path = OutPath_Intermediate,
+                                           # Normally, please use scale = "large"
+                                           scale = "large",
+                                           mc.cores = 1),
+  classes = "warning")
+
+# Re-join these datasets
+check_pf <- dplyr::left_join(check_pf, 
+                             countryOutput, 
+                             by = "database_id", 
+                             suffix = c("", "CO")) %>%
+  # Take the new country name if the original is NA
+  dplyr::mutate(country = dplyr::if_else(is.na(country), 
+                                         countryCO,
+                                         country)) %>%
+  # Remove duplicates if they arose from left_join!
+  dplyr::distinct()
+
+# Save the dataset
+readr::write_excel_csv(check_pf, file.path(OutPath_Intermediate, 
+                                           "01_prefilter_database.csv"))
+
+# Remove these interim datasets
+rm(check_pf_noNa, countryOutput)
+
+# Read in previously saved dataset if necessary
+if (!exists("check_pf")) {
+  check_pf <- readr::read_csv(file.path(DataPath, 
+                                        "Output", 
+                                        "Intermediate", 
+                                        "01_prefilter_database.csv"), 
+                              col_types = BeeBDC::ColTypeR())
+}
+#****************
+### Standardize country names and add ISO2 codes, if needed----
+
+# Adds two columns: "country_suggested" and "countryCode", removes these columns prior to running in an instance when the dataset contains these columns from previous runs. 
+# Standardise country names and add ISO2 codes if needed
+check_pf <- bdc::bdc_country_standardized(
+  # Remove the countryCode and country_suggested columns if they were already
+  # created in a previous run
+  data = check_pf %>% dplyr::select(!tidyselect::any_of(c("countryCode", "country_suggested"))),
+  country = "country"
+) 
+
+#****************
+#TODO: finish this section
+### Impute stateProvince from coordinates ----
+# Get stateProvince name from coordinates using a wrapper around the jbd_country_from_coordinates() function. Because our dataset is much larger than those used to design bdc, we have made it so that you can analyse data in smaller pieces. Additionally, like some other functions in BeeBDC, we have implemented parallel operations (using mc.cores = #cores in stepSize = #rowsPerOperation); see ‘?jbd_CfC_chunker()’ for details. NOTE: In an actual run you should use scale = “large”
+# Creates another dataset containing just the databaseID and the country name based on coordinates
+suppressWarnings(
+  stateProvinceOutput <- BeeBDC::jbd_CfC_chunker(data = check_pf_noNa,
+                                                 lat = "decimalLatitude",
+                                                 lon = "decimalLongitude",
+                                                 stateProvince = "stateProvince",
+                                                 # How many rows to process at a time
+                                                 stepSize = 10000, # Decrease if you're running out of RAM, increase for speed
+                                                 # Start row
+                                                 chunkStart = 1,
+                                                 path = OutPath_Intermediate,
+                                                 # Normally, please use scale = "large"
+                                                 scale = "large",
+                                                 mc.cores = 1),
+  classes = "warning")
+
+# Re-join these datasets
+check_pf <- dplyr::left_join(check_pf, 
+                             stateProvinceOutput, 
+                             by = "database_id", 
+                             suffix = c("", "CO")) %>%
+  # Take the new stateProvince name if the original is NA
+  dplyr::mutate(stateProvince = dplyr::if_else(is.na(stateProvince), 
+                                               stateProvinceCO,
+                                               stateProvince)) %>%
+  # Remove duplicates if they arose from left_join!
+  dplyr::distinct()
+
+# Save the dataset
+readr::write_excel_csv(check_pf, file.path(OutPath_Intermediate, 
+                                           "01_prefilter_database.csv"))
+
+# Remove these interim datasets
+rm(check_pf_noNa, stateProvinceOutput)
+
+# Read in previously saved dataset if necessary
+if (!exists("check_pf")) {
+  check_pf <- readr::read_csv(file.path(DataPath, 
+                                        "Output", 
+                                        "Intermediate", 
+                                        "01_prefilter_database.csv"), 
+                              col_types = BeeBDC::ColTypeR())
+}
+
+#****************
+#TODO: finish this section
+### Impute county from coordinates ----
+# Get county name from coordinates using a wrapper around the jbd_country_from_coordinates() function. Because our dataset is much larger than those used to design bdc, we have made it so that you can analyse data in smaller pieces. Additionally, like some other functions in BeeBDC, we have implemented parallel operations (using mc.cores = #cores in stepSize = #rowsPerOperation); see ‘?jbd_CfC_chunker()’ for details. NOTE: In an actual run you should use scale = “large”
+# Creates another dataset containing just the databaseID and the county name based on coordinates
+suppressWarnings(
+  countyOutput <- BeeBDC::jbd_CfC_chunker(data = check_pf_noNa,
+                                          lat = "decimalLatitude",
+                                          lon = "decimalLongitude",
+                                          county = "county",
+                                          # How many rows to process at a time
+                                          stepSize = 10000, # Decrease if you're running out of RAM, increase for speed
+                                          # Start row
+                                          chunkStart = 1,
+                                          path = OutPath_Intermediate,
+                                          # Normally, please use scale = "large"
+                                          scale = "large",
+                                          mc.cores = 1),
+  classes = "warning")
+
+# Re-join these datasets
+check_pf <- dplyr::left_join(check_pf, 
+                             countyOutput, 
+                             by = "database_id", 
+                             suffix = c("", "CO")) %>%
+  # Take the new stateProvince name if the original is NA
+  dplyr::mutate(county = dplyr::if_else(is.na(county), 
+                                        countyCO,
+                                        county)) %>%
+  # Remove duplicates if they arose from left_join!
+  dplyr::distinct()
+
+# Save the dataset
+readr::write_excel_csv(check_pf, file.path(OutPath_Intermediate, 
+                                           "01_prefilter_database.csv"))
+
+# Remove these interim datasets
+rm(check_pf_noNa, countyOutput)
+
+# Read in previously saved dataset if necessary
+if (!exists("check_pf")) {
+  check_pf <- readr::read_csv(file.path(DataPath, 
+                                        "Output", 
+                                        "Intermediate", 
+                                        "01_prefilter_database.csv"), 
+                              col_types = BeeBDC::ColTypeR())
+}
+
+
+#****************
+### Correct transposed coordinates----
+
+# Flag and correct records when decimalLatitude and decimalLongitude appear to be transposed. We created this chunked version of bdc::bdc_coordinates_transposed() because it is very RAM-heavy  using our large bee dataset. Like many of our other ‘jbd_…’ functions there are other improvement - e.g., parallel running.
+# NOTE: Usually you would use scale = “large”, which requires rnaturalearthhires
+# Adds column "coordinates_transposed" if transpositions are made
+# *USE SAMPLE DATASET IF TESTING THIS FUNCTION (TAKES LONG AND USES A LOT OF RAM)*
+check_pf <- BeeBDC::jbd_Ctrans_chunker(
+  # bdc_coordinates_transposed inputs
+  data = check_pf,
+  idcol = "database_id",
+  lat = "decimalLatitude",
+  lon = "decimalLongitude",
+  country = "country",
+  countryCode = "countryCode",
+  border_buffer = 0.2, # in decimal degrees (~22 km at the equator)
+  save_outputs = TRUE,
+  sci_names = "scientificName",
+  # chunker inputs
+  stepSize = 1000000,  # How many rows to process at a time
+  chunkStart = 1,  # Start row
+  append = FALSE,  # If FALSE it may overwrite existing dataset
+  progressiveSave = FALSE,
+  # In a normal run, please use scale = "large"
+  scale = "large",
+  path = OutPath_Check,
+  mc.cores = 1
+) 
+
+# If transpositions were made, use this to view how many were corrected. Will output a warning if there are no transposed occurrences
+table(check_pf$coordinates_transposed, useNA = "always") # NOTE: F = transposed/corrected records, T = already correct records 
+
+# Save the dataset
+readr::write_excel_csv(check_pf, file.path(OutPath_Intermediate, 
+                                           "01_prefilter_database.csv"))
+
+# Read in the data again if needed
+if (!exists("check_pf")) {
+  check_pf <- readr::read_csv(file.path(OutPath_Intermediate, 
+                                        "01_prefilter_database.csv"), 
+                              col_types = BeeBDC::ColTypeR())
+}
+
+#****************
+### Flag coordinates inconsistent with country names----
+
+# Collect all country names in the country_suggested column. 
+# We rebuilt a BDC function to flag occurrences where the coordinates are inconsistent with the provided country name.
+# NOTE: A "no simple features geometry column present" error will show if ALL observations are flagged for .coordinates_empty OR .coordinates_outOfRange
+check_pf <- BeeBDC::jbd_coordCountryInconsistent(data = check_pf, 
+                                                 lon = "decimalLongitude",
+                                                 lat = "decimalLatitude", 
+                                                 scale = 50, 
+                                                 pointBuffer = 0.01) # Note: Non-breaking database_id warning caused by issues with code
+
+# Save dataset
+readr::write_excel_csv(check_pf, file.path(OutPath_Intermediate, 
+                                           "01_prefilter_database.csv"))
+
+#****************
+### Flag GeoRef Issues----
+
+# This function identifies records whose coordinates can potentially be extracted from locality information, which must be manually checked later.
+xyFromLocality <- bdc::bdc_coordinates_from_locality(data = check_pf, 
+                                                     locality = "locality",
+                                                     lon = "decimalLongitude", 
+                                                     lat = "decimalLatitude", 
+                                                     save_outputs = FALSE) # Files will save at top-level directory
+
+# Save resultant data
+readr::write_excel_csv(xyFromLocality, 
+                       file.path(OutPath_Check, 
+                                 "01_coordinates_from_locality.csv"))
+
+#************************************
+### *Optional*: correct Georeferencing issues ----
+
+# Using the exported xyFromLocality file (01_coordinates_from_locality.csv) created above, georeference these records. GBIF provides a comprehensive overview of what georeferencing is and how to approach it in different situations here: https://docs.gbif.org/georeferencing-quick-reference-guide/1.0/en/
+
+# Here are just a few examples of useful tools for georeferencing: 
+# 1. ArcGIS: https://pro.arcgis.com/en/pro-app/latest/help/data/imagery/overview-of-georeferencing.htm
+# 2. Google Earth
+# 3. Georeferencing calculator: https://georeferencing.org/georefcalculator/gc.html
+
+# Using your choice of methods, georeference as many records as possible from the xyFromLocality file.You need to add information for 3 columns:
+# 1. decimalLatitude
+# 2. decimalLongitude
+# 3. coordinateUncertaintyInMeters
+
+# Read back in file with georeferenced records
+added_xyFromLocality <- readr::read_csv(file.path(OutPath_Check,
+                                                  "01_coordinates_from_locality.csv"),
+                                        col_types = BeeBDC::ColTypeR())
+
+# Join with check_pf db and add in the new georeferenced values
+# TODO: test to make sure this is working correctly
+check_pf <- rows_patch(check_pf,
+                       added_xyFromLocality,
+                       by = 'database_id')
+
+# Save the updated file as the new 02_taxonomy_database file. If you need to stop and complete the rest of the flagging later, this file will ensure you will not have to redo the manual georeferencing.
+readr::write_excel_csv(check_pf, file.path(DataPath, 
+                                           "Output",
+                                           "Intermediate",
+                                           "02_taxonomy_database.csv"))
+
+
+#************************************
+
+# Remove spent data
+rm(xyFromLocality)
 
 #****************
 ### Coordinate precision----
@@ -1078,7 +1074,15 @@ readr::write_excel_csv(check_space, file.path(OutPath_Intermediate,
                                               "03_space_inter_database.csv"))
 
 #****************
-# Diagonal and Grid Issues----
+### Uncertainty----
+
+# Flag records that exceed a coordinateUncertaintyInMeters threshold (currently set to 1000m)
+check_space <- BeeBDC::coordUncerFlagR(data = check_space, 
+                                       uncerColumn = "coordinateUncertaintyInMeters",
+                                       threshold = 1000)
+
+#****************
+### Diagonal and Grid Issues----
 
 # Load most recent database, if necessary
 if (!exists("check_space")) {
@@ -1161,13 +1165,6 @@ readr::write_excel_csv(gridded_datasets, file.path(OutPath_Intermediate,
 # Remove old variable
 rm(gridded_datasets)
 
-#****************
-### Uncertainty----
-
-# Flag records that exceed a coordinateUncertaintyInMeters threshold (currently set to 1000m)
-check_space <- BeeBDC::coordUncerFlagR(data = check_space, 
-                                       uncerColumn = "coordinateUncertaintyInMeters",
-                                       threshold = 1000)
 
 #****************
 ### Country Checklist----
@@ -1308,10 +1305,10 @@ readr::write_excel_csv(check_space, file.path(OutPath_Intermediate,
 
 #************************************
 
-## Time Flags -------------------------------------------------------------
+## Time Flags --------------------------------------------------------------
 
 #****************
-# Read in the last database, if needed
+# Read in last database as check_time
 if (!exists("check_space")) {
   check_time <- readr::read_csv(file.path(OutPath_Intermediate,
                                           "03_space_database.csv"),
@@ -1383,7 +1380,6 @@ check_time <- BeeBDC::summaryFun(
 ### Time figures----
 
 # Create time results figures
-# TODO: Error "object 'i' not found". This is most likely a bug in the create_figures code. (AEP note: this ran without error for me...)
 figures <- BeeBDC::jbd_create_figures(data = check_time,
                                       path = DataPath,
                                       database_id = "database_id",
@@ -1409,7 +1405,7 @@ BeeBDC::flagRecorder(data = check_time,
 #************************************
 
 
-# De-duplication ----------------------------------------------------------
+## Duplicates -----------------------------------------------------------
 
 
 # We will FLAG duplicates here. These input columns can be adjusted as needed to de-duplicate to your preference. This function uses user-specified inputs and columns to identify duplicate occurrence records. Duplicates are identified iteratively and will be tallied up, duplicate pairs clustered, and sorted at the end of the function. The function is designed to work with Darwin Core data with a database_id column, but it is also modifiable to work with other columns. I would encourage you to see ‘?dupeSummary()’ for more details as this function is quite modifiable to user needs.
@@ -1486,7 +1482,7 @@ BeeBDC::flagRecorder(data = check_time,
 #************************************
 
 
-# Plot and Review Duplicates ----------------------------------------------
+### Plot and Review Duplicates ----------------------------------------------
 
 
 # Read in most recent file of flagged duplicates, if necessary
