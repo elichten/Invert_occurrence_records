@@ -796,8 +796,12 @@ check_pf <- bdc::bdc_country_standardized(
 ### Impute stateProvince from coordinates ----
 # Get stateProvince name from coordinates using a wrapper around the jbd_country_from_coordinates() function. Because our dataset is much larger than those used to design bdc, we have made it so that you can analyse data in smaller pieces. Additionally, like some other functions in BeeBDC, we have implemented parallel operations (using mc.cores = #cores in stepSize = #rowsPerOperation); see ‘?jbd_CfC_chunker()’ for details. NOTE: In an actual run you should use scale = “large”
 # Creates another dataset containing just the databaseID and the country name based on coordinates
+check_pf_noNa <- check_pf %>%
+  tidyr::drop_na(c("decimalLatitude", 
+                   "decimalLongitude"))
+
 suppressWarnings(
-  stateProvinceOutput <- BeeBDC::jbd_CfC_chunker(data = check_pf_noNa,
+  stateProvinceOutput <- stateFinder(data = check_pf_noNa,
                                                  lat = "decimalLatitude",
                                                  lon = "decimalLongitude",
                                                  stateProvince = "stateProvince",
@@ -815,6 +819,7 @@ suppressWarnings(
 check_pf <- dplyr::left_join(check_pf, 
                              stateProvinceOutput, 
                              by = "database_id", 
+                             #TODO: figure out what this suffix thing refers to
                              suffix = c("", "CO")) %>%
   # Take the new stateProvince name if the original is NA
   dplyr::mutate(stateProvince = dplyr::if_else(is.na(stateProvince), 
@@ -844,6 +849,10 @@ if (!exists("check_pf")) {
 ### Impute county from coordinates ----
 # Get county name from coordinates using a wrapper around the jbd_country_from_coordinates() function. Because our dataset is much larger than those used to design bdc, we have made it so that you can analyse data in smaller pieces. Additionally, like some other functions in BeeBDC, we have implemented parallel operations (using mc.cores = #cores in stepSize = #rowsPerOperation); see ‘?jbd_CfC_chunker()’ for details. NOTE: In an actual run you should use scale = “large”
 # Creates another dataset containing just the databaseID and the county name based on coordinates
+check_pf_noNa <- check_pf %>%
+  tidyr::drop_na(c("decimalLatitude", 
+                   "decimalLongitude"))
+
 suppressWarnings(
   countyOutput <- BeeBDC::jbd_CfC_chunker(data = check_pf_noNa,
                                           lat = "decimalLatitude",
