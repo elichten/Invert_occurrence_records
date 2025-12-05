@@ -769,7 +769,8 @@ readr::write_excel_csv(check_pf, file.path(OutPath_Intermediate,
                                            "01_prefilter_database.csv"))
 
 # Remove these interim datasets
-rm(check_pf_noNa, countryOutput)
+#TODO: check and make sure worldmap is a valid object to remove, might be internally squirrelled away in function
+rm(check_pf_noNa, countryOutput, worldmap)
 
 # Read in previously saved dataset if necessary
 if (!exists("check_pf")) {
@@ -833,7 +834,7 @@ readr::write_excel_csv(check_pf, file.path(OutPath_Intermediate,
                                            "01_prefilter_database.csv"))
 
 # Remove these interim datasets
-rm(check_pf_noNa, stateProvinceOutput)
+rm(check_pf_noNa, stateProvinceOutput, statelist)
 
 # Read in previously saved dataset if necessary
 if (!exists("check_pf")) {
