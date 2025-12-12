@@ -2,6 +2,7 @@
 *.Rproj
 .Rhistory
 .RData
+.RDataTmp
 .Ruserdata
 
 # Ignore all files within Data_acquisition_workflow
@@ -14,3 +15,5 @@ Data_acquisition_workflow/*
 
 # Ignore .DS_Store files from macOS
 *.DS_Store
+
+*.png
