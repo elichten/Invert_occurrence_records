@@ -1386,6 +1386,7 @@ recovered_dates %>%
   View()
   
 # Merge recovered_dates with dataset, replacing affected eventDates with eventDate_new values
+# Also add new date_inferred flag to mark eventDates derived through dateFindR
 check_time <- check_time %>%
   mutate(date_inferred = FALSE) %>%
   rows_update(
