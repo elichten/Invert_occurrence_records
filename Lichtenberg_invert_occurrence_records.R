@@ -499,7 +499,7 @@ db_standardized <-
 
 
 # NOTE: These flags can be counter intuitive. 
-#   A value of FALSE in the ".coordinates_empty" columns indicates that the row was flagged for empty coordinates (and vice versa)
+#   A value of FALSE in the ".coordinates_empty" column indicates that the row was flagged for empty coordinates (and vice versa)
 
 
 #************************************
@@ -1354,12 +1354,46 @@ check_time$day <- ifelse(check_time$day > 31 | check_time$day < 1, NA, check_tim
 ### Recover dates----
 
 # The dateFindR() function will search through some other columns in order to find and rescue dates that may not have made it into the correct columns. It will further update the eventDate, day, month, and year columns where these data were a) missing and b) located in one of the searched columns.
-# NOTE: This update to the original BeeBDC function is more conservative with date assignments
-check_time <- dateFindR_fixed(data = check_time,
-                              # Years above this are removed (from the recovered dates only)
-                              maxYear = lubridate::year(Sys.Date()),
-                              # Years below this are removed (from the recovered dates only)
-                              minYear = 1700)
+recovered_dates <- dateFindR_fixed(data = check_time,
+       maxYear = year(Sys.Date()),
+       minYear = 1700) %>%
+  mutate(eventDate_new = eventDate) %>%
+  dplyr::select(database_id, eventDate_new) %>%
+  inner_join(
+    check_time %>% mutate(eventDate_old = eventDate),
+    by = "database_id"
+  ) %>%
+  # Filter to changed dates
+  filter(
+    suppressWarnings(ymd(eventDate_new)) != suppressWarnings(ymd(eventDate_old)) | 
+    (is.na(eventDate_old) & !is.na(eventDate_new))
+  )
+
+# Review the proposed dates (make changes to eventDate_new if desired)
+recovered_dates %>%
+  dplyr::select(
+    eventDate_new,
+    eventDate_old,
+    verbatimEventDate,
+    locality,
+    fieldNotes,
+    locationRemarks,
+    year,
+    month,
+    day,
+    database_id
+  ) %>%
+  View()
+  
+# Merge recovered_dates with dataset, replacing affected eventDates with eventDate_new values
+check_time <- check_time %>%
+  rows_patch(
+    recovered_dates %>%
+      mutate(eventDate_new = as.character(eventDate_new)) %>%  # convert to character
+      dplyr::select(database_id, eventDate = eventDate_new),          # rename for patch
+    by = "database_id"
+  )
+
 
 #****************
 ### No eventDate----
