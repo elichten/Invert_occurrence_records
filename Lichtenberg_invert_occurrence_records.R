@@ -1387,10 +1387,14 @@ recovered_dates %>%
   
 # Merge recovered_dates with dataset, replacing affected eventDates with eventDate_new values
 check_time <- check_time %>%
-  rows_patch(
+  mutate(date_inferred = FALSE) %>%
+  rows_update(
     recovered_dates %>%
-      mutate(eventDate_new = as.character(eventDate_new)) %>%  # convert to character
-      dplyr::select(database_id, eventDate = eventDate_new),          # rename for patch
+      mutate(
+        eventDate_new = as.character(eventDate_new),
+        date_inferred = TRUE
+      ) %>%
+      dplyr::select(database_id, eventDate = eventDate_new, date_inferred),
     by = "database_id"
   )
 
