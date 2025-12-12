@@ -44,12 +44,39 @@ add_occ_records <- function(table = NULL, filepath = NULL, datasetName = "custom
     tableWithIds <- tableWithIds %>%
       mutate(country = "")
   }
+  if (!"countryCode" %in% columnNames) {
+    message("Creating empty countryCode column...")
+    tableWithIds <- tableWithIds %>%
+      mutate(countryCode = "")
+  }
+  if (!"fieldNotes" %in% columnNames) {
+    message("Creating empty fieldNotes column...")
+    tableWithIds <- tableWithIds %>%
+      mutate(fieldNotes = "")
+  }
+  if (!"locationRemarks" %in% columnNames) {
+    message("Creating empty locationRemarks column...")
+    tableWithIds <- tableWithIds %>%
+      mutate(locationRemarks = "")
+  }
+  if (!"verbatimEventDate" %in% columnNames) {
+    message("Creating empty verbatimEventDate column...")
+    tableWithIds <- tableWithIds %>%
+      mutate(verbatimEventDate = "")
+  }
+  # datasetName argument defaults to "other"
+  if (!"datasetName" %in% columnNames){
+    message("Creating datasetName column...")
+    tableWithIds <- tableWithIds %>%
+      mutate(datasetName = !!datasetName)
+  }
   # dataSource argument defaults to "other"
   if (!"dataSource" %in% columnNames){
     message("Creating dataSource column...")
     tableWithIds <- tableWithIds %>%
       mutate(dataSource = !!dataSource)
   }
+  
   
   # Check required and desired columns
   check_occ_table(tableWithIds)

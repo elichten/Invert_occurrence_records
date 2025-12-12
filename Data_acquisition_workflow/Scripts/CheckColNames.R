@@ -54,14 +54,14 @@ check_occ_table <- function(table) {
                        "coordinateUncertaintyInMeters",
                        "year",
                        "month",
-                       "day")
+                       "day",
+                       "fieldNotes",
+                       "locationRemarks",
+                       "verbatimEventDate")
   
   desiredColumns <- c("otherCatalogNumbers",
                       "institutionCode",
-                      "recordId",
-                      "fieldNotes",
-                      "locationRemarks",
-                      "verbatimEventDate")
+                      "recordId")
   
   check_col_names(table, requiredColumns, desiredColumns)
   return(table)
