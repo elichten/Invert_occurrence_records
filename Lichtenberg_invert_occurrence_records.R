@@ -1386,16 +1386,16 @@ recovered_dates %>%
   View()
   
 # Merge recovered_dates with dataset, replacing affected eventDates with eventDate_new values
-# Also add new date_inferred flag to mark eventDates derived through dateFindR
+# Also add new .date_inferred flag to mark eventDates derived through dateFindR
 check_time <- check_time %>%
-  mutate(date_inferred = FALSE) %>%
+  mutate(.date_inferred = TRUE) %>%
   rows_update(
     recovered_dates %>%
       mutate(
         eventDate_new = as.character(eventDate_new),
-        date_inferred = TRUE
+        .date_inferred = FALSE
       ) %>%
-      dplyr::select(database_id, eventDate = eventDate_new, date_inferred),
+      dplyr::select(database_id, eventDate = eventDate_new, .date_inferred),
     by = "database_id"
   )
 
