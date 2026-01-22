@@ -1,7 +1,4 @@
-# This script is for testing out the BeeBDC package and developing our workflow 
-# for assessing TX native bee conservation status. It should be kept as a 
-# working document (without deleting old code and comments), and not converted 
-# into a clean workflow.
+# This script is for testing out the BeeBDC package and developing our workflow for assessing TX native bee conservation status. It should be kept as a working document (without deleting old code and comments), and not converted into a clean workflow.
 
 # Last updated: "2025-01-31 14:33:39 CST" (RLW)
 # Authors: Elinor M. Lichtenberg, Avery Pearson, Robert Whyle
@@ -14,9 +11,10 @@
 
 
 #****************
-## Install packages----
+## Install packages ----
 
 # NOTE: We've only provided code for the installation of BeeBDC-related packages below, but you will also need to install packages "countrycode", "rgbif","spocc","taxize", and "tidyverse" to run this script. For more information on how to install R packages, see this guide: https://cran.r-project.org/doc/manuals/r-patched/R-admin.html
+
 # Once you've installed these packages, you won't need to run this section of code again. Instead, jump right to the 'Load libraries' section and start from there.
 
 # First, install BiocManager, devtools, ComplexHeatmap, and rnaturalearthhires. Complete these installations prior to installing BeeBDC
@@ -42,7 +40,7 @@ install.packages("BeeBDC",
 #****************
 ### Load libraries----
 
-# NOTE: Jump here if all above packages have already been installed
+# NOTE: Start here if all above packages have already been installed
 library(rgbif)
 library(ritis)
 library(rgnparser)
@@ -793,9 +791,9 @@ check_pf <- bdc::bdc_country_standardized(
 ) 
 
 #****************
-#TODO: finish this section
 ### Impute stateProvince from coordinates ----
 # Get stateProvince name from coordinates using a wrapper around the jbd_country_from_coordinates() function. Because our dataset is much larger than those used to design bdc, we have made it so that you can analyse data in smaller pieces. Additionally, like some other functions in BeeBDC, we have implemented parallel operations (using mc.cores = #cores in stepSize = #rowsPerOperation); see ‘?jbd_CfC_chunker()’ for details. NOTE: In an actual run you should use scale = “large”
+
 # Creates another dataset containing just the databaseID and the country name based on coordinates
 check_pf_noNa <- check_pf %>%
   tidyr::drop_na(c("decimalLatitude", 
@@ -820,14 +818,14 @@ suppressWarnings(
 check_pf <- dplyr::left_join(check_pf, 
                              stateProvinceOutput, 
                              by = "database_id", 
-                             #TODO: figure out what this suffix thing refers to
                              suffix = c("", "CO")) %>%
   # Take the new stateProvince name if the original is NA
   dplyr::mutate(stateProvince = dplyr::if_else(is.na(stateProvince), 
                                                stateProvinceCO,
                                                stateProvince)) %>%
-  # Remove duplicates if they arose from left_join!
-  dplyr::distinct()
+  # Remove duplicates if they arose from left_join
+  dplyr::distinct() %>%
+  rename(imputed_stateProvince = stateProvinceCO)
 
 # Save the dataset
 readr::write_excel_csv(check_pf, file.path(OutPath_Intermediate, 
@@ -879,7 +877,7 @@ check_pf <- dplyr::left_join(check_pf,
                                         countyCO,
                                         county)) %>%
   # Remove duplicates if they arose from left_join!
-  dplyr::distinct()
+  dplyr::distinct() 
 
 # Save the dataset
 readr::write_excel_csv(check_pf, file.path(OutPath_Intermediate, 
