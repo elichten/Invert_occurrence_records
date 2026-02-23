@@ -1,7 +1,4 @@
-# This script is for testing out the BeeBDC package and developing our workflow for assessing TX native bee conservation status. It should be kept as a working document (without deleting old code and comments), and not converted into a clean workflow.
-
-# Last updated: "2025-01-31 14:33:39 CST" (RLW)
-# Authors: Elinor M. Lichtenberg, Avery Pearson, Robert Whyle
+# Authors: Elinor M. Lichtenberg, Avery Pearson, Mitchell Webb, Robert Whyle, Shannon Collins
 
 #************************************
 #************************************
@@ -13,9 +10,9 @@
 #****************
 ## Install packages ----
 
-# NOTE: We've only provided code for the installation of BeeBDC-related packages below, but you will also need to install packages "countrycode", "rgbif","spocc","taxize", and "tidyverse" to run this script. For more information on how to install R packages, see this guide: https://cran.r-project.org/doc/manuals/r-patched/R-admin.html
+# NOTE: We provide code only for installing BeeBDC-related packages, but you will also need to install packages "countrycode", "rgbif","spocc","taxize", and "tidyverse" to run this script. For more information on how to install R packages, see this guide: https://cran.r-project.org/doc/manuals/r-patched/R-admin.html
 
-# Once you've installed these packages, you won't need to run this section of code again. Instead, jump right to the 'Load libraries' section and start from there.
+# Once you install these packages, you won't need to run this section of code again. Instead, jump right to the 'Load libraries' section and start from there.
 
 # First, install BiocManager, devtools, ComplexHeatmap, and rnaturalearthhires. Complete these installations prior to installing BeeBDC
 if (!require("BiocManager", quietly = TRUE)) install.packages("BiocManager", repos = "http://cran.us.r-project.org")
@@ -35,7 +32,7 @@ install.packages("BeeBDC",
 
 # Install gnparser and rgnparser
   # gnparser needs to be installed and up to date before you can install/run rgnparser. Make sure you have latest R, R studio, and packages. Then, follow this link for instructions on how to install gnparser on your device (windows/linux/mac): https://github.com/gnames/gnparser#installation
-  # When you get to the step where you need to move the file to a specific location on your computer, we recommend putting it in the same location as your R packages.
+  # At the step where you need to move the file to a specific location on your computer, we recommend putting it in the same location as your R packages.
   
 #****************
 ### Load libraries----
@@ -86,11 +83,11 @@ AddlDataPath <- file.path(DataPath, "Additional_Datasets")
 # Check if the Cleaned directory exists, and if not, create it
 dir.create(file.path(OutPath, "Cleaned"), showWarnings = FALSE)
 
-# Store the default par settings so they can be restored
-.pardefaults <- par(no.readonly = T)
-
 # Load custom scripts needed for this project
 R.utils::sourceDirectory(file.path(DataPath, "Scripts"))
+
+# Store the default par settings so they can be restored
+.pardefaults <- par(no.readonly = T)
 
 #************************************
 #************************************
@@ -152,7 +149,7 @@ sppList <- sppListHarmonized$species # Output list of accepted names
 
 #******
 ### Option 1: read in local taxonomic backbone----
-# If users have a backbone made prior to this workflow, it can be read directly into taxonomyFile for use in later steps. Ensure that column names and types match BeeBDC format (for reference, download a small test backbone using taxadbToBeeBDC()). 
+# If users have a backbone made prior to this workflow, it can be read directly into taxonomyFile for use in later steps. Ensure that column names and types match BeeBDC format. (For reference, download a small test backbone using taxadbToBeeBDC().) 
 taxonomyFile <- read_delim(file.path(DataPath,"your_taxon_filename.csv")) %>%
                 check_taxon_table() # Verify that table has required columns
 
@@ -163,7 +160,7 @@ taxonomyFile <- beesTaxonomy_fixed()
 
 #******
 ### Option 3: download taxonomic backbone from API----
-# It's best to download backbones at higher taxonomic level encompassing all species of interest to capture as many synonyms as possible. The backbone can then be filtered using sppList. taxadbToBeeBDC() can download backbones from several sources in BeeBDC format. Check the details of ?taxadb::td_create() for a list of provider options
+# It is best to download backbones at higher taxonomic level encompassing all species of interest to capture as many synonyms as possible. The backbone can then be filtered using sppList. taxadbToBeeBDC() can download backbones from several sources in BeeBDC format. Check the details of ?taxadb::td_create() for a list of provider options
 taxonomyFile <- taxadbToBeeBDC(name = "Hymenoptera",
                                rank = "Order",
                                ignore_case = FALSE, # ignore_case = FALSE needs to be specified when querying Order, otherwise there is SQL error
@@ -173,7 +170,7 @@ taxonomyFile <- taxadbToBeeBDC(name = "Hymenoptera",
 ## Taxonomic backbone from multiple sources----
 
 ### Read in source backbones----
-# This process is different from above since the backbones need to be joined together, requiring a new join column and distinct column names among data frames. You do not need to use all four backbone options provided here (Discover Life, GBIF, ITIS, personal backbone), simply run the sections below with the backbones you are planning to use. 
+# This process is different from above since the backbones need to be joined together, requiring a new join column and distinct column names among data frames. You do not need to use all four backbone options provided here (Discover Life, GBIF, ITIS, personal backbone). Simply run the sections below with the backbones you are planning to use. 
 
 #******
 #### Discover Life----
@@ -244,7 +241,7 @@ taxonomyFile <- mergedTaxonomy %>%
   dplyr::select(-canonical_accepted,-authorship_accepted,-accid_replacement)
 
 
-#### Remove spent databases for memory
+#### Remove spent databases to free up memory
 
 # Determine which variables are being used in environment
 existingVariables <- c("acceptedIDs","joinedTaxonomy","mergedTaxonomy","taxDL",
