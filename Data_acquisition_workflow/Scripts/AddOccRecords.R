@@ -1,7 +1,11 @@
-## A function for importing occurrence data tables into a list of tables.
-## This is to be used with the BeeBDC workflow, and facilitates importing
-# one or more custom occurrence record tables.
-## This function will accept either a table or a filepath argument, but not both
+# This script is intended for the invert_occurrence_records workflow
+# It facilitates importing custom occurrence record tables into a centralized 
+# list of tables, to later be combined. It returns this centralized list
+
+# If a datasetName is provided which already exists in the provided mainList,
+# the new table will be combined with the preexisting dataset
+
+# This function accepts either a table or a filepath argument
 add_occ_records <- function(table = NULL, filepath = NULL, datasetName = "custom_dataset", mainList = list(), dataSource = "other", gbifKey = NULL) {
   
   # If user provided both filepath and table (or neither), prompt them for just one
@@ -15,82 +19,19 @@ add_occ_records <- function(table = NULL, filepath = NULL, datasetName = "custom
     )
   }
   
-  # TODO: Can we generate these AFTER the check_occ_table() call?
-  # Add database_id column with <datasetName>_<uuid> format
-  tableWithIds <- table %>%
-    mutate(database_id = paste0(!!datasetName,
-                                "_",
-                                replicate(n(), 
-                                          uuid::UUIDgenerate(use.time = TRUE, 
-                                                             output = "string"))
-    ))
-  
-  # Check a few columns that can be easily created if not provided
-  # TODO: Are there any more we could add?
-  columnNames <- names(table)
-  
-  if (!"id" %in% columnNames) {
-    message("Creating id column...")
-    tableWithIds <- tableWithIds %>%
-      mutate(id = database_id)
-  }
-  if (!"recordId" %in% columnNames) {
-    message("Creating recordId column...")
-    tableWithIds <- tableWithIds %>%
-      mutate(recordId = database_id)
-  }
-  if (!"country" %in% columnNames) {
-    message("Creating empty country column...")
-    tableWithIds <- tableWithIds %>%
-      mutate(country = "")
-  }
-  if (!"countryCode" %in% columnNames) {
-    message("Creating empty countryCode column...")
-    tableWithIds <- tableWithIds %>%
-      mutate(countryCode = "")
-  }
-  if (!"fieldNotes" %in% columnNames) {
-    message("Creating empty fieldNotes column...")
-    tableWithIds <- tableWithIds %>%
-      mutate(fieldNotes = "")
-  }
-  if (!"locationRemarks" %in% columnNames) {
-    message("Creating empty locationRemarks column...")
-    tableWithIds <- tableWithIds %>%
-      mutate(locationRemarks = "")
-  }
-  if (!"verbatimEventDate" %in% columnNames) {
-    message("Creating empty verbatimEventDate column...")
-    tableWithIds <- tableWithIds %>%
-      mutate(verbatimEventDate = "")
-  }
-  # datasetName argument defaults to "other"
-  if (!"datasetName" %in% columnNames){
-    message("Creating datasetName column...")
-    tableWithIds <- tableWithIds %>%
-      mutate(datasetName = !!datasetName)
-  }
-  # dataSource argument defaults to "other"
-  if (!"dataSource" %in% columnNames){
-    message("Creating dataSource column...")
-    tableWithIds <- tableWithIds %>%
-      mutate(dataSource = !!dataSource)
-  }
-  
-  
   # Check required and desired columns
-  check_occ_table(tableWithIds)
+  normalizedTable <- normalize_occ_table(table, datasetName, dataSource)
   
   # If provided mainList doesn't exist, create one
   mainList <- tryCatch(mainList, error = function(e) list())
   
   # Add amended table to mainList
   if (!datasetName %in% names(mainList)) {
-    mainList[[datasetName]] <- tableWithIds
+    mainList[[datasetName]] <- normalizedTable
   # If table of the same name already exists in mainList, combine the new and old tables
   } else {
     mainList[[datasetName]] <- bind_rows(mainList[[datasetName]], 
-                                            tableWithIds)
+                                            normalizedTable)
   }
   
   return(mainList)

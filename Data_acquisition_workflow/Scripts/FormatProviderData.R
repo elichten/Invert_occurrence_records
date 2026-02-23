@@ -20,11 +20,10 @@ format_provider_data <- function(table = NULL, provider = NULL,
   
   # Create column for accepted ids
   table <- table %>%
-              left_join(dplyr::select(table, id, canonical, authorship),
+              left_join(dplyr::select(., id, canonical, authorship),
                         by = c("accid" = "id"),
                         suffix = c("", "_accepted"))
   
-  # TODO: Separate this function out
   # If provider is ITIS, get authorship information (this can take a long time)
   if (tolower(provider) == 'itis') {
     get_itis_authorship <- function(taxonID) {

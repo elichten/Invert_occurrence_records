@@ -8,7 +8,7 @@ title: TPWD Species Checklist Workflow_readMe
 toc-title: Table of contents
 ---
 
-## TPWD_species_checklist_workflow.R
+## Invert_occurrence_records.R
 
 The .R document provides a workflow for compiling and cleaning species occurrence records for territories at various scales. Updates to the database along with the associated flag file are saved after each major step in the workflow. Databases, flag files, reports, and intermediate files are all saved in the below folder structure.
 

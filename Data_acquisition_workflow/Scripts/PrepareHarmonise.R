@@ -1,4 +1,4 @@
-# Function which check table for two special column names needed to use BeeBDC::harmoniseR
+# Function which checks table for two special column names needed to use BeeBDC::harmoniseR
 # and adds them to the provided table if needed
 prepare_harmonise <- function(table) {
   

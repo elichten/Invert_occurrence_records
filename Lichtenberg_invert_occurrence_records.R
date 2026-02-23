@@ -60,13 +60,13 @@ library(purrr)
 # Default root is the directory containing this .Rproj file
 RootPath <- here::here()
 
-# Create the working directory in the RootPath if it doesn't exist already
-if (!dir.exists(file.path(RootPath, "Data_acquisition_workflow"))) {
-  dir.create(file.path(RootPath, "Data_acquisition_workflow"), recursive = TRUE)
-}
+# # Create the working directory in the RootPath if it doesn't exist already
+# if (!dir.exists(file.path(RootPath, "Data_acquisition_workflow"))) {
+#   dir.create(file.path(RootPath, "Data_acquisition_workflow"), recursive = TRUE)
+# }
 
-# Set the working directory (BeeBDC uses this for file output)
-setwd(file.path(RootPath, "Data_acquisition_workflow"))
+# # Set the working directory (BeeBDC uses this for file output)
+# setwd(file.path(RootPath, "Data_acquisition_workflow"))
 
 # Set up directories — Run each time you use the script.
 BeeBDC::dirMaker(RootPath = RootPath, 
@@ -150,13 +150,13 @@ sppList <- sppListHarmonized$species # Output list of accepted names
 #******
 ### Option 1: read in local taxonomic backbone----
 # If users have a backbone made prior to this workflow, it can be read directly into taxonomyFile for use in later steps. Ensure that column names and types match BeeBDC format. (For reference, download a small test backbone using taxadbToBeeBDC().) 
-taxonomyFile <- read_delim(file.path(DataPath,"your_taxon_filename.csv")) %>%
-                check_taxon_table() # Verify that table has required columns
+taxonomyFile <- read_delim(file.path(DataPath,"taxonomy_file.csv")) %>%
+                normalize_taxon_table() # Verify that table has required columns
 
 #******
 ### Option 2: BeeBDC download of DiscoverLife's Backbone----
 # Discover Life's backbone for Anthophila comes with the BeeBDC download via beesTaxonomy()
-taxonomyFile <- beesTaxonomy_fixed()
+taxonomyFile <- beesTaxonomy()
 
 #******
 ### Option 3: download taxonomic backbone from API----
@@ -175,7 +175,7 @@ taxonomyFile <- taxadbToBeeBDC(name = "Hymenoptera",
 #******
 #### Discover Life----
 # Read in Discover Life taxonomy from BeeBDC. See option 2 from the single-source backbone instructions above for troubleshooting.
-taxDL <- beesTaxonomy_fixed() %>%
+taxDL <- beesTaxonomy() %>%
          format_provider_data(., 'dl') # Format table for joining
   
 #******
@@ -198,17 +198,15 @@ taxITIS <- taxadbToBeeBDC(name = "Hymenoptera",
 
 #******
 #### Local taxonomic backbone----
-# TODO: Test this more thoroughly
-taxCustom <- read_delim(file.path(DataPath,"your_file_name.csv")) %>%
-                        check_taxon_table(.) %>% # Verify that table has required columns
+taxCustom <- read_delim(file.path(DataPath,"taxonomy_file.csv")) %>%
+                        normalize_taxon_table(.) %>% # Verify that table has required columns
                         format_provider_data(., "custom")
 
 #******
 ### Merge backbones with priority----
 
-#### Join taxonomic backbones
+#### Join taxonomic backbones (if using multiple)
 
-# Take possible tables from above. Modify the possibleTables list based on the backbones you are using. 
 possibleTables <- c("taxDL", "taxGBIF", "taxITIS", "taxCustom")
 # Join tables that are currently being used in the session
 joinedTaxonomy <- possibleTables %>%
@@ -356,18 +354,17 @@ occDatasets <- read_delim(file.path(AddlDataPath, "your_file_name.csv"),
       # day
 
 #******
-# TODO: Test more thoroughly
 ### Import a custom dataset
 # Provide a filename and a name for your dataset and make sure your dataset includes all the necessary columns (listed above)
 occDatasets <- add_occ_records(filepath = file.path(AddlDataPath,
                                                     "your_file_name.csv"),
-                               datasetName = "my_dataset",
+                               datasetName = "my_dataset", # Tables added with the same datasetName will be merged
                                mainList = occDatasets)
 
 #******
 
 ### Import Bee data provided in BeeBDC package that are relevant to Texas (if desired)
-# NOTE: These will spit out a lot of unimportant warnings about column names
+# NOTE: These will display non-breaking warnings about column names
 
 # Create an empty occDatasets list to collect imported datasets (if needed)
 if (!exists("occDatasets")) {
@@ -455,8 +452,7 @@ occDatasets$PaigeNAm <- readr::read_csv(file.path(AddlDataPath,
 ## Merge all occurrence data----
 
 # Merge datasets
-db_standardized <- bind_rows(occDatasets) %>%
-                   format_occ_table(.) # Fill missing columns
+db_standardized <- bind_rows(occDatasets)
 
 # Remove spent datasets
 rm(occDatasets)
@@ -798,17 +794,17 @@ check_pf_noNa <- check_pf %>%
 
 suppressWarnings(
   stateProvinceOutput <- stateFinder(data = check_pf_noNa,
-                                                 lat = "decimalLatitude",
-                                                 lon = "decimalLongitude",
-                                                 stateProvince = "stateProvince",
-                                                 # How many rows to process at a time
-                                                 stepSize = 10000, # Decrease if you're running out of RAM, increase for speed
-                                                 # Start row
-                                                 chunkStart = 1,
-                                                 path = OutPath_Intermediate,
-                                                 # Normally, please use scale = "large"
-                                                 scale = "large",
-                                                 mc.cores = 1),
+                                     lat = "decimalLatitude",
+                                     lon = "decimalLongitude",
+                                     stateProvince = "stateProvince",
+                                     # How many rows to process at a time
+                                     stepSize = 10000, # Decrease if you're running out of RAM, increase for speed
+                                     # Start row
+                                     chunkStart = 1,
+                                     path = OutPath_Intermediate,
+                                     # Normally, please use scale = "large"
+                                     scale = "large",
+                                     mc.cores = 1),
   classes = "warning")
 
 # Re-join these datasets
@@ -1183,7 +1179,7 @@ rm(gridded_datasets)
     # 2. iso_a3_eh = Three-letter country codes in the ISO 3166 alpha-3 standard (e.g., "LBN", "MEX", "USA")
     # 3. continent = Continent name (e.g., "North America", "Asia", "Europe")
 
-    # For more information on the above columns, download the provided bee checklist using (checklist <- beesChecklist_fixed())
+    # For more information on the above columns, download the provided bee checklist using (checklist <- beesChecklist())
 
 
 # Import your own country-level checklist
@@ -1191,7 +1187,7 @@ checklist <- readr::read_delim(file.path(AddlDataPath, "test_checklist.csv")) %>
              check_checklist(.)
 
 # Or, if working with bee data, import the provided country-level bees checklist
-checklist <- beesChecklist_fixed()
+checklist <- beesChecklist()
 
 # Use this to check for species in observations that aren't present in checklist at all
 view(check_space %>%
@@ -1349,7 +1345,7 @@ check_time$day <- ifelse(check_time$day > 31 | check_time$day < 1, NA, check_tim
 ### Recover dates----
 
 # The dateFindR() function will search through some other columns in order to find and rescue dates that may not have made it into the correct columns. It will further update the eventDate, day, month, and year columns where these data were a) missing and b) located in one of the searched columns.
-recovered_dates <- dateFindR_fixed(data = check_time,
+recovered_dates <- dateFindR(data = check_time,
        maxYear = year(Sys.Date()),
        minYear = 1700) %>%
   mutate(eventDate_new = eventDate) %>%
@@ -1430,7 +1426,7 @@ figures <- BeeBDC::jbd_create_figures(data = check_time,
                                       workflow_step = "time",
                                       save_figures = TRUE)
 
-# You can check figures. For example, run figures$year
+# You can review figures. For example, run figures$year
 
 #****************
 ### Save flags----
@@ -1696,7 +1692,7 @@ cleanData <- cleanData %>%
 # Filter by COUNTRY
 boundary <- rnaturalearth::ne_countries() %>%
   # adjust code below to your country of interest
-  filter(name == 'United States') %>%
+  filter(name == 'United States of America') %>%
   st_transform(boundary, crs = 4326) %>%
   dplyr::select(geometry)
 
@@ -1759,7 +1755,7 @@ cleanData <- cleanData %>%
   filter(coordinateUncertaintyInMeters <= 2000)
 
 ## Save and export the cleaned dataset ----
-readr::write_excel_csv(spFilter, file.path(OutPath, "Cleaned",
+readr::write_excel_csv(cleanData, file.path(OutPath, "Cleaned",
                                                      "05_cleaned_database.csv"))
 
 #************************************
