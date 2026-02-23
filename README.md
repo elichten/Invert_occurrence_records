@@ -4,7 +4,7 @@ author:
 authors:
 - Shannon Collins, Elinor Lichtenberg, Avery Pearson, Robert Whyle
 editor: visual
-title: TPWD Species Checklist Workflow_readMe
+title: Inverts occurrence records readMe
 toc-title: Table of contents
 ---
 

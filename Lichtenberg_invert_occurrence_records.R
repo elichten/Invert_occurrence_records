@@ -60,14 +60,6 @@ library(purrr)
 # Default root is the directory containing this .Rproj file
 RootPath <- here::here()
 
-# # Create the working directory in the RootPath if it doesn't exist already
-# if (!dir.exists(file.path(RootPath, "Data_acquisition_workflow"))) {
-#   dir.create(file.path(RootPath, "Data_acquisition_workflow"), recursive = TRUE)
-# }
-
-# # Set the working directory (BeeBDC uses this for file output)
-# setwd(file.path(RootPath, "Data_acquisition_workflow"))
-
 # Set up directories — Run each time you use the script.
 BeeBDC::dirMaker(RootPath = RootPath, 
                  RDoc = "Lichtenberg_invert_occurrence_records.R") %>%
