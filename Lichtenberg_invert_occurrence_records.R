@@ -501,7 +501,7 @@ if (!exists("check_taxa")) {
 
 ### Harmonize and flag taxonomy----
 
-#### Prep data names
+#### Prepare data names
 # Remove names_clean column (if exists), and clean the scientificName column
 parse_names <- db_standardized %>%
                dplyr::select(., !tidyselect::any_of("names_clean")) %>%
@@ -1754,7 +1754,7 @@ readr::write_excel_csv(cleanData, file.path(OutPath, "Cleaned",
 #************************************
 
 
-#----Prepping data for NatureServe analysis----
+#----Preparing data for NatureServe assessment----
 
 
 # Defining Custom Spatial Intersects --------------------------------------
@@ -1797,7 +1797,7 @@ test_group <- test %>%
 
 #**NOTE: If you have not yet created the 'boundary' object, you need to do so before running this function. Please go back up to 'create object area of interest boundary' earlier in the 'Data Filtering' section.* 
 
-# CAVEAT: this function calculates range extent, but does not remove extreme disjuncts and vagrancies(as recommended by NatureServe standards). If you suspect there are some spatial outliers, please remove before running these calculations for a NatureServe analysis. 
+# CAVEAT: this function calculates range extent, but does not remove extreme disjuncts and vagrancies (as recommended by NatureServe standards). If you suspect there are some spatial outliers, please remove before running these calculations for a NatureServe assessment 
 
 #TODO: make sure year and county are automatically set to F
 get_NatureServe_values <- function(x, boundary, year_range = F, occupied_county = F) {
