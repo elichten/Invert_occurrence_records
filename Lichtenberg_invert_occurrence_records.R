@@ -463,7 +463,7 @@ if(!exists("db_standardized")){
 }
 
 #****************
-## (Optional) 
+## *Optional*: BeeBDC datasets
 # Load sample datasets provided by BeeBDC package for working through the code. Only do this if you want to quickly run through the workflow with a dataset small enough to run quickly even in RAM-heavy operations
 
 data("bees3sp", package = "BeeBDC")
@@ -483,7 +483,7 @@ db_standardized <-
 
 # NOTE: These flags can be counter intuitive. 
 #   A value of FALSE in the ".coordinates_empty" column indicates that the row was flagged for empty coordinates (and vice versa)
-
+#   These flags will be collected throughout the script, and can be used in the Data Filtering section to remove unwanted records
 
 #************************************
 
@@ -536,7 +536,7 @@ readr::write_excel_csv(check_taxa, file.path(DataPath,
 #****************  
 ### Filter taxonomy----
 
-# Optional (But recommended)
+# *Optional* (But recommended)
 # Filter occurrence records to those which relate to your taxonomyFile. This can help to reduce the workload on some of the upcoming functions
 check_taxa <- subset(check_taxa, .invalidName == TRUE)
 
@@ -1167,7 +1167,7 @@ rm(gridded_datasets)
 
 ## Required Checklist Columns
 
-    # 1. validNAme = Same as taxonomyFile$validName: "Scientific name + authorship"  (e.g., "Bremus americanorum (Fabricius, 1775)")
+    # 1. validName = Same as taxonomyFile$validName: "Scientific name + authorship"  (e.g., "Bremus americanorum (Fabricius, 1775)")
     # 2. iso_a3_eh = Three-letter country codes in the ISO 3166 alpha-3 standard (e.g., "LBN", "MEX", "USA")
     # 3. continent = Continent name (e.g., "North America", "Asia", "Europe")
 
@@ -1440,7 +1440,8 @@ BeeBDC::flagRecorder(data = check_time,
 ## Duplicates -----------------------------------------------------------
 
 
-# We will FLAG duplicates here. These input columns can be adjusted as needed to de-duplicate to your preference. This function uses user-specified inputs and columns to identify duplicate occurrence records. Duplicates are identified iteratively and will be tallied up, duplicate pairs clustered, and sorted at the end of the function. The function is designed to work with Darwin Core data with a database_id column, but it is also modifiable to work with other columns. I would encourage you to see ‘?dupeSummary()’ for more details as this function is quite modifiable to user needs.
+# This step will flag (but not remove) duplicate records. These input columns can be adjusted as needed to de-duplicate to your preference. This function uses user-specified inputs and columns to identify duplicate occurrence records. Duplicates are identified iteratively and will be tallied up, duplicate pairs clustered, and sorted at the end of the function. The function is designed to work with Darwin Core data with a database_id column, but it is also modifiable to work with other columns. I would encourage you to see ‘?dupeSummary()’ for more details as this function is quite modifiable to user needs.
+# The records flagged as unwanted duplicates in this step can later be filtered in the Data Filtering section
 check_time <- BeeBDC::dupeSummary(
   data = check_time,
   path = OutPath_Report,
@@ -1629,6 +1630,7 @@ if (!exists("unclean_data")) {
 }
 
 ## Optional filter 1: Clean the check_time dataset by removing flagged occurrences (recommended - gets rid of now-unnecessary flagging columns) ----
+# This step will filter records by all flags that do not appear in the dontFilterThese argument
 cleanData <- BeeBDC::summaryFun(
   data = unclean_data,
   # Add flags to ignore here
@@ -1756,27 +1758,6 @@ readr::write_excel_csv(cleanData, file.path(OutPath, "Cleaned",
 
 #----Preparing data for NatureServe assessment----
 
-
-# Defining Custom Spatial Intersects --------------------------------------
-# In this step you can choose to include a .shp file and column(s) for flagging each observation with its intersecting regions. This will be used in the final step to provide a list of intersecting regions for each target species
-
-# You may run multiple times to add multiple columns
-cleanData <- cleanData %>%
-  flag_spatial_intersects(
-    file.path(DataPath, 'your_file.shp'), 
-    'target_column_name'
-  )
-
-species_summary <- cleanData %>%
-  group_by(species) %>%
-  summarize(
-    across(
-      starts_with("INTERSECTS_"), # Target INTERSECTS_ columns
-      ~ list(sort(unique(unlist(.x)))), # Get unique intersect names, and sort final list
-      .names = "{.col}"  # keeps the original column names
-    ),
-    .groups = "drop"
-  )
 
 # The below function calculates four values for your data: 
   # 1. observations: the number of records
@@ -1952,3 +1933,40 @@ get_NatureServe_values <- function(x, boundary, year_range = F, occupied_county 
 out <- get_NatureServe_values(test_group, boundary = boundary)
 out2 <- get_NatureServe_values(test, boundary = boundary)
 
+
+#*******************************
+# *Optional* Defining Custom Spatial Intersects -------------------------------
+
+# In this step you can include a .shp file and column(s) for flagging each 
+# observation with its intersecting regions. This is then used to view a list
+# of all intersecting regions for each species.
+
+# If desired, view your shapefile to determine column names
+view(read_sf(file.path(DataPath, 'your_shapefile')))
+
+# Run this step for each column for which you want to flag your data
+cleanData <- cleanData %>%
+  # Makes a INTERSECTS_<COLUMN_NAME> boolean column
+  flag_spatial_intersects(
+    file.path(DataPath, 'your_shapefile'), 
+    'your_desired_column' # Column in .shp file (e.g., 'county', 'state', etc.)
+  )
+
+# Generate intersection lists for each species in your dataset
+species_summary <- cleanData %>%
+  group_by(species) %>%
+  summarize(
+    across(
+      starts_with("INTERSECTS_"), # Target INTERSECTS_ columns
+      ~ list(sort(unique(unlist(.x)))), # Get unique intersect names, and sort final list
+      .names = "{.col}"  # keeps the original column names
+    ),
+    .groups = "drop"
+  )
+# Flatten lists
+species_summary_flat <- species_summary %>%
+  mutate(across(starts_with("INTERSECTS_"), ~ sapply(.x, paste, collapse = ", ")))
+
+# Save report to Data_acquisition_workflow/Output/Report
+readr::write_csv(species_summary_flat, file.path(OutPath_Report, 
+                                          "spatial_intersects_report.csv"))
