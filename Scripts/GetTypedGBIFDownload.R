@@ -1,7 +1,7 @@
 # Script to wait for gbif download, and then import gbif table with 
 # BeeBDC column typing using a GBIF occurrence download key. This script
 # is designed to work with the invert_occurrence_records workflow, and
-# assumes access to additional_datasets directory, created in this workflow.
+# assumes access to User_Data directory, created in this workflow.
 
 # This script can handle DWCA or simple_csv download types, and will only
 # extract the occurrences.txt file from a DWCA download
@@ -10,7 +10,7 @@ get_typed_gbif_download <- function(downloadKey) {
   # Wait for gbif download to be ready
   occ_download_wait(downloadKey)
 
-  outPath = file.path(DataPath, "Additional_Datasets")
+  outPath = UserDataPath
   
   tryCatch(
     {

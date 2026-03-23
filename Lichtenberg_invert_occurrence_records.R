@@ -62,21 +62,23 @@ RootPath <- here::here()
 
 # Set up directories — Run each time you use the script.
 BeeBDC::dirMaker(RootPath = RootPath, 
-                 RDoc = "Lichtenberg_invert_occurrence_records.R") %>%
+                 RDoc = "Lichtenberg_invert_occurrence_records.R",
+                 DataPath = file.path(RootPath, 'Data')) %>%
   # Adds paths created by this function to the environment()
   list2env(envir = parent.env(environment()))
 
-# Add Additional_Datasets path and directory if not found
-if (!dir.exists(file.path(DataPath, "Additional_Datasets"))) {
-  dir.create(file.path(DataPath, "Additional_Datasets"), recursive = TRUE)
+# Add User_data path and directory if not found
+# After creating this directory, place your custom datasets and files here (Data/User_data)
+if (!dir.exists(file.path(DataPath, "User_data"))) {
+  dir.create(file.path(DataPath, "User_data"), recursive = TRUE)
 }
-AddlDataPath <- file.path(DataPath, "Additional_Datasets")
+UserDataPath <- file.path(DataPath, "User_data")
 
 # Check if the Cleaned directory exists, and if not, create it
 dir.create(file.path(OutPath, "Cleaned"), showWarnings = FALSE)
 
 # Load custom scripts needed for this project
-R.utils::sourceDirectory(file.path(DataPath, "Scripts"))
+R.utils::sourceDirectory(file.path(RootPath, "Scripts"))
 
 # Store the default par settings so they can be restored
 .pardefaults <- par(no.readonly = T)
@@ -91,7 +93,11 @@ R.utils::sourceDirectory(file.path(DataPath, "Scripts"))
 ## Option 1: read in text file with species list ------------------------
 # File should be a .csv and list species names in the first column.
 # Do not include a column header. If your file has a header, remove or skip the first row manually.
-sppList <- readr::read_csv("your_species_list.csv", col_names = FALSE, show_col_types = FALSE)[[1]]
+sppList <- readr::read_csv(
+    file.path(UserDataPath, "your_species_list.csv"), 
+    col_names = FALSE, 
+    show_col_types = FALSE
+  )[[1]]
 
 ## Option 2: Create a list of accepted canonical (no authorship included) names of your species of interest. -------------------------
 # This list will be used to filter and reduce the size of backbones. It can also be used for querying occurrence records in later steps.
@@ -142,7 +148,7 @@ sppList <- sppListHarmonized$species # Output list of accepted names
 #******
 ### Option 1: read in local taxonomic backbone----
 # If users have a backbone made prior to this workflow, it can be read directly into taxonomyFile for use in later steps. Ensure that column names and types match BeeBDC format. (For reference, download a small test backbone using taxadbToBeeBDC().) 
-taxonomyFile <- read_delim(file.path(DataPath,"taxonomy_file.csv")) %>%
+taxonomyFile <- read_delim(file.path(UserDataPath,"your_taxonomy_file.csv")) %>%
                 normalize_taxon_table() # Verify that table has required columns
 
 #******
@@ -190,7 +196,7 @@ taxITIS <- taxadbToBeeBDC(name = "Hymenoptera",
 
 #******
 #### Local taxonomic backbone----
-taxCustom <- read_delim(file.path(DataPath,"taxonomy_file.csv")) %>%
+taxCustom <- read_delim(file.path(UserDataPath,"your_taxonomy_file.csv")) %>%
                         normalize_taxon_table(.) %>% # Verify that table has required columns
                         format_provider_data(., "custom")
 
@@ -223,7 +229,7 @@ taxonomyFile <- mergedTaxonomy %>%
     acceptedIDs,
     by = join_by(canonical_accepted == canonical),
     suffix = c("", "_replacement"),
-    na_matches="never" # Prevents explosion of NA matches
+    na_matches = "never", # Prevents explosion of NA matches
   ) %>%
   mutate(accid = if_else(taxonomic_status != "accepted", 
                          accid_replacement, 
@@ -273,6 +279,7 @@ gbifTaxonKeys <- fullSppList %>%
   unique() # Filter out duplicates caused by spelling differences
 
 # Set up your environment with your GBIF credentials. If you do not have a GBIF account, please create one before running this section!
+# These credentials are stored in your local environment
 check_gbif_creds()
 
 # Intialize download of occurrence data, providing search parameters as needed. This search uses the gbifTaxonKey values generated in the previous step. Read more about adding custom predicates here: https://www.rdocumentation.org/packages/rgbif/versions/3.8.0/topics/download_predicate_dsl
@@ -299,15 +306,16 @@ occ_download(
 
 # After executing the download, a message will be output in the console with various instructions for viewing your download, as well as a Download Key. Copy and paste your resulting Download Key into the function below.
 
-# Load the downloaded dataset and save to Data_acquisition_workflow/Additional_Datasets
-occDatasets <- get_typed_gbif_download("download_key") %>%
+# Load the downloaded dataset and save to Data/User_data
+# This will wait for GBIF to finish preparing the download, and can take anywhere from 5-60 minutes (or longer if GBIF is experiencing service issues).
+occDatasets <- get_typed_gbif_download("your_download_key") %>%
                format_gbif_import(.) %>% # Format table to fit BeeBDC template
                add_occ_records(table = .,
                                mainList = occDatasets,
                                datasetName = "gbifOccs")
 
 # Or load a previously downloaded GBIF database. This step can also handle occurrence.txt files from a DWCA download
-occDatasets <- read_delim(file.path(AddlDataPath, "your_file_name.csv"), 
+occDatasets <- read_delim(file.path(UserDataPath, "your_file_name.csv"), 
                           delim = '\t', # GBIF's downloads are tab-delimited — change the delim argument if needed
                           col_types = (c(BeeBDC::ColTypeR()$cols))) %>%
                format_gbif_import(.) %>% # Format table to fit BeeBDC template
@@ -348,7 +356,7 @@ occDatasets <- read_delim(file.path(AddlDataPath, "your_file_name.csv"),
 #******
 ### Import a custom dataset
 # Provide a filename and a name for your dataset and make sure your dataset includes all the necessary columns (listed above)
-occDatasets <- add_occ_records(filepath = file.path(AddlDataPath,
+occDatasets <- add_occ_records(filepath = file.path(UserDataPath,
                                                     "your_file_name.csv"),
                                datasetName = "my_dataset", # Tables added with the same datasetName will be merged
                                mainList = occDatasets)
@@ -364,7 +372,7 @@ if (!exists("occDatasets")) {
 }
 
 # Ballare et al., 2019 (Bal)
-occDatasets$Bal_std <- readr::read_csv(file.path(AddlDataPath,
+occDatasets$Bal_std <- readr::read_csv(file.path(UserDataPath,
                                                  "jbd_Bal_data.csv"),
                                        col_types = BeeBDC::ColTypeR()) %>%
                        mutate(city = word(locality, 1, sep = ","),
@@ -375,43 +383,43 @@ occDatasets$Bal_std <- readr::read_csv(file.path(AddlDataPath,
                               basisOfRecord = "HUMAN_OBSERVATION")
 
 # Bob Minckley data (BMin)
-occDatasets$BMin_std <- readr::read_csv(file.path(AddlDataPath,
+occDatasets$BMin_std <- readr::read_csv(file.path(UserDataPath,
                                                   "jbd_BMin_data.csv"),
                                         col_types = BeeBDC::ColTypeR())
 
 # Ecdysis data (ECD)
-occDatasets$Ecd_std <- readr::read_csv(file.path(AddlDataPath,
+occDatasets$Ecd_std <- readr::read_csv(file.path(UserDataPath,
                                                  "jbd_Ecd_data.csv"),
                                        col_types = BeeBDC::ColTypeR())
 
 # Florida State Collection of Arthropods (FSCA)
-occDatasets$FSCA_std <- readr::read_csv(file.path(AddlDataPath,
+occDatasets$FSCA_std <- readr::read_csv(file.path(UserDataPath,
                                                   "jbd_FSCA_data.csv"),
                                         col_types = BeeBDC::ColTypeR())
 
 # US Geological Survey data (Geol)
-occDatasets$GeoL_std <- readr::read_csv(file.path(AddlDataPath,
+occDatasets$GeoL_std <- readr::read_csv(file.path(UserDataPath,
                                                   "jbd_GeoL_data.csv"),
                                         col_types = BeeBDC::ColTypeR())
 
 # Illinois Natural History Survey data (INHS)
-occDatasets$INHS_std <- readr::read_csv(file.path(AddlDataPath,
+occDatasets$INHS_std <- readr::read_csv(file.path(UserDataPath,
                                                   "jbd_INHS_data.csv"),
                                         col_types = BeeBDC::ColTypeR())
 
 # K.A. Parys 2019 (KP)
-occDatasets$KP_std <- readr::read_csv(file.path(AddlDataPath,
+occDatasets$KP_std <- readr::read_csv(file.path(UserDataPath,
                                                 "jbd_KP_data.csv"),
                                       col_types = BeeBDC::ColTypeR())
 
 # Shannon Collins data set (SMC)
-occDatasets$SMC_std <- readr::read_csv(file.path(AddlDataPath,
+occDatasets$SMC_std <- readr::read_csv(file.path(UserDataPath,
                                                  "jbd_SMC_Data.csv"),
                                        col_types = BeeBDC::ColTypeR()) %>%
                        mutate(eventDate = as.character(eventDate))
 
 # Paige Chesshire's data (PaigeNAm)
-occDatasets$PaigeNAm <- readr::read_csv(file.path(AddlDataPath,
+occDatasets$PaigeNAm <- readr::read_csv(file.path(UserDataPath,
                                                   "Paige_data", 
                                                   "NorAmer_highQual_only_ALLfamilies.csv"), 
                                         col_types = BeeBDC::ColTypeR()) %>%
@@ -424,18 +432,18 @@ occDatasets$PaigeNAm <- readr::read_csv(file.path(AddlDataPath,
 
 # Other datasets from Dorey 2023 can be loaded in here, if needed
 ## (MABC)
-# occDatasets$MABC_std <- readr::read_csv(file.path(AddlDataPath,
+# occDatasets$MABC_std <- readr::read_csv(file.path(UserDataPath,
 #                                                  "jbd_MABC_data.csv"),
 #                                         col_types = BeeBDC::ColTypeR())
 
 ## EcoS
-# occDatasets$EcoS_std <- readr::read_csv(file.path(AddlDataPath,
+# occDatasets$EcoS_std <- readr::read_csv(file.path(UserDataPath,
 #                                                  "jbd_EcoS_data.csv"),
 #                                         col_types = BeeBDC::ColTypeR())
 
 
 ## Lichtenberg data
-# occDatasets$Lic_std <- readr::read_csv(file.path(AddlDataPath,
+# occDatasets$Lic_std <- readr::read_csv(file.path(UserDataPath,
 #                                                  "jbd_Lic_Data.csv"))%>%
 #                        mutate(eventDate = as.character(eventDate))
 
@@ -492,9 +500,7 @@ db_standardized <-
 #*****************
 # To re-start in the middle of the flagging and harmonization process, read in the most recent intermediate file you outputted, replacing "03_space_inter_database.csv" with that file's name.
 if (!exists("check_taxa")) {
-  check_taxa <- readr::write_excel_csv(check_taxa, file.path(DataPath, 
-                                                             "Output",
-                                                             "Intermediate",
+  check_taxa <- readr::write_excel_csv(check_taxa, file.path(OutPath_Intermediate,
                                                              "02_taxonomy_database.csv"))
 }
 #*****************
@@ -528,9 +534,7 @@ check_taxa <- prepare_harmonise(taxonomyFile) %>% # Add empty "flags" and "canon
 rm(taxonomyFile)
 
 # Save the harmonized file
-readr::write_excel_csv(check_taxa, file.path(DataPath, 
-                                             "Output",
-                                             "Intermediate",
+readr::write_excel_csv(check_taxa, file.path(OutPath_Intermediate,
                                              "02_taxonomy_database.csv"))
 
 #****************  
@@ -666,7 +670,7 @@ check_pf <- BeeBDC::summaryFun(
                                   database_id = "database_id",
                                   workflow_step = "prefilter"))
 
-# Save report to Data_acquisition_workflow/Output/Report
+# Save report to Data/Output/Report
 readr::write_csv(report$x$data, file.path(OutPath_Report, 
                                           "01_Report_Prefilter.csv"))
 
@@ -757,9 +761,7 @@ rm(check_pf_noNa, countryOutput, worldmap)
 
 # Read in previously saved dataset if necessary
 if (!exists("check_pf")) {
-  check_pf <- readr::read_csv(file.path(DataPath, 
-                                        "Output", 
-                                        "Intermediate", 
+  check_pf <- readr::read_csv(file.path(OutPath_Intermediate, 
                                         "01_prefilter_database.csv"), 
                               col_types = BeeBDC::ColTypeR())
 }
@@ -821,9 +823,7 @@ rm(check_pf_noNa, stateProvinceOutput, statelist)
 
 # Read in previously saved dataset if necessary
 if (!exists("check_pf")) {
-  check_pf <- readr::read_csv(file.path(DataPath, 
-                                        "Output", 
-                                        "Intermediate", 
+  check_pf <- readr::read_csv(file.path(OutPath_Intermediate, 
                                         "01_prefilter_database.csv"), 
                               col_types = BeeBDC::ColTypeR())
 }
@@ -873,9 +873,7 @@ rm(check_pf_noNa, countyOutput)
 
 # Read in previously saved dataset if necessary
 if (!exists("check_pf")) {
-  check_pf <- readr::read_csv(file.path(DataPath, 
-                                        "Output", 
-                                        "Intermediate", 
+  check_pf <- readr::read_csv(file.path(OutPath_Intermediate, 
                                         "01_prefilter_database.csv"), 
                               col_types = BeeBDC::ColTypeR())
 }
@@ -982,9 +980,7 @@ check_pf <- rows_patch(check_pf,
                        by = 'database_id')
 
 # Save the updated file as the new 02_taxonomy_database file. If you need to stop and complete the rest of the flagging later, this file will ensure you will not have to redo the manual georeferencing.
-readr::write_excel_csv(check_pf, file.path(DataPath, 
-                                           "Output",
-                                           "Intermediate",
+readr::write_excel_csv(check_pf, file.path(OutPath_Intermediate,
                                            "02_taxonomy_database.csv"))
 
 
@@ -1175,7 +1171,7 @@ rm(gridded_datasets)
 
 
 # Import your own country-level checklist
-checklist <- readr::read_delim(file.path(AddlDataPath, "test_checklist.csv")) %>%
+checklist <- readr::read_delim(file.path(UserDataPath, "your_checklist.csv")) %>%
              check_checklist(.)
 
 # Or, if working with bee data, import the provided country-level bees checklist
@@ -1245,7 +1241,7 @@ check_space %>%
                                   database_id = "database_id",
                                   workflow_step = "space"))
 
-# Save report to Data_acquisition_workflow/Output/Report
+# Save report to Data/Output/Report
 readr::write_csv(report$x$data, file.path(OutPath_Report, 
                                           "03_Report_space.csv"))
 
@@ -1705,7 +1701,7 @@ boundary <- tigris::counties(state = 'Texas') %>%
   dplyr::select(geometry)
 
 # OR: read in your own local shape file
-boundary <- read_sf(file.path(DataPath, "your_file_name.shp")) %>%
+boundary <- read_sf(file.path(UserDataPath, "your_file_name.shp")) %>%
   # provide the column name and value (from your .shp) by which you want to filter
   filter(your_column_name == 'your_desired_value') %>%
   st_transform(boundary, crs = 4326) %>%
@@ -1942,13 +1938,13 @@ out2 <- get_NatureServe_values(test, boundary = boundary)
 # of all intersecting regions for each species.
 
 # If desired, view your shapefile to determine column names
-view(read_sf(file.path(DataPath, 'your_shapefile')))
+view(read_sf(file.path(UserDataPath, 'your_shapefile')))
 
 # Run this step for each column for which you want to flag your data
 cleanData <- cleanData %>%
   # Makes a INTERSECTS_<COLUMN_NAME> boolean column
   flag_spatial_intersects(
-    file.path(DataPath, 'your_shapefile'), 
+    file.path(UserDataPath, 'your_shapefile'), 
     'your_desired_column' # Column in .shp file (e.g., 'county', 'state', etc.)
   )
 
@@ -1967,6 +1963,6 @@ species_summary <- cleanData %>%
 species_summary_flat <- species_summary %>%
   mutate(across(starts_with("INTERSECTS_"), ~ sapply(.x, paste, collapse = ", ")))
 
-# Save report to Data_acquisition_workflow/Output/Report
+# Save report to Data/Output/Report
 readr::write_csv(species_summary_flat, file.path(OutPath_Report, 
                                           "spatial_intersects_report.csv"))

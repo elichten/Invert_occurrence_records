@@ -5,10 +5,9 @@
 .RDataTmp
 .Ruserdata
 
-# Ignore all files within Data_acquisition_workflow
-Data_acquisition_workflow/*
-# BUT keep the Scripts subdirectory
-!Data_acquisition_workflow/Scripts
+# Ignore all files within User_data
+Data/User_data/*
+Data/Output/*
 
 # Ignore all .zip files
 *.zip

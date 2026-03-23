@@ -18,15 +18,16 @@ Elinor M. Lichtenberg, [emlichtenberg\@gmail.com](mailto:emlichtenberg@gmail.com
 
 ## Data setup (Folders = **Bold**; Environmental variables = *italicized*)
 
-### User-specified folder (*RootPath)*
+### User-specified folder (*RootPath*)
 
-This folder is specified by the user and serves as the "root path" for Lichtenberg_invert_occurrence_records.R. In addition to the folders and data provided through the BeeBDC package, users should store there workflow script and any additional datasets they intend to include in occurrence database. After specifying this folder as the root path, BeeBDC::dirMaker() creates the folder structure below and provides environmental values in R that can be used to call particular folders. They are as follows:
+This folder is specified by the user and serves as the "root path" for Invert_occurrence_records.Rproj. It should house the workflow script, Data and Scripts directories, and all other folders created/provided throughout the workflow. After specifying this folder as the root path, our workflow, in addition to BeeBDC::dirMaker(), creates the folder structure below and provides environmental values in R that can be used to call particular folders. They are as follows:
 
-#### Data_aquisition_workflow (*DataPath*)
+#### Data (*DataPath*)
 
-This folder is created by the BeeBDC::dirMaker() function and contains the below folders, which are listed as environmental variables after running the dirMaker() function. It contains all data that is output from manipulating or cleaning occurrence records using the BeeBDC package. This folder and all sub-folders therein will populate as you proceed through the workflow.
+This folder is used by the BeeBDC::dirMaker() function and contains the below folders, which are listed as environmental variables after running through the Setup portion of this workflow. It contains all data that is output from manipulating or cleaning occurrence records using the BeeBDC package. This folder and all sub-folders therein will populate as you proceed through the workflow.
 
-"/Data_acquisition_workflow"
+"/Data"
+
 
 *DiscLifePath*
 
@@ -34,39 +35,39 @@ Relative path: "/BDC_repo/DiscoverLife_Data"
 
 *OutPath*
 
-"/Data_acquisition_workflow/Output"
+"/Data/Output"
 
 *OutPath_Check*
 
-"/Data_acquisition_workflow/Output/Check"
+"/Data/Output/Check"
 
 *OutPath_Figures*
 
-"/Data_acquisition_workflow/Output/Figures"
+"/Data/Output/Figures"
 
 *OutPath_Intermediate*
 
-"/Data_acquisition_workflow/Output/Intermediate"
+"/Data/Output/Intermediate"
 
 *OutPath_Report*
 
-"/Data_acquisition_workflow/Output/Report"
+"/Data/Output/Report"
 
 *ScriptPath*
 
-"/Data_acquisition_workflow/Output/Report"
+"/Data/Output/Report"
+
+#### /Data/User_data (*UserDataPath*)
+
+This folder serves to house all local user files, including custom datasets, downloaded datasets, shapefiles, taxonomy files, etc.
 
 #### Scripts
 
-This folder should be created by the user and should contain the primary script used for cleaning species occurrence records (invert_occurrence_records.R). All other scripts are used as reference for the primary script.
+This folder is found directly within the project root and contains additional scripts used by this workflow.
 
 #### BDC_repo
 
 This folder contains repositories that need to be stored locally before starting the workflow
-
-#### Additional Datasets
-
-This folder contains the input data that will be combined to create the master occurrence database. If running through the BeeBDC vignette, input data for bee occurrence records can be downloaded from the supplementary material of Dorey (2023)
 
 ## References
 
