@@ -829,39 +829,47 @@ if (!exists("check_pf")) {
 }
 
 #****************
-#TODO: finish this section
 ### Impute county from coordinates ----
-# Get county name from coordinates using a wrapper around the jbd_country_from_coordinates() function. Because our dataset is much larger than those used to design bdc, we have made it so that you can analyse data in smaller pieces. Additionally, like some other functions in BeeBDC, we have implemented parallel operations (using mc.cores = #cores in stepSize = #rowsPerOperation); see ‘?jbd_CfC_chunker()’ for details. NOTE: In an actual run you should use scale = “large”
+
 # Creates another dataset containing just the databaseID and the county name based on coordinates
 check_pf_noNa <- check_pf %>%
   tidyr::drop_na(c("decimalLatitude", 
                    "decimalLongitude"))
 
-suppressWarnings(
-  countyOutput <- BeeBDC::jbd_CfC_chunker(data = check_pf_noNa,
-                                          lat = "decimalLatitude",
-                                          lon = "decimalLongitude",
-                                          county = "county",
-                                          # How many rows to process at a time
-                                          stepSize = 10000, # Decrease if you're running out of RAM, increase for speed
-                                          # Start row
-                                          chunkStart = 1,
-                                          path = OutPath_Intermediate,
-                                          # Normally, please use scale = "large"
-                                          scale = "large",
-                                          mc.cores = 1),
-  classes = "warning")
+# Join with county information based on spatial properties (for the records that don't already have county info)
 
-# Re-join these datasets
+# Filter to U.S. records only. NOTE: this script currently uses a U.S.-specific package to get county .shp files. For non-U.S. countries, please adapt the code in this section with a package that contains county .shp files relevant to your country of interest.
+
+us_only <- check_pf_noNa %>%
+  filter(countryCode == 'US') 
+
+us_only <- unique(us_only$stateProvince) %>%
+  as.data.frame() %>%
+  rename('stateProvince' = '.')
+
+# Extract the possible counties for the unique stateProvinces in your dataset
+valid_counties <- possibly(counties, otherwise = NULL)
+
+# Note: this step can sometimes take a little while to run, depending on the size of your dataset 
+counties_list <- map(us_only$stateProvince, ~ valid_counties(state = .x))
+
+county_info <- do.call(rbind, counties_list) %>%
+  dplyr::select(c(NAME, geometry))
+
+# Perform a spatial join to add in missing county info
+imputed_county <- check_pf_noNa %>%
+  flag_spatial_intersects(county_info, 'NAME') %>%
+  rename('countyCO' = 'INTERSECTS_NAME')
+
+
+# Re-join these datasets, replacing any 'NA' county values with the imputed county
 check_pf <- dplyr::left_join(check_pf, 
-                             countyOutput, 
+                             imputed_county, 
                              by = "database_id", 
                              suffix = c("", "CO")) %>%
-  # Take the new stateProvince name if the original is NA
   dplyr::mutate(county = dplyr::if_else(is.na(county), 
                                         countyCO,
                                         county)) %>%
-  # Remove duplicates if they arose from left_join!
   dplyr::distinct() 
 
 # Save the dataset
@@ -869,7 +877,7 @@ readr::write_excel_csv(check_pf, file.path(OutPath_Intermediate,
                                            "01_prefilter_database.csv"))
 
 # Remove these interim datasets
-rm(check_pf_noNa, countyOutput)
+rm(check_pf_noNa, imputed_county)
 
 # Read in previously saved dataset if necessary
 if (!exists("check_pf")) {
