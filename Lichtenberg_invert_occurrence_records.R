@@ -838,7 +838,7 @@ check_pf_noNa <- check_pf %>%
 
 # Join with county information based on spatial properties (for the records that don't already have county info)
 
-# Filter to U.S. records only. NOTE: this script currently uses a U.S.-specific package to get county .shp files. For non-U.S. countries, please adapt the code in this section with a package that contains county .shp files relevant to your country of interest.
+# Filter to U.S. records only. NOTE: this script currently uses a U.S.-specific package to get county boundaries. For non-U.S. countries, please adapt the code in this section with a package that contains county boundaries relevant to your country of interest. If you have a shapefile (.shp), you can use the "Defining Custom Spatial Intersects" section of the workflow to add in county information. 
 
 us_only <- check_pf_noNa %>%
   filter(countryCode == 'US') 
