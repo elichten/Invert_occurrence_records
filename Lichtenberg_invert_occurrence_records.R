@@ -63,7 +63,9 @@ RootPath <- here::here()
 # Set up directories — Run each time you use the script.
 BeeBDC::dirMaker(RootPath = RootPath, 
                  RDoc = "Lichtenberg_invert_occurrence_records.R",
-                 DataPath = file.path(RootPath, 'Data')) %>%
+                 DataPath = file.path(RootPath, 'Data'),
+                 DiscLifePath = file.path(RootPath, 'Data', 'User_data'),
+                 ScriptPath = file.path(RootPath, 'Scripts')) %>%
   # Adds paths created by this function to the environment()
   list2env(envir = parent.env(environment()))
 
@@ -78,7 +80,7 @@ UserDataPath <- file.path(DataPath, "User_data")
 dir.create(file.path(OutPath, "Cleaned"), showWarnings = FALSE)
 
 # Load custom scripts needed for this project
-R.utils::sourceDirectory(file.path(RootPath, "Scripts"))
+R.utils::sourceDirectory(ScriptPath)
 
 # Store the default par settings so they can be restored
 .pardefaults <- par(no.readonly = T)
@@ -1417,7 +1419,7 @@ check_time <- BeeBDC::summaryFun(
 
 # Create time results figures
 figures <- BeeBDC::jbd_create_figures(data = check_time,
-                                      path = DataPath,
+                                      path = OutPath_Figures,
                                       database_id = "database_id",
                                       workflow_step = "time",
                                       save_figures = TRUE)

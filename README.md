@@ -1,8 +1,8 @@
 ---
 author:
-- Shannon Collins, Elinor Lichtenberg, Avery Pearson, Robert Whyle
+- Shannon Collins, Elinor Lichtenberg, Avery Pearson, Mitchell Webb, Robert Whyle
 authors:
-- Shannon Collins, Elinor Lichtenberg, Avery Pearson, Robert Whyle
+- Shannon Collins, Elinor Lichtenberg, Avery Pearson, Mitchell Webb, Robert Whyle
 editor: visual
 title: Inverts occurrence records readMe
 toc-title: Table of contents
@@ -28,10 +28,11 @@ This folder is used by the BeeBDC::dirMaker() function and contains the below fo
 
 "/Data"
 
-
 *DiscLifePath*
 
-Relative path: "/BDC_repo/DiscoverLife_Data"
+"/Data/User_data"
+
+This path, while not used directly in this script, defaults to the User_data directory
 
 *OutPath*
 
@@ -53,21 +54,13 @@ Relative path: "/BDC_repo/DiscoverLife_Data"
 
 "/Data/Output/Report"
 
-*ScriptPath*
-
-"/Data/Output/Report"
-
 #### /Data/User_data (*UserDataPath*)
 
 This folder serves to house all local user files, including custom datasets, downloaded datasets, shapefiles, taxonomy files, etc.
 
-#### Scripts
+#### /Scripts (*ScriptPath*)
 
 This folder is found directly within the project root and contains additional scripts used by this workflow.
-
-#### BDC_repo
-
-This folder contains repositories that need to be stored locally before starting the workflow
 
 ## References
 
