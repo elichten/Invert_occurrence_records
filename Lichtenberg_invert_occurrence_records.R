@@ -57,7 +57,7 @@ library(purrr)
 ## Set up environment----
 
 # Set root folder - these file paths may need to be adjusted based on your file path location
-# Default root is the directory containing this .Rproj file
+# Default root is the directory containing this .R file
 RootPath <- here::here()
 
 # Set up directories — Run each time you use the script.

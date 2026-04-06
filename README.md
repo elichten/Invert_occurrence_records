@@ -20,7 +20,7 @@ Elinor M. Lichtenberg, [emlichtenberg\@gmail.com](mailto:emlichtenberg@gmail.com
 
 ### User-specified folder (*RootPath*)
 
-This folder is specified by the user and serves as the "root path" for Invert_occurrence_records.Rproj. It should house the workflow script, Data and Scripts directories, and all other folders created/provided throughout the workflow. After specifying this folder as the root path, our workflow, in addition to BeeBDC::dirMaker(), creates the folder structure below and provides environmental values in R that can be used to call particular folders. They are as follows:
+This folder is specified by the user and serves as the "root path" for Invert_occurrence_records.R. It should house the workflow script, Data and Scripts directories, and all other folders created/provided throughout the workflow. After specifying this folder as the root path, our workflow, in addition to BeeBDC::dirMaker(), creates the folder structure below and provides environmental values in R that can be used to call particular folders. They are as follows:
 
 #### Data (*DataPath*)
 
