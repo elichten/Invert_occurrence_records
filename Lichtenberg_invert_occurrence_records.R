@@ -758,8 +758,7 @@ readr::write_excel_csv(check_pf, file.path(OutPath_Intermediate,
                                            "01_prefilter_database.csv"))
 
 # Remove these interim datasets
-#TODO: check and make sure worldmap is a valid object to remove, might be internally squirrelled away in function
-rm(check_pf_noNa, countryOutput, worldmap)
+rm(check_pf_noNa, countryOutput)
 
 # Read in previously saved dataset if necessary
 if (!exists("check_pf")) {
@@ -984,7 +983,6 @@ added_xyFromLocality <- readr::read_csv(file.path(OutPath_Check,
                                         col_types = BeeBDC::ColTypeR())
 
 # Join with check_pf db and add in the new georeferenced values
-# TODO: test to make sure this is working correctly
 check_pf <- rows_patch(check_pf,
                        added_xyFromLocality,
                        by = 'database_id')
