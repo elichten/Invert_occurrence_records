@@ -9,7 +9,7 @@
 Data/User_data/*
 Data/Output/*
 # EXCEPT the User_data readme, which exists to allow the User_data directory to be tracked by git, even when 'empty'
-!Data/User_data/README.md
+!Data/User_data/User_data_README.md
 
 # Ignore all .zip files
 *.zip
