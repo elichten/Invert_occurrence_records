@@ -1,10 +1,18 @@
-get_NatureServe_values <- function(x, boundary, year_range = F, occupied_county = F) {
+get_NatureServe_values <- function(x, sep_distance = 1, boundary, precise_occurrences = TRUE, year_range = F, occupied_county = F) {
   # Load necessary packages
   require(tidyverse)
   require(tigris)
   require(sf)
   require(red)
   require(lwgeom)
+  
+  # Make sure we're using s2 (global calculations) for area calculations
+  old_s2 <- sf::sf_use_s2()
+  sf::sf_use_s2(TRUE)
+  on.exit(sf::sf_use_s2(old_s2))
+  
+  # Make sure boundary is in degrees CRS (4326)
+  boundary <- st_transform(boundary, 4326)
   
   x <- x %>%
     filter(!is.na(decimalLatitude) & !is.na(decimalLongitude))
@@ -31,44 +39,43 @@ get_NatureServe_values <- function(x, boundary, year_range = F, occupied_county 
     species_sf <- species_data %>%
       st_as_sf(coords = c("decimalLongitude", "decimalLatitude"), crs = 4326)
     
+    filtered_sf <- species_sf %>%
+      filter(lengths(st_intersects(., boundary)) > 0)
+    
     # Calculate number of observations (# of unique specimen records)
-    observations <- species_sf %>%
-      filter(lengths(st_intersects(., boundary)) > 0) %>%
-      nrow()
+    observations <- nrow(filtered_sf)
+
+    message("Getting occurrence count.")
+    if (precise_occurrences) {
+      message("This operation is expensive with large datasets when using precise_occurrences = TRUE")
+    }
     
-    # AEP TEMP: Calculate number of occurrences (# of unique specimen records with distinct locations)
-    # occurrence_grid <- species_sf %>%
-    #   filter(lengths(st_intersects(., boundary)) > 0) %>%
-    #   distinct(geometry) %>%
-    #   st_make_grid(cellsize = sqrt(2e6),
-    #                what = 'polygons') %>%
-    #   st_sf(grid_id = 1:length(.)) %>%
-    #   st_make_valid()
-    # 
-    # points_with_overlap <- st_join(species_sf, occurrence_grid, 
-    #                             join = st_within) %>%
-    #   group_by(grid_id) %>%
-    #   summarise(n_points = n(), .groups = "drop") %>%
-    #   filter(n_points > 1) %>%
-    #   filter(grid_id %in% points_per_cell$grid_id)
-    # 
+    # Calculate number of occurrences
+    occurrences <- count_occ_clusters(
+      filtered_sf,
+      sep_distance=sep_distance,
+      precise_calculations=precise_occurrences
+    )
     
-    # AEP TEMP: IF there is any overlap between points, retain only the first record (or the one with finer resolution?)
-    # then count the number of unique points
-    # nrow()
+    filtered_sf %>%
+      st_union() %>%
+      st_convex_hull() %>%
+      st_intersection(boundary) %>%
+      st_geometry_type()
     
-    # TEMP OCCURRENCE CALCS - UPDATE
-    occurrences <- species_sf %>%
-      st_join(boundary, join = st_intersects) %>%
-      distinct(geometry) %>% 
-      nrow()
+    # WARNING: This 'hull' is not a useful metric on a global scale
+    # Calculating over antimeridian causes 'flip' of polygon edges
+    hull <- filtered_sf %>%
+      st_union() %>%
+      st_convex_hull() %>%
+      st_intersection(boundary)
     
     # Calculate range extent (Convex Hull Intersected with Boundary) in km^2
-    if (occurrences <= 2) {
+    if (observations <= 2) {
       range_extent <- NA
       
     } else {
-      range_extent <- species_sf %>%
+      range_extent <- filtered_sf %>%
         st_union() %>%
         st_convex_hull() %>%
         st_intersection(boundary) %>%
@@ -77,8 +84,7 @@ get_NatureServe_values <- function(x, boundary, year_range = F, occupied_county 
     }
     
     # Calculate area of occupancy (AOO) in km^2
-    coords <- species_sf %>%
-      filter(lengths(st_intersects(., boundary)) > 0) %>%
+    coords <- filtered_sf %>%
       st_coordinates() %>%
       as.data.frame()
     
@@ -93,15 +99,15 @@ get_NatureServe_values <- function(x, boundary, year_range = F, occupied_county 
     if (year_range) {
       year_range_val <- species_data %>%
         summarise(range_str = ifelse(
-          min(year) == max(year),
-          as.character(min(year)),
-          paste0(min(year), '-', max(year)))
+          min(year, na.rm = TRUE) == max(year, na.rm = TRUE),
+          as.character(min(year, na.rm = TRUE)),
+          paste0(min(year, na.rm = TRUE), '-', max(year, na.rm = TRUE)))
         )
       
     }
     # Determine county list of observations
     if (occupied_county) {
-      occupied_county_val <- species_sf %>%
+      occupied_county_val <- filtered_sf %>%
         dplyr::filter(!is.na(county)) %>%
         summarise(county_list = paste(unique(county), collapse = ", "))
     }
