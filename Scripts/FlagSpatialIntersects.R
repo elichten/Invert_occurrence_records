@@ -4,8 +4,11 @@ flag_spatial_intersects <- function(data_table, shp, column_names) {
   new_colnames <- paste0("INTERSECTS_", column_names)
   data_table <- data_table %>% dplyr::select(-dplyr::any_of(new_colnames))
   
-  # Use GEOS to automatically handle duplicate vertex issues  
+  # Use GEOS to automatically handle duplicate vertex issues
+  # Replace old global setting on exit
+  old_s2 <- sf::sf_use_s2()
   sf::sf_use_s2(FALSE)
+  on.exit(sf::sf_use_s2(old_s2))
   
   # If user passed a path, read shapefile; if sf object, use object
   if (is.character(shp)) {
@@ -22,10 +25,8 @@ flag_spatial_intersects <- function(data_table, shp, column_names) {
     coords = c("decimalLongitude", "decimalLatitude"), crs = 4326
   )
   
-  # Reproject shapefile if needed
-  if (st_crs(obs_sf) != st_crs(shapefile)) {
-    shapefile <- st_transform(shapefile, crs = 4326)
-  }
+  # Reproject shapefile just in case
+  shapefile <- st_transform(shapefile, crs = 4326)
   
   # Get subset of .shp, and rename selected columns with INTERSECTS_ prefix
   shapefile_subset <- shapefile %>%
