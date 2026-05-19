@@ -1790,7 +1790,7 @@ natureServeMetrics <- get_NatureServe_values(
   sep_distance = 1,
   # precise_occurrences = TRUE, while accurate, can take a very long time and is very RAM intensive
   # set to FALSE if some approximation if hardware is limited and if some approximation is tolerable
-  precise_occurrences = FALSE,
+  precise_occurrences = TRUE,
   boundary = boundary,
   year_range = F, 
   occupied_county = F
