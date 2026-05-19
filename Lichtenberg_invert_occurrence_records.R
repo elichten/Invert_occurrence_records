@@ -30,6 +30,9 @@ install.packages("rnaturalearthhires", repos = "https://ropensci.r-universe.dev"
 install.packages("BeeBDC",
                  dependencies = T)
 
+# Install dbscan
+install.packages("dbscan")
+
 # Install gnparser and rgnparser
   # gnparser needs to be installed and up to date before you can install/run rgnparser. Make sure you have latest R, R studio, and packages. Then, follow this link for instructions on how to install gnparser on your device (windows/linux/mac): https://github.com/gnames/gnparser#installation
   # At the step where you need to move the file to a specific location on your computer, we recommend putting it in the same location as your R packages.
@@ -52,6 +55,7 @@ library(tigris)
 library(raster)
 library(red)
 library(purrr)
+library(dbscan)
 
 #****************
 ## Set up environment----
@@ -80,7 +84,7 @@ UserDataPath <- file.path(DataPath, "User_data")
 dir.create(file.path(OutPath, "Cleaned"), showWarnings = FALSE)
 
 # Load custom scripts needed for this project
-R.utils::sourceDirectory(ScriptPath)
+R.utils::sourceDirectory(ScriptPath, modifiedOnly = FALSE)
 
 # Store the default par settings so they can be restored
 .pardefaults <- par(no.readonly = T)
@@ -452,6 +456,7 @@ occDatasets$PaigeNAm <- readr::read_csv(file.path(UserDataPath,
 
 #****************
 ## Merge all occurrence data----
+# (Required) Run with any number of datasets
 
 # Merge datasets
 db_standardized <- bind_rows(occDatasets)
@@ -614,7 +619,6 @@ check_pf <- bdc::bdc_basisOfRecords_notStandard(
 
 #****************
 ### Flag records marked as "absent"----
-
 # You can skip this step if the table is missing occurrenceStatus column
 check_pf <- BeeBDC::flagAbsent(data = check_pf,PresAbs = "occurrenceStatus")
 
@@ -1557,6 +1561,7 @@ BeeBDC::chordDiagramR(
   legendJustify = c("left", "bottom"),
   niceFacing = TRUE)
 
+
 # Duplicate histogram
 
 # Read in uncleaned data if necessary
@@ -1633,7 +1638,7 @@ if (!exists("unclean_data")) {
   unclean_data <- unclean_data
 }
 
-## Optional filter 1: Clean the check_time dataset by removing flagged occurrences (recommended - gets rid of now-unnecessary flagging columns) ----
+## Optional filter 1: Clean the unclean_data dataset by removing flagged occurrences (recommended - gets rid of now-unnecessary flagging columns) ----
 # This step will filter records by all flags that do not appear in the dontFilterThese argument
 cleanData <- BeeBDC::summaryFun(
   data = unclean_data,
@@ -1684,7 +1689,7 @@ cleanData <- cleanData %>%
 ## Optional filter 3: Filter by area of interest ----
 
 ## Create object of area of interest boundary. Modify to your region of interest. Pick *ONE* of these options to run based on what your geographic range of interest is
-
+## Boundaries should be for use with 4326 CRS — boundaries crossing the antimeridian will produce unexpected results
 ##**You need to create the 'boundary' object if you want to run the 'getNatureServe_values' function later in this script**
 
 # Filter by COUNTRY
@@ -1764,7 +1769,7 @@ readr::write_excel_csv(cleanData, file.path(OutPath, "Cleaned",
 
 # The get_NatureServeValues() function calculates four main values plus two optional values for your data: 
   # 1. observations: the number of records
-  # 2. occurrences: the number of distinct locations 
+  # 2. occurrences: the number of distinct clusters of occurrences
   # 3. range extent: minimum area encompassing the occurrences (in km^2)
   # 4. area of occupancy: area within the range extent where occurrences actually are (in km^2)
   # 5. year range (OPTIONAL): determines the year of the earliest and latest occurrences in your dataset to generate a range of when that species/group has been observed
@@ -1772,14 +1777,24 @@ readr::write_excel_csv(cleanData, file.path(OutPath, "Cleaned",
 # For more info on these metrics see https://www.natureserve.org/sites/default/files/publications/files/natureserveconservationstatusmethodology_jun12.pdf 
 
 # The values will be calculated on your cleanData file as is. If you want it to calculate values for each taxon in the file, make sure to group it by the scientificName column before running get_NatureServe_values() on it.
-
+# Example: 
+cleanData <- cleanData %>% group_by(species)
 
 #**NOTE: If you have not yet created the 'boundary' object, you need to do so before running this function. Please go back up to 'create object area of interest boundary' earlier in the 'Data Filtering' section.* 
 
 # CAVEAT: this function calculates range extent, but does not remove extreme disjuncts and vagrancies (as recommended by NatureServe standards). If you suspect there are some spatial outliers, please remove before running these calculations for a NatureServe assessment
 
 # Run the function on your data! If you want to calculate year range and occupied counties, make sure to change those to 'T" (as they default to 'F')
-natureServeMetrics <- get_NatureServe_values(cleanData, boundary = boundary, year_range = F, occupied_county = F)
+natureServeMetrics <- get_NatureServe_values(
+  x=cleanData,
+  sep_distance = 1,
+  # precise_occurrences = TRUE, while accurate, can take a very long time and is very RAM intensive
+  # set to FALSE if some approximation if hardware is limited and if some approximation is tolerable
+  precise_occurrences = FALSE,
+  boundary = boundary,
+  year_range = F, 
+  occupied_county = F
+)
 
 #*******************************
 # *Optional* Defining Custom Spatial Intersects -------------------------------
