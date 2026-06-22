@@ -269,15 +269,20 @@ taxonomyFile <- filter_by_taxon(table = taxonomyFile,
 
 
 #****************
-## Query occurrence records from GBIF----
+## GBIF Occurrence Records----
+
+#******
+### Download GBIF Occurrence Records----
 
 # Users have the option of using rgbif::occ_search or rgbif::occ_download. occ_search() is only meant for smaller requests and generally not recommended for research. For larger requests, use rgbif::occ_download. See https://docs.ropensci.org/rgbif/articles/downloading_a_long_species_list.html for another example and further explanation.
 
-# Compile list of all species names from taxonomyFile (filter to sppList in previous step if desired. Having a pared down list will help speed up run times as you proceed in the code.)
+# Compile list of all species names from current taxonomyFile (filter to sppList in previous step if desired. Having a pared down list will help speed up run times as you proceed in the code.)
 fullSppList <- taxonomyFile$canonical %>%
                unique()
 
-# Get the taxon keys for each species in fullSppList. *This can take a long time for long lists*
+# Get the GBIF taxon keys for each species in fullSppList. 
+# WARNING: This can take a long time for long lists
+# Manually downloading directly from GBIF can often be faster
 gbifTaxonKeys <- fullSppList %>% 
   name_backbone_checklist(strict = T, kingdom = "Animalia") %>% # Change kingdom to your use-case
   filter(matchType == "EXACT") %>% # get matched names
@@ -288,7 +293,7 @@ gbifTaxonKeys <- fullSppList %>%
 # These credentials are stored in your local environment
 check_gbif_creds()
 
-# Intialize download of occurrence data, providing search parameters as needed. This search uses the gbifTaxonKey values generated in the previous step. Read more about adding custom predicates here: https://www.rdocumentation.org/packages/rgbif/versions/3.8.0/topics/download_predicate_dsl
+# Initialize download of occurrence data, providing search parameters as needed. This search uses the gbifTaxonKey values generated in the previous step. Read more about adding custom predicates here: https://www.rdocumentation.org/packages/rgbif/versions/3.8.0/topics/download_predicate_dsl
 occ_download(
   pred_in("taxonKey", gbifTaxonKeys),  # Search for all taxonKeys in the list
   pred("occurrenceStatus", "PRESENT"),
@@ -309,6 +314,9 @@ occ_download(
   #),
   format = "DWCA"  # DarwinCore (DWCA) format preserves helpful fields like "verbatimEventDate"
 )
+
+#******
+### Import GBIF Occurrence Records----
 
 # After executing the download, a message will be output in the console with various instructions for viewing your download, as well as a Download Key. Copy and paste your resulting Download Key into the function below.
 
