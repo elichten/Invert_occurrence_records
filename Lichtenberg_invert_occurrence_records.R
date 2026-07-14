@@ -1353,6 +1353,7 @@ check_time$day <- ifelse(check_time$day > 31 | check_time$day < 1, NA, check_tim
 ### Recover dates----
 
 # The dateFindR() function will search through some other columns in order to find and rescue dates that may not have made it into the correct columns. It will further update the eventDate, day, month, and year columns where these data were a) missing and b) located in one of the searched columns.
+# WARNING: This can take a long time with large datasets and does not provide regular feedback
 recovered_dates <- dateFindR(data = check_time,
        maxYear = year(Sys.Date()),
        minYear = 1700) %>%
@@ -1646,6 +1647,15 @@ if (!exists("unclean_data")) {
   unclean_data <- unclean_data
 }
 
+
+# For a reference list of flag names and counts of their associated records, run this code
+unclean_data %>%
+  dplyr::select(matches("^\\.")) %>%
+  summarise(across(everything(), ~sum(. == FALSE, na.rm = TRUE))) %>%
+  pivot_longer(everything(), names_to = "flag", values_to = "count") %>%
+  print(n = Inf)
+
+
 ## Optional filter 1: Clean the unclean_data dataset by removing flagged occurrences (recommended - gets rid of now-unnecessary flagging columns) ----
 # This step will filter records by all flags that do not appear in the dontFilterThese argument
 cleanData <- BeeBDC::summaryFun(
@@ -1742,6 +1752,7 @@ polygon <- st_sfc(st_polygon(list(coords)))
 boundary <- st_sf(geometry = polygon) 
 st_crs(boundary) <- 4326
 
+###
 # Perform the spatial filter! Filters to only include observations within your specified boundary. Make sure you have created a boundary object using *ONE* of the above options. This will return all records that fall within or on your specified spatial boundary.
 cleanData <- cleanData %>%
   st_as_sf(coords = c("decimalLongitude", "decimalLatitude"), crs = 4326) %>%
@@ -1761,9 +1772,10 @@ cleanData <- iNatFilter %>%
   #filter(county == '')
 
 ## Optional filter 5: Filter records based on coordinateUncertainty ----
- # currently set to filter out records with greater than 2km coordUncertainty (which is what was originally set in the GBIF query) - adjust as needed
+# Currently set to filter out records with greater than 2km coordinateUncertainty - adjust as needed
+# This keeps records with no coordinateUncertainty provided
 cleanData <- cleanData %>%
-  filter(coordinateUncertaintyInMeters <= 2000)
+  filter(coordinateUncertaintyInMeters <= 2000 | is.na(coordinateUncertaintyInMeters))
 
 ## Save and export the cleaned dataset ----
 readr::write_excel_csv(cleanData, file.path(OutPath, "Cleaned",
