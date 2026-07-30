@@ -1,7 +1,7 @@
-# Script to wait for gbif download, and then import gbif table with 
-# BeeBDC column typing using a GBIF occurrence download key. This script
-# is designed to work with the invert_occurrence_records workflow, and
-# assumes access to User_Data directory, created in this workflow.
+# Script to wait for gbif download, then unzip and find occurrence table
+# using a GBIF occurrence download key. This script is designed to work 
+# with the invert_occurrence_records workflow, and assumes access to 
+# User_Data directory, created in this workflow.
 
 # This script can handle DWCA or simple_csv download types, and will only
 # extract the occurrences.txt file from a DWCA download
@@ -32,12 +32,7 @@ get_typed_gbif_download <- function(downloadKey) {
         file.rename(from=temp_fp, to=file.path(fp, paste0(downloadKey, "_DWCA.csv")))
         fp <- file.path(fp, paste0(downloadKey, "_DWCA.csv"))
       }
-
-      # Read in file with BeeBDC column types
-      message("Reading in occurrence file using BeeBDC column types...")
-      typedTable <- suppressWarnings(
-            read_delim(fp, col_types=c(BeeBDC::ColTypeR()$cols))
-      )
+      return(fp)
     }, error = function(e) {
       stop(paste0("Error: ", e))
     }

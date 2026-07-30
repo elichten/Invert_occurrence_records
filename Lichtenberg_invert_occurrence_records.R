@@ -323,19 +323,17 @@ occ_download(
 # Load the downloaded dataset and save to Data/User_data
 # This will wait for GBIF to finish preparing the download, and can take anywhere from 5-60 minutes (or longer if GBIF is experiencing service issues).
 occDatasets <- get_typed_gbif_download("your_download_key") %>%
-               format_gbif_import(.) %>% # Format table to fit BeeBDC template
-               add_occ_records(table = .,
+            # Wrapped in {} to prevent %>% problems
+            { add_occ_records(table = import_gbif_file(.),
                                mainList = occDatasets,
-                               datasetName = "gbifOccs")
+                               datasetName = "gbifOccs") }
 
 # Or load a previously downloaded GBIF database. This step can also handle occurrence.txt files from a DWCA download
-occDatasets <- read_delim(file.path(UserDataPath, "your_file_name.csv"), 
-                          delim = '\t', # GBIF's downloads are tab-delimited — change the delim argument if needed
-                          col_types = (c(BeeBDC::ColTypeR()$cols))) %>%
-               format_gbif_import(.) %>% # Format table to fit BeeBDC template
-               add_occ_records(table = .,
-                               mainList = occDatasets,
-                               datasetName = "gbifOccs_local")
+occDatasets <- add_occ_records(
+  table = import_gbif_file(file.path(UserDataPath, "your_filename.txt")),
+  mainList = occDatasets,
+  datasetName = "gbifOccs_local"
+)
 
 
 #****************
@@ -515,8 +513,8 @@ db_standardized <-
 #*****************
 # To re-start in the middle of the flagging and harmonization process, read in the most recent intermediate file you outputted, replacing "03_space_inter_database.csv" with that file's name.
 if (!exists("check_taxa")) {
-  check_taxa <- readr::write_excel_csv(check_taxa, file.path(OutPath_Intermediate,
-                                                             "02_taxonomy_database.csv"))
+  check_taxa <- readr::read_csv(file.path(OutPath_Intermediate,
+                                          "02_taxonomy_database.csv"))
 }
 #*****************
 
@@ -569,6 +567,9 @@ check_taxa <- subset(check_taxa, .invalidName == TRUE)
 # Adds column ".scientificName_empty"
 check_pf <- bdc::bdc_scientificName_empty(data = check_taxa,
                                           sci_names = "scientificName")
+
+# We're done with check_taxa at this point
+rm(check_taxa)
 
 #****************
 ### Flag occurrences with missing decimalLatitude and decimalLongitude----
@@ -832,7 +833,7 @@ readr::write_excel_csv(check_pf, file.path(OutPath_Intermediate,
                                            "01_prefilter_database.csv"))
 
 # Remove these interim datasets
-rm(check_pf_noNa, stateProvinceOutput, statelist)
+rm(check_pf_noNa, stateProvinceOutput)
 
 # Read in previously saved dataset if necessary
 if (!exists("check_pf")) {
@@ -890,7 +891,7 @@ readr::write_excel_csv(check_pf, file.path(OutPath_Intermediate,
                                            "01_prefilter_database.csv"))
 
 # Remove these interim datasets
-rm(check_pf_noNa, imputed_county)
+rm(check_pf_noNa, imputed_county, us_only, valid_counties, counties_list, county_info)
 
 # Read in previously saved dataset if necessary
 if (!exists("check_pf")) {
@@ -998,6 +999,8 @@ added_xyFromLocality <- readr::read_csv(file.path(OutPath_Check,
 check_pf <- rows_patch(check_pf,
                        added_xyFromLocality,
                        by = 'database_id')
+
+rm(added_xyFromLocality)
 
 # Save the updated file as the new 02_taxonomy_database file. If you need to stop and complete the rest of the flagging later, this file will ensure you will not have to redo the manual georeferencing.
 readr::write_excel_csv(check_pf, file.path(OutPath_Intermediate,
@@ -1191,8 +1194,7 @@ rm(gridded_datasets)
 
 
 # Import your own country-level checklist
-checklist <- readr::read_delim(file.path(UserDataPath, "your_checklist.csv")) %>%
-             check_checklist(.)
+checklist <- readr::read_delim(file.path(UserDataPath, "your_checklist.csv"))
 
 # Or, if working with bee data, import the provided country-level bees checklist
 checklist <- beesChecklist()
@@ -1399,6 +1401,7 @@ check_time <- check_time %>%
     by = "database_id"
   )
 
+rm(recovered_dates)
 
 #****************
 ### No eventDate----
@@ -1573,20 +1576,10 @@ BeeBDC::chordDiagramR(
 
 # Duplicate histogram
 
-# Read in uncleaned data if necessary
-if (!exists("check_time")) {
-  unclean_data <- readr::read_csv(file.path(OutPath_Intermediate, 
-                                       "05_unCleaned_database.csv"), 
-                             col_types = BeeBDC::ColTypeR())
-} else {
-  unclean_data <- check_time
-  rm(check_time)
-}
-
 # Create a plot with two bar graphs
 # One bar shows the absolute number of duplicate records for each source, while the other shows the proportion of records that are duplicated within each data source.
 BeeBDC::dupePlotR(
-  data = unclean_data,
+  data = check_time,
   # The outPath to save the plot as
   outPath = OutPath_Figures,
   fileName = "duplicatePlot.pdf",
@@ -1621,7 +1614,7 @@ BeeBDC::dupePlotR(
 #   duplicates = duplicates)
 
 # Save uncleaned dataset
-unclean_data <- BeeBDC::summaryFun(data = unclean_data, 
+unclean_data <- BeeBDC::summaryFun(data = check_time, 
                               dontFilterThese = c(".gridSummary",
                                                   ".lonFlag",
                                                   ".latFlag",
@@ -1631,7 +1624,7 @@ unclean_data <- BeeBDC::summaryFun(data = unclean_data,
                               filterClean = FALSE) %>%
   readr::write_excel_csv(file.path(OutPath_Intermediate,
                                              "05_unCleaned_database.csv"))
-  
+
 
 #****************
 ## Filter
@@ -1643,10 +1636,7 @@ if (!exists("unclean_data")) {
   unclean_data <- readr::read_csv(file.path(OutPath_Intermediate, 
                                        "05_unCleaned_database.csv"), 
                              col_types = BeeBDC::ColTypeR())
-} else {
-  unclean_data <- unclean_data
 }
-
 
 # For a reference list of flag names and counts of their associated records, run this code
 unclean_data %>%
@@ -1815,6 +1805,7 @@ natureServeMetrics <- get_NatureServe_values(
   year_range = F, 
   occupied_county = F
 )
+
 
 #*******************************
 # *Optional* Defining Custom Spatial Intersects -------------------------------
