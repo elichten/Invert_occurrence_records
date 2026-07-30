@@ -281,7 +281,7 @@ fullSppList <- taxonomyFile$canonical %>%
                unique()
 
 # Get the GBIF taxon keys for each species in fullSppList. 
-# WARNING: This can take a long time for long lists
+# WARNING: This can take a long time for long lists. Users can expect the function to take about 3-4 seconds per 100 species.
 # Manually downloading directly from GBIF can often be faster
 gbifTaxonKeys <- fullSppList %>% 
   name_backbone_checklist(strict = T, kingdom = "Animalia") %>% # Change kingdom to your use-case
@@ -1777,7 +1777,7 @@ readr::write_excel_csv(cleanData, file.path(OutPath, "Cleaned",
 
 #----Preparing data for NatureServe assessment----
 
-# The get_NatureServeValues() function calculates four main values plus two optional values for your data: 
+# The get_NatureServe_Values() function calculates four main values plus two optional values for your data: 
   # 1. observations: the number of records
   # 2. occurrences: the number of distinct clusters of occurrences
   # 3. range extent: minimum area encompassing the occurrences (in km^2)
