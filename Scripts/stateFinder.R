@@ -77,7 +77,9 @@ stateFinder <- function (data = NULL, lat = "decimalLatitude", lon = "decimalLon
     
     data_no_state <- inData %>% dplyr::filter(is.na(stateProvince) | 
                                                   stateProvince == "")
-    if (nrow(data_no_state) == 0) {
+    
+    # If no statelist or data_no_state rows, then no states to determine
+    if (nrow(data_no_state) == 0 || length(statelist) == 0) {
       inData <- inData %>% dplyr::select(-id_temp)
     }
     else {
