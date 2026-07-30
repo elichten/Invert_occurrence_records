@@ -33,6 +33,11 @@ get_NatureServe_values <- function(x, sep_distance = 1, boundary, precise_occurr
     NULL
   }
   
+  # Warn about precise_occurrences
+  if (precise_occurrences) {
+    message("Warning: Getting occurrence count is expensive with large datasets when using precise_occurrences = TRUE")
+  }
+  
   # Process each group
   results <- map2(grouped_data, seq_along(grouped_data), function(species_data, idx) {
     # Create sf object
@@ -45,10 +50,7 @@ get_NatureServe_values <- function(x, sep_distance = 1, boundary, precise_occurr
     # Calculate number of observations (# of unique specimen records)
     observations <- nrow(filtered_sf)
 
-    message("Getting occurrence count.")
-    if (precise_occurrences) {
-      message("This operation is expensive with large datasets when using precise_occurrences = TRUE")
-    }
+    message(paste0("Getting values for ", unique(species_data$scientificName)[1]))
     
     # Calculate number of occurrences
     occurrences <- count_occ_clusters(
