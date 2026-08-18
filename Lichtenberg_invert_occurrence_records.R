@@ -86,7 +86,7 @@ dir.create(file.path(OutPath, "Cleaned"), showWarnings = FALSE)
 # Load custom scripts needed for this project
 R.utils::sourceDirectory(ScriptPath, modifiedOnly = FALSE)
 
-# Store the default par settings so they can be restored
+# Store the default par settings so they can be easily restored
 .pardefaults <- par(no.readonly = T)
 
 #************************************
@@ -1721,10 +1721,10 @@ boundary <- tigris::counties(state = 'Texas') %>%
   st_transform(boundary, crs = 4326) %>%
   dplyr::select(geometry)
 
-# OR: read in your own local shape file
-boundary <- read_sf(file.path(UserDataPath, "your_file_name.shp")) %>%
-  # provide the column name and value (from your .shp) by which you want to filter
-  filter(your_column_name == 'your_desired_value') %>%
+# OR: read in your own local shapefile
+boundary <- read_sf(file.path(UserDataPath, "your_shapefile_name")) %>%
+  # change the below column name and value to select your desired shape rows (e.g. STATE_NAME == 'Texas')
+  filter(your_id_column_name == 'your_desired_value') %>%
   st_transform(boundary, crs = 4326) %>%
   dplyr::select(geometry)
 
