@@ -32,10 +32,6 @@ install.packages("BeeBDC",
 
 # Install dbscan
 install.packages("dbscan")
-
-# Install gnparser and rgnparser
-  # gnparser needs to be installed and up to date before you can install/run rgnparser. Make sure you have latest R, R studio, and packages. Then, follow this link for instructions on how to install gnparser on your device (windows/linux/mac): https://github.com/gnames/gnparser#installation
-  # At the step where you need to move the file to a specific location on your computer, we recommend putting it in the same location as your R packages.
   
 #****************
 ### Load libraries----
@@ -85,6 +81,11 @@ dir.create(file.path(OutPath, "Cleaned"), showWarnings = FALSE)
 
 # Load custom scripts needed for this project
 R.utils::sourceDirectory(ScriptPath, modifiedOnly = FALSE)
+
+# Install gnparser for scientific name parsing used in BDC workflow
+# Run install_gn_parser() below to download/install to your user environment OR follow this link for instructions on how to manually install gnparser on your device (windows/linux/mac): https://github.com/gnames/gnparser#installation
+# The below script comes from the BDC github (see for troubleshooting): https://github.com/brunobrr/bdc/blob/master/vignettes/help/installing_gnparser.Rmd
+install_gn_parser()
 
 # Store the default par settings so they can be easily restored
 .pardefaults <- par(no.readonly = T)
