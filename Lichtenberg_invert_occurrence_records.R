@@ -83,8 +83,8 @@ dir.create(file.path(OutPath, "Cleaned"), showWarnings = FALSE)
 R.utils::sourceDirectory(ScriptPath, modifiedOnly = FALSE)
 
 # Install gnparser for scientific name parsing used in BDC workflow
-# Run install_gn_parser() below to download/install to your user environment OR follow this link for instructions on how to manually install gnparser on your device (windows/linux/mac): https://github.com/gnames/gnparser#installation
-# The below script comes from the BDC github (see for troubleshooting): https://github.com/brunobrr/bdc/blob/master/vignettes/help/installing_gnparser.Rmd
+# The install_gn_parser() script comes from the BDC github (see for troubleshooting): https://github.com/brunobrr/bdc/blob/master/vignettes/help/installing_gnparser.Rmd
+# Run to download/install gnparser to your user environment OR follow this link for instructions on how to manually install gnparser on your device (windows/linux/mac): https://github.com/gnames/gnparser#installation
 install_gn_parser()
 
 # Store the default par settings so they can be easily restored
