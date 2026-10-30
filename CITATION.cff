@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Collins"
+  given-names: "Shannon M."
+  orcid: "https://orcid.org/0009-0000-8048-4444"
+- family-names: "Lichtenberg"
+  given-names: "Elinor M."
+  orcid: "https://orcid.org/0000-0002-2729-4534"
+- family-names: "Pearson"
+  given-names: "Avery E."
+  orcid: "https://orcid.org/0009-0004-6567-6906"
+- family-names: "Webb"
+  given-names: "Mitchell"
+- family-names: "Whyle"
+  given-names: "Robert L."
+  orcid: "https://orcid.org/0000-0002-6726-134X"
+title: "Invert_occurrence_records"
+version: 1.0
+date-released: 2026-11-03
+url: "https://github.com/elichten/Invert_occurrence_records"
