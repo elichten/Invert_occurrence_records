@@ -61,6 +61,7 @@ library(dbscan)
 RootPath <- here::here()
 
 # Set up directories — Run each time you use the script.
+# Any warnings that a directory "already exists" can be safely ignored. 
 BeeBDC::dirMaker(RootPath = RootPath, 
                  RDoc = "Lichtenberg_invert_occurrence_records.R",
                  DataPath = file.path(RootPath, 'Data'),
