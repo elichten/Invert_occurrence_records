@@ -1,9 +1,24 @@
+# Check getPass is installed ----
+if (!requireNamespace("getPass", quietly = TRUE)) {
+  stop(
+    "Package 'getPass' is required for GBIF credential entry. ",
+    "Please install it using install.packages('getPass').",
+    call. = FALSE
+  )
+}
+
 # Function to set GBIF credentials in user-dialogue
 set_gbif_creds <- function(creds) {
   # Iterate through credentials listed above, requesting user input
   # Set each in environment
   for (credential in creds) {
-    user_input <- readline(prompt=sprintf("Enter %s: ", credential))
+    user_input <- if (credential == "GBIF_PWD") {
+      getPass::getPass(msg = sprintf("Enter %s: ", credential))
+    } else {
+      readline(prompt = sprintf("Enter %s: ", credential))
+    }
+    # getPass returns NULL on cancel
+    if (is.null(user_input)) stop("Credential entry cancelled.", call. = FALSE)
     do.call(Sys.setenv, setNames(list(user_input), credential))
   }
 }

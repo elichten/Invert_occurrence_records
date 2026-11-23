@@ -32,6 +32,9 @@ install.packages("BeeBDC",
 
 # Install dbscan
 install.packages("dbscan")
+
+# Install getPass
+install.packages("getPass")
   
 #****************
 ### Load libraries----
