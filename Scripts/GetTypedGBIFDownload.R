@@ -37,7 +37,4 @@ get_typed_gbif_download <- function(downloadKey) {
       stop(paste0("Error: ", e))
     }
   )
-
-  
-  return(typedTable)
 }
